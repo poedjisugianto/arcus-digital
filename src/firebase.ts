@@ -1,7 +1,8 @@
 import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+
 // Define the config type
 interface FirebaseConfig {
   apiKey: string;
@@ -14,17 +15,21 @@ interface FirebaseConfig {
   firestoreDatabaseId?: string;
 }
 
+// Dynamically check for firebase-applet-config.json if present
+const appletConfigs = import.meta.glob('/firebase-applet-config.json', { eager: true }) as Record<string, any>;
+const appletConfig = appletConfigs['/firebase-applet-config.json']?.default || appletConfigs['/firebase-applet-config.json'] || {};
+
 const getFirebaseConfig = (): FirebaseConfig => {
-  // Use environment variables (Vite style)
+  // Use environment variables (Vite style) with fallback to firebase-applet-config.json
   const envConfig: FirebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "",
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "",
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "",
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "",
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
-    appId: import.meta.env.VITE_FIREBASE_APP_ID || "",
-    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "",
-    firestoreDatabaseId: import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || "",
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || appletConfig.apiKey || "",
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || appletConfig.authDomain || "",
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || appletConfig.projectId || "",
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || appletConfig.storageBucket || "",
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || appletConfig.messagingSenderId || "",
+    appId: import.meta.env.VITE_FIREBASE_APP_ID || appletConfig.appId || "",
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || appletConfig.measurementId || "",
+    firestoreDatabaseId: import.meta.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || appletConfig.firestoreDatabaseId || "",
   };
 
   return envConfig;

@@ -51,9 +51,18 @@ export default function LoginPanel({ users, onLogin, onRegister, onUpdateUser, o
         const user = userCredential.user;
 
         if (user) {
-          // Fetch additional profile data from Firestore
-          const profileSnap = await getDoc(doc(db, 'profiles', user.uid));
-          const profileData = profileSnap.exists() ? profileSnap.data().data : null;
+          // Fetch additional profile data from Firestore safely
+          let profileData = null;
+          if (db) {
+            try {
+              const profileSnap = await getDoc(doc(db, 'profiles', user.uid));
+              if (profileSnap.exists()) {
+                profileData = profileSnap.data().data;
+              }
+            } catch (profileErr) {
+              console.warn("Could not fetch profile document from Firestore:", profileErr);
+            }
+          }
 
           const isSuper = profileData?.role === 'SUPERADMIN' || 
                          profileData?.role === 'superadmin' || 
@@ -63,7 +72,7 @@ export default function LoginPanel({ users, onLogin, onRegister, onUpdateUser, o
           const loggedInUser: User = {
             id: user.uid,
             email: user.email || '',
-            name: profileData?.name || user.displayName || 'User',
+            name: profileData?.name || user.displayName || user.email?.split('@')[0] || 'User',
             phone: profileData?.phone || '',
             isOrganizer: true,
             isVerified: user.emailVerified,
@@ -96,11 +105,17 @@ export default function LoginPanel({ users, onLogin, onRegister, onUpdateUser, o
           };
           
           // Create profile in Firestore
-          await setDoc(doc(db, 'profiles', user.uid), {
-            id: user.uid,
-            data: newUser,
-            updatedAt: new Date().toISOString()
-          }, { merge: true });
+          if (db) {
+            try {
+              await setDoc(doc(db, 'profiles', user.uid), {
+                id: user.uid,
+                data: newUser,
+                updatedAt: new Date().toISOString()
+              }, { merge: true });
+            } catch (pErr) {
+              console.warn("Could not write initial profile document:", pErr);
+            }
+          }
           
           onRegister(newUser);
           onLogin(newUser);
@@ -115,6 +130,8 @@ export default function LoginPanel({ users, onLogin, onRegister, onUpdateUser, o
         msg = 'Email sudah terdaftar. Silakan login atau gunakan email lain.';
       } else if (err.code === 'auth/operation-not-allowed') {
         msg = 'Metode login ini belum diaktifkan di Firebase Console. Silakan aktifkan Email/Password dan Google di tab Authentication.';
+      } else if (msg.toLowerCase().includes('client is offline')) {
+        msg = 'Koneksi ke Firebase Database terputus. Pastikan Environment Variables Vercel sudah di-Redeploy.';
       }
       setError(msg);
     } finally {
@@ -141,7 +158,7 @@ export default function LoginPanel({ users, onLogin, onRegister, onUpdateUser, o
   };
 
   const handleGoogleLogin = async () => {
-    if (!auth || !db) return;
+    if (!auth) return;
     setIsLoading(true);
     setError('');
     const provider = new GoogleAuthProvider();
@@ -149,8 +166,19 @@ export default function LoginPanel({ users, onLogin, onRegister, onUpdateUser, o
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
       
-      const profileSnap = await getDoc(doc(db, 'profiles', user.uid));
-      const profileData = profileSnap.exists() ? profileSnap.data().data : null;
+      let profileData = null;
+      let exists = false;
+      if (db) {
+        try {
+          const profileSnap = await getDoc(doc(db, 'profiles', user.uid));
+          exists = profileSnap.exists();
+          if (exists) {
+            profileData = profileSnap.data().data;
+          }
+        } catch (pErr) {
+          console.warn("Google login: could not fetch profile document:", pErr);
+        }
+      }
 
       const isSuper = profileData?.role === 'SUPERADMIN' || 
                      profileData?.role === 'superadmin' || 
@@ -160,7 +188,7 @@ export default function LoginPanel({ users, onLogin, onRegister, onUpdateUser, o
       const loggedInUser: User = {
         id: user.uid,
         email: user.email || '',
-        name: profileData?.name || user.displayName || 'User',
+        name: profileData?.name || user.displayName || user.email?.split('@')[0] || 'User',
         phone: profileData?.phone || '',
         isOrganizer: true,
         isVerified: user.emailVerified,
@@ -168,19 +196,27 @@ export default function LoginPanel({ users, onLogin, onRegister, onUpdateUser, o
         role: isSuper ? UserRole.SUPERADMIN : ((profileData?.role as UserRole) || UserRole.ORGANIZER)
       };
 
-      // If profile doesn't exist, create one
-      if (!profileSnap.exists()) {
-        await setDoc(doc(db, 'profiles', user.uid), {
-          id: user.uid,
-          data: loggedInUser,
-          updatedAt: new Date().toISOString()
-        }, { merge: true });
+      // If profile doesn't exist, try to create one
+      if (!exists && db) {
+        try {
+          await setDoc(doc(db, 'profiles', user.uid), {
+            id: user.uid,
+            data: loggedInUser,
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+        } catch (sErr) {
+          console.warn("Google login: could not create profile document:", sErr);
+        }
       }
 
       onLogin(loggedInUser);
     } catch (err: any) {
       console.error("Google Auth error:", err);
-      setError(err.message || 'Gagal login dengan Google.');
+      let msg = err.message || 'Gagal login dengan Google.';
+      if (msg.toLowerCase().includes('client is offline')) {
+        msg = 'Koneksi ke Firebase Database terputus. Pastikan Environment Variables di Vercel sudah di-Redeploy.';
+      }
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
