@@ -1,0 +1,84 @@
+{
+  "entities": {
+    "Profile": {
+      "title": "User Profile",
+      "description": "Stores user roles and additional metadata.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["ADMIN", "ORGANIZER", "JUDGE", "SCORER", "PARTICIPANT", "SUPERADMIN", "MASTER_ADMIN"] },
+        "club": { "type": "string" },
+        "phone": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "isVerified": { "type": "boolean" }
+      },
+      "required": ["email", "name", "role"]
+    },
+    "ArcheryEvent": {
+      "title": "Archery Event",
+      "description": "Information about an archery tournament or practice session.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "status": { "type": "string", "enum": ["DRAFT", "ACTIVE", "COMPLETED", "ONGOING", "UPCOMING", "DELETED"] },
+        "ownerId": { "type": "string" },
+        "settings": { "type": "object" },
+        "archers": { "type": "array" },
+        "officials": { "type": "array" },
+        "registrations": { "type": "array" },
+        "registrationCount": { "type": "number" },
+        "officialCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Submission": {
+      "title": "Event Participant Submission",
+      "description": "Registration details for a participant in a specific event.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "club": { "type": "string" },
+        "category": { "type": "string" },
+        "status": { "type": "string", "enum": ["PENDING", "PAID", "APPROVED", "REJECTED", "CONFIRMED"] },
+        "regType": { "type": "string", "enum": ["ARCHER", "OFFICIAL"] },
+        "serverTimestamp": { "type": "object" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "GlobalSettings": {
+      "title": "Global System Settings",
+      "description": "System-wide configuration for fees and payment gateways.",
+      "type": "object",
+      "properties": {
+        "feeAdult": { "type": "number" },
+        "feeKids": { "type": "number" },
+        "maintenanceMode": { "type": "boolean" },
+        "paymentGatewayProvider": { "type": "string", "enum": ["NONE", "MIDTRANS", "XENDIT"] }
+      }
+    }
+  },
+  "firestore": {
+    "/profiles/{userId}": {
+      "schema": "Profile",
+      "description": "User profile with roles."
+    },
+    "/events/{eventId}": {
+      "schema": "ArcheryEvent",
+      "description": "Main event information."
+    },
+    "/events/{eventId}/submissions/{submissionId}": {
+      "schema": "Submission",
+      "description": "Participant registrations for a specific event."
+    },
+    "/systemConfigs/global": {
+      "schema": "GlobalSettings",
+      "description": "System-wide settings."
+    }
+  }
+}
