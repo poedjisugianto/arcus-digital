@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. DEFAULT DENY
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helper Functions ---
+    function isSignedIn() { 
+      return request.auth != null; 
+    }
+    
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+
+    function isAdmin() {
+      let hardcoded = ['poedji.sugianto@gmail.com', 'admin@arcus.id', 'arcus.id@gmail.com', 'user@arcus.id', 'poedjisugianto@gmail.com'];
+      return isSignedIn() && (
+        request.auth.token.email.lower() in hardcoded ||
+        (exists(/databases/$(database)/documents/profiles/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role in ['SUPERADMIN', 'ADMIN', 'MASTER_ADMIN', 'superadmin', 'admin'])
+      );
+    }
+
+    function isDocOwner(ownerId) {
+      return isSignedIn() && (
+        request.auth.uid == ownerId || 
+        request.auth.token.email == ownerId || 
+        request.auth.token.email.lower() == ownerId.lower()
+      );
+    }
+
+    // --- 1. Profiles ---
+    match /profiles/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if (isSignedIn() && request.auth.uid == userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // --- 2. Events & Sub-collections ---
+    match /events/{eventId} {
+      // Events are public for viewing
+      allow read: if true;
+      
+      // Anyone signed in can start a new tournament
+      allow create: if isSignedIn();
+      
+      // Management restricted to owners or admins
+      allow update, delete: if isAdmin() || isDocOwner(resource.data.ownerId) || isDocOwner(resource.data.settings.organizerId);
+
+      // Participant Registrations
+      match /submissions/{subId} {
+        allow read: if true;
+        allow create: if true; // Registration is public
+        allow update, delete: if isAdmin() || isDocOwner(get(/databases/$(database)/documents/events/$(eventId)).data.ownerId);
+      }
+
+      // Scores
+      match /scores/{scoreId} {
+        allow read: if true;
+        allow write: if true;
+      }
+
+      // Score Logs
+      match /scoreLogs/{logId} {
+        allow read: if true;
+        allow write: if true;
+      }
+
+      // Sharded Data for performance
+      match /shards/{shardId} {
+        allow read, write: if true; 
+      }
+    }
+
+    // --- 3. System Configs ---
+    match /systemConfigs/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // diagnostic
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}
