@@ -51,11 +51,17 @@ const app = (() => {
   }
 })();
 
-export const db = app ? (
-  firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== "" && firebaseConfig.firestoreDatabaseId !== "(default)"
-    ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
-    : getFirestore(app)
-) : null as any;
+export const db = (() => {
+  if (!app) return null as any;
+  const dbId = firebaseConfig.firestoreDatabaseId;
+  if (dbId && dbId.trim() !== "" && dbId !== "(default)") {
+    console.log(`[Firebase] Initializing Firestore with custom database ID: "${dbId}"`);
+    return getFirestore(app, dbId);
+  } else if (dbId === "(default)") {
+    return getFirestore(app, "(default)");
+  }
+  return getFirestore(app);
+})();
 export const auth = app ? getAuth(app) : null as any;
 export const storage = app ? getStorage(app) : null as any;
 

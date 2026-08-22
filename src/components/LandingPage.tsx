@@ -13,12 +13,17 @@ import {
   CalendarDays,
   LayoutGrid,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  Download,
+  Laptop
 } from 'lucide-react';
 import { ArcheryEvent, User } from '../types';
 import { resolveGoogleDriveUrl } from '../lib/photoService';
 import ArcusLogo from './ArcusLogo';
 import TournamentCalendar from './TournamentCalendar';
+import { usePWAInstall } from '../hooks/usePWAInstall';
+import InstallAppModal from './InstallAppModal';
+import InstallAppSection from './InstallAppSection';
 
 interface Props {
   events: ArcheryEvent[];
@@ -57,6 +62,20 @@ export default function LandingPage({
 }: Props) {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<'GRID' | 'CALENDAR'>('GRID');
+  
+  // PWA Install State & Hook
+  const { isInstallable, isInstalled, platform, promptInstall } = usePWAInstall();
+  const [isInstallModalOpen, setIsInstallModalOpen] = React.useState(false);
+  const [installModalTab, setInstallModalTab] = React.useState<'mobile' | 'desktop'>('mobile');
+
+  const handleOpenInstallModal = (defaultTab?: 'mobile' | 'desktop') => {
+    if (defaultTab) {
+      setInstallModalTab(defaultTab);
+    } else {
+      setInstallModalTab(platform === 'desktop' ? 'desktop' : 'mobile');
+    }
+    setIsInstallModalOpen(true);
+  };
   
   // Debug log untuk memastikan data sampai ke komponen
   React.useEffect(() => {
@@ -140,8 +159,12 @@ export default function LandingPage({
               </div>
             </div>
             
-            <div className="hidden md:flex items-center gap-10">
+            <div className="hidden md:flex items-center gap-8">
               <a href="#events" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-slate-900 transition-colors">Event</a>
+              <a href="#install-app" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-arcus-red transition-colors flex items-center gap-1.5">
+                <Download className="w-3.5 h-3.5 text-arcus-red" />
+                Instal App
+              </a>
               <a href="#features" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-slate-900 transition-colors">Fitur</a>
               
               <a 
@@ -197,6 +220,18 @@ export default function LandingPage({
             className="md:hidden bg-white border-t border-slate-100 p-6 space-y-6"
           >
             <a href="#events" onClick={() => setIsMenuOpen(false)} className="block text-sm font-black uppercase tracking-widest text-slate-900">Event Terkini</a>
+            <button 
+              onClick={() => {
+                setIsMenuOpen(false);
+                handleOpenInstallModal('mobile');
+              }}
+              className="w-full text-left flex items-center justify-between text-sm font-black uppercase tracking-widest text-arcus-red"
+            >
+              <span className="flex items-center gap-2">
+                <Download className="w-4 h-4" /> Instal di PC & HP
+              </span>
+              <span className="text-[8px] bg-red-100 text-arcus-red px-2 py-0.5 rounded-full">PWA</span>
+            </button>
             <a href="#features" onClick={() => setIsMenuOpen(false)} className="block text-sm font-black uppercase tracking-widest text-slate-900">Fitur Sistem</a>
             <a 
               href="https://ais-pre-ihwvpfbazwbyenzfsn3unw-238734823836.asia-southeast1.run.app/" 
@@ -257,10 +292,18 @@ export default function LandingPage({
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full sm:w-auto px-4 md:px-0">
               <button 
                 onClick={onScorerLogin}
-                className="w-full sm:w-auto px-10 py-3.5 bg-arcus-red text-white border-2 border-arcus-red rounded-lg font-black font-oswald uppercase italic text-lg hover:bg-white hover:text-arcus-red transition-all shadow-xl shadow-red-200 flex items-center justify-center gap-3 group active:scale-95"
+                className="w-full sm:w-auto px-10 py-3.5 bg-arcus-red text-white border-2 border-arcus-red rounded-xl font-black font-oswald uppercase italic text-lg hover:bg-white hover:text-arcus-red transition-all shadow-xl shadow-red-200 flex items-center justify-center gap-3 group active:scale-95"
               >
                 <ShieldCheck className="w-5 h-5" />
                 SCORER ACCESS
+              </button>
+
+              <button 
+                onClick={() => handleOpenInstallModal()}
+                className="w-full sm:w-auto px-8 py-3.5 bg-slate-900 hover:bg-slate-800 text-white border-2 border-slate-900 rounded-xl font-black font-oswald uppercase italic text-lg transition-all shadow-xl flex items-center justify-center gap-3 active:scale-95 group"
+              >
+                <Download className="w-5 h-5 text-arcus-red group-hover:animate-bounce" />
+                <span>INSTAL DI PC & HP</span>
               </button>
             </div>
           </motion.div>
@@ -554,6 +597,15 @@ export default function LandingPage({
         </div>
       </section>
 
+      {/* Install App Section (PWA for PC & Mobile) */}
+      <InstallAppSection 
+        onOpenInstallModal={handleOpenInstallModal}
+        platform={platform}
+        isInstallable={isInstallable}
+        isInstalled={isInstalled}
+        onPromptInstall={promptInstall}
+      />
+
       {/* Features Section - Simple & Compact */}
       <section id="features" className="py-20 md:py-24 px-6 lg:px-12 bg-slate-950 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-px bg-white/10" />
@@ -648,15 +700,33 @@ export default function LandingPage({
               
               <div className="grid grid-cols-2 gap-8">
                 <div className="space-y-6">
-                  <div className="tech-label opacity-40">PERUSAHAAN</div>
+                  <div className="tech-label opacity-40">APLIKASI & SISTEM</div>
                   <ul className="space-y-4">
-                    <li><button className="text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-arcus-red transition-all">Tentang Kami</button></li>
-                    <li><button className="text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-arcus-red transition-all">Hubungi Kami</button></li>
+                    <li>
+                      <button 
+                        onClick={() => handleOpenInstallModal('desktop')}
+                        className="text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-arcus-red transition-all flex items-center gap-1.5"
+                      >
+                        <Laptop className="w-3.5 h-3.5" />
+                        Instal di PC / Laptop
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        onClick={() => handleOpenInstallModal('mobile')}
+                        className="text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-arcus-red transition-all flex items-center gap-1.5"
+                      >
+                        <Smartphone className="w-3.5 h-3.5" />
+                        Instal di HP (Android/iOS)
+                      </button>
+                    </li>
+                    <li><button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-arcus-red transition-all">Kembali ke Atas</button></li>
                   </ul>
                 </div>
                 <div className="space-y-6">
-                  <div className="tech-label opacity-40">LEGAL</div>
+                  <div className="tech-label opacity-40">PERUSAHAAN</div>
                   <ul className="space-y-4">
+                    <li><button className="text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-arcus-red transition-all">Tentang Kami</button></li>
                     <li><button className="text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-arcus-red transition-all">Kebijakan Privasi</button></li>
                     <li><button className="text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-arcus-red transition-all">Syarat & Ketentuan</button></li>
                   </ul>
@@ -692,6 +762,17 @@ export default function LandingPage({
           </div>
         </div>
       </footer>
+
+      {/* PWA Install Modal */}
+      <InstallAppModal 
+        isOpen={isInstallModalOpen}
+        onClose={() => setIsInstallModalOpen(false)}
+        platform={platform}
+        isInstallable={isInstallable}
+        isInstalled={isInstalled}
+        onPromptInstall={promptInstall}
+        initialTab={installModalTab}
+      />
     </div>
   );
 }

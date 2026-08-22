@@ -1,27 +1,46 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, Target, QrCode, X, User, Delete, CheckCircle2, 
-  ChevronRight, ChevronLeft, Trash2, ScanLine
+  ChevronRight, ChevronLeft, Trash2, ScanLine, ShieldCheck, Lock
 } from 'lucide-react';
-import { ArcheryEvent, ScoreEntry, Archer, TargetType, ScoreLog, CategoryType } from '../types';
+import { ArcheryEvent, ScoreEntry, Archer, TargetType, ScoreLog, CategoryType, ScorerAccess } from '../types';
 import { CATEGORY_LABELS } from '../constants';
 import QRScanner from './QRScanner';
 
 interface Props {
   state: ArcheryEvent;
+  currentScorer?: ScorerAccess | null;
   onSaveScore: (score: ScoreEntry | ScoreEntry[], log?: ScoreLog | ScoreLog[]) => void;
   onBack?: () => void;
 }
 
-const ScoringPanel: React.FC<Props> = ({ state, onSaveScore, onBack }) => {
+const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBack }) => {
   const [selectedCategory, setSelectedCategory] = useState<CategoryType | 'ALL'>('ALL');
-  const [selectedTarget, setSelectedTarget] = useState(1);
+  
+  const allowedTargets = useMemo(() => {
+    const total = state.settings?.totalTargets || 1;
+    const allTargets = Array.from({ length: total }, (_, i) => i + 1);
+    if (!currentScorer || !currentScorer.assignedTargets || currentScorer.assignedTargets.length === 0) {
+      return allTargets;
+    }
+    const filtered = currentScorer.assignedTargets.filter(t => t >= 1 && t <= total);
+    return filtered.length > 0 ? filtered : allTargets;
+  }, [state.settings?.totalTargets, currentScorer]);
+
+  const [selectedTarget, setSelectedTarget] = useState<number>(() => allowedTargets[0] || 1);
   const [selectedArcherId, setSelectedArcherId] = useState<string | null>(null);
   const [currentEnd, setCurrentEnd] = useState(0);
   const [tempArrows, setTempArrows] = useState<(number | 'X')[]>([]);
   const [isDirty, setIsDirty] = useState(false);
   const [showToast, setShowToast] = useState<string | null>(null);
   const [showScanner, setShowScanner] = useState(false);
+
+  // Keep selectedTarget inside allowedTargets if props change
+  useEffect(() => {
+    if (!allowedTargets.includes(selectedTarget)) {
+      setSelectedTarget(allowedTargets[0] || 1);
+    }
+  }, [allowedTargets, selectedTarget]);
 
   const availableCategories = useMemo(() => {
     return Array.from(new Set((state.archers || []).map(a => a.category)));
@@ -86,6 +105,8 @@ const ScoringPanel: React.FC<Props> = ({ state, onSaveScore, onBack }) => {
       return [2, 1, 'M'];
     } else if (config?.targetType === TargetType.TRADITIONAL_6_RING) {
       return [6, 5, 4, 3, 2, 1, 0];
+    } else if (config?.targetType === TargetType.FACE_5_RING) {
+      return [5, 4, 3, 2, 1, 0];
     } else if (config?.targetType === TargetType.FACE_3X20) {
       return ['X', 10, 9, 8, 7, 6, 0];
     }
@@ -182,11 +203,13 @@ const ScoringPanel: React.FC<Props> = ({ state, onSaveScore, onBack }) => {
     // Check if it's a reset (all -1)
     const isReset = arrows.every(v => v === -1);
     
-    let maxVal = 6;
+    let maxVal = 10;
     if (config.targetType === TargetType.PUTA || config.targetType === TargetType.TRADITIONAL_PUTA) {
       maxVal = 2;
     } else if (config.targetType === TargetType.TRADITIONAL_6_RING) {
       maxVal = 6;
+    } else if (config.targetType === TargetType.FACE_5_RING) {
+      maxVal = 5;
     }
 
     const total = arrows.reduce<number>((acc, v) => {
@@ -206,6 +229,9 @@ const ScoringPanel: React.FC<Props> = ({ state, onSaveScore, onBack }) => {
     } else if (targetType === TargetType.TRADITIONAL_6_RING) {
       count6 = arrows.filter(v => v === 6).length;
       count5 = arrows.filter(v => v === 5).length;
+    } else if (targetType === TargetType.FACE_5_RING) {
+      count6 = arrows.filter(v => v === 5).length;
+      count5 = arrows.filter(v => v === 4).length;
     } else {
       // Standard 10-ring face (X, 10, 9, 8...)
       count6 = arrows.filter(v => v === 'X' || v === 10).length;
@@ -245,13 +271,20 @@ const ScoringPanel: React.FC<Props> = ({ state, onSaveScore, onBack }) => {
     setShowToast(`Skor ${selectedArcher?.name} Disimpan!`);
     setTimeout(() => setShowToast(null), 1500);
 
-    // Auto Advance logic (Pindah Archer -> Pindah Rambahan)
+    // Auto Advance logic (Pindah Archer -> Pindah Bantalan berikutnya yang diizinkan -> Pindah Rambahan)
     const archerIdx = archersAtTarget.findIndex(a => a.id === selectedArcherId);
     if (archerIdx < archersAtTarget.length - 1) {
       setSelectedArcherId(archersAtTarget[archerIdx + 1].id);
-    } else if (currentEnd < config.ends - 1) {
-      setSelectedArcherId(archersAtTarget[0].id);
-      setCurrentEnd(currentEnd + 1);
+    } else {
+      const currentTargetIdx = allowedTargets.indexOf(selectedTarget);
+      if (currentTargetIdx >= 0 && currentTargetIdx < allowedTargets.length - 1) {
+        // Pindah ke target berikutnya dalam alokasi petugas ini
+        setSelectedTarget(allowedTargets[currentTargetIdx + 1]);
+      } else if (currentEnd < config.ends - 1) {
+        // Kembali ke target pertama dan lanjut ke rambahan berikutnya
+        setSelectedTarget(allowedTargets[0] || 1);
+        setCurrentEnd(currentEnd + 1);
+      }
     }
   };
 
@@ -267,6 +300,10 @@ const ScoringPanel: React.FC<Props> = ({ state, onSaveScore, onBack }) => {
     try {
       const parsed = JSON.parse(data);
       if (parsed.type === 'SCORING_SHEET' && parsed.eventId === state.id) {
+        if (allowedTargets.length > 0 && !allowedTargets.includes(parsed.targetNo)) {
+          alert(`Akses Ditolak: Anda hanya memiliki akses untuk Bantalan ${allowedTargets.join(', ')}.`);
+          return;
+        }
         setSelectedTarget(parsed.targetNo);
         setSelectedArcherId(parsed.archerId);
         setShowScanner(false);
@@ -314,20 +351,29 @@ const ScoringPanel: React.FC<Props> = ({ state, onSaveScore, onBack }) => {
           <div className="flex items-center gap-3">
             <button onClick={onBack} className="p-3 bg-slate-100 rounded-lg active:scale-90 text-slate-600"><ArrowLeft className="w-6 h-6" /></button>
             <div>
-              <h2 className="text-base font-black uppercase font-oswald leading-none tracking-tight text-slate-900">Bantalan {selectedTarget}</h2>
-              <p className="text-[9px] font-bold uppercase mt-1 tracking-widest text-slate-900">Field Score Terminal</p>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-black uppercase font-oswald leading-none tracking-tight text-slate-900">Bantalan {selectedTarget}</h2>
+                {currentScorer?.assignedTargets && currentScorer.assignedTargets.length > 0 && (
+                  <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[8px] font-black rounded-md uppercase tracking-wider flex items-center gap-1 border border-purple-200">
+                    <Lock className="w-2.5 h-2.5" /> Bantalan {allowedTargets.join(', ')}
+                  </span>
+                )}
+              </div>
+              <p className="text-[9px] font-bold uppercase mt-1 tracking-widest text-slate-500">
+                {currentScorer ? `Petugas: ${currentScorer.name}` : 'Field Score Terminal'}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-1.5 font-sans">
              <button onClick={() => setShowScanner(true)} className="p-3 bg-arcus-red text-white rounded-lg active:scale-90 transition-all shadow-md"><ScanLine className="w-5 h-5" /></button>
              <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-[200px] px-2 bg-slate-50 border border-slate-100 p-1 rounded-lg">
-                {Array.from({ length: state.settings?.totalTargets || 0 }).map((_, i) => (
+                {allowedTargets.map((targetNum) => (
                   <button 
-                    key={i} 
-                    onClick={() => setSelectedTarget(i + 1)}
-                    className={`shrink-0 w-8 h-8 rounded-lg font-black text-[10px] transition-all border ${selectedTarget === i + 1 ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-transparent border-transparent text-slate-900 opacity-60'}`}
+                    key={targetNum} 
+                    onClick={() => setSelectedTarget(targetNum)}
+                    className={`shrink-0 w-8 h-8 rounded-lg font-black text-[10px] transition-all border ${selectedTarget === targetNum ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-transparent border-transparent text-slate-900 opacity-60'}`}
                   >
-                    {i + 1}
+                    {targetNum}
                   </button>
                 ))}
              </div>

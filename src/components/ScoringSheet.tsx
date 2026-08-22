@@ -111,10 +111,10 @@ const ScoringSheet: React.FC<Props> = ({ settings, eventId, archer, isA6 = false
             ))}
             <th className={isA6 ? "border border-black py-0.5 w-8 font-black text-[9px]" : "border-2 border-black py-3 w-20 font-black text-lg"}>Tot</th>
             <th className={isA6 ? "border border-black py-0.5 w-6 font-black text-[9px]" : "border-2 border-black py-3 w-16 font-black text-lg"}>
-              {(config.targetType === TargetType.PUTA || config.targetType === TargetType.TRADITIONAL_PUTA) ? '2' : '6'}
+              {(config.targetType === TargetType.PUTA || config.targetType === TargetType.TRADITIONAL_PUTA) ? '2' : (config.targetType === TargetType.FACE_5_RING ? '5' : (config.targetType === TargetType.TRADITIONAL_6_RING ? '6' : '10/X'))}
             </th>
             <th className={isA6 ? "border border-black py-0.5 w-6 font-black text-[9px]" : "border-2 border-black py-3 w-16 font-black text-lg"}>
-              {(config.targetType === TargetType.PUTA || config.targetType === TargetType.TRADITIONAL_PUTA) ? '1' : '5/X'}
+              {(config.targetType === TargetType.PUTA || config.targetType === TargetType.TRADITIONAL_PUTA) ? '1' : (config.targetType === TargetType.FACE_5_RING ? '4' : (config.targetType === TargetType.TRADITIONAL_6_RING ? '5' : '9'))}
             </th>
             <th className={isA6 ? "border border-black py-0.5 w-10 font-black text-[9px]" : "border-2 border-black py-3 w-24 font-black text-lg"}>Kum.</th>
           </tr>

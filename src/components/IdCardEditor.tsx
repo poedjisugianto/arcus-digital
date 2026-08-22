@@ -2,10 +2,12 @@ import React, { useState, useRef, useMemo } from 'react';
 import { 
   ArrowLeft, Printer, Image as ImageIcon, Plus, Trash2, 
   Settings, User, MapPin, Calendar, Layout, Download,
-  Type, Move, Maximize, Activity, CreditCard, ShieldCheck, Star, Trophy, Crown, Crosshair, Target
+  Type, Move, Maximize, Activity, CreditCard, ShieldCheck, Star, Trophy, Crown, Crosshair, Target,
+  Barcode as BarcodeIcon, QrCode
 } from 'lucide-react';
 import { Archer, TournamentSettings, CategoryType } from '../types';
 import { QRCodeSVG } from 'qrcode.react';
+import { Barcode } from './Barcode';
 
 import { safeFormatDate } from '../lib/dateUtils';
 
@@ -35,6 +37,7 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
   const [accentColor, setAccentColor] = useState('#ef4444'); // Default red
   const [bgPattern, setBgPattern] = useState<BgPattern>('SPORTY_MESH');
   const [cardTheme, setCardTheme] = useState<CardTheme>('SPORTY_MODERN');
+  const [barcodeFormat, setBarcodeFormat] = useState<'BARCODE_128' | 'QR_CODE'>('BARCODE_128');
   const [showEditor, setShowEditor] = useState(true);
   const [viewMode, setViewMode] = useState<'DESIGNER' | 'FULL_PREVIEW'>('DESIGNER');
   
@@ -318,34 +321,56 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
               </p>
             </div>
 
-            {/* Visual Identification Area (Photo + QR Code side-by-side) */}
-            <div className="flex items-center justify-center gap-4">
-              {/* Profile Photo (Sleek Avatar Card) */}
-              <div className={`p-1 w-[80px] h-[105px] rounded-2xl overflow-hidden relative shadow-md border flex items-center justify-center shrink-0 ${
-                isChampion || isProX 
-                  ? 'border-yellow-500/40 bg-slate-900/40' 
-                  : isStealth 
-                  ? 'border-white/10 bg-slate-850' 
-                  : isGlory 
-                  ? 'border-amber-200 bg-white' 
-                  : 'border-slate-200 bg-slate-50'
-              }`}>
-                {person.photoUrl ? (
-                  <img src={person.photoUrl} alt="" className="w-full h-full object-cover rounded-xl" />
+            {/* Visual Identification Area (Photo + Barcode Batang / QR Code) */}
+            <div className="flex flex-col items-center justify-center gap-3 w-full">
+              <div className="flex items-center justify-center gap-3 w-full">
+                {/* Profile Photo (Sleek Avatar Card) */}
+                <div className={`p-1 w-[80px] h-[105px] rounded-2xl overflow-hidden relative shadow-md border flex items-center justify-center shrink-0 ${
+                  isChampion || isProX 
+                    ? 'border-yellow-500/40 bg-slate-900/40' 
+                    : isStealth 
+                    ? 'border-white/10 bg-slate-850' 
+                    : isGlory 
+                    ? 'border-amber-200 bg-white' 
+                    : 'border-slate-200 bg-slate-50'
+                }`}>
+                  {person.photoUrl ? (
+                    <img src={person.photoUrl} alt="" className="w-full h-full object-cover rounded-xl" />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center gap-1 text-slate-300">
+                      <User className="w-8 h-8 opacity-40" />
+                      <span className="text-[6px] font-black uppercase tracking-widest text-slate-400 opacity-60">NO PHOTO</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Code Container: Barcode Batang 1D or QR Code */}
+                {barcodeFormat === 'QR_CODE' ? (
+                  <div className={`p-3 rounded-2xl shadow-md relative group shrink-0 ${isChampion || isProX ? 'bg-white/10 backdrop-blur-md border border-white/20' : isStealth || isGlory ? 'bg-white' : 'bg-white shadow-slate-200'}`}>
+                     {(isChampion || isProX) && <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl" />}
+                     <div className="bg-white p-1 rounded-lg">
+                        <QRCodeSVG value={person.id} size={70} level="H" />
+                     </div>
+                  </div>
                 ) : (
-                  <div className="flex flex-col items-center justify-center gap-1 text-slate-300">
-                    <User className="w-8 h-8 opacity-40" />
-                    <span className="text-[6px] font-black uppercase tracking-widest text-slate-400 opacity-60">NO PHOTO</span>
+                  <div className={`p-2 rounded-2xl shadow-md relative group flex flex-col items-center justify-center shrink-0 w-[140px] ${isChampion || isProX ? 'bg-white border-2 border-yellow-500/30' : isStealth || isGlory ? 'bg-white border border-slate-200' : 'bg-white border border-slate-200 shadow-slate-200'}`}>
+                    <div className="w-full flex items-center justify-center overflow-hidden py-1">
+                      <Barcode 
+                        value={person.id}
+                        width={1.2}
+                        height={38}
+                        fontSize={8}
+                        displayValue={true}
+                        text={person.registrationNo || person.id.substring(0, 10)}
+                        background="transparent"
+                        lineColor="#0f172a"
+                      />
+                    </div>
+                    <div className="text-[7px] font-mono font-bold text-slate-400 uppercase tracking-wider text-center mt-0.5">
+                      {person.targetNo ? `T-${person.targetNo}${person.position}` : 'E-ID'}
+                    </div>
                   </div>
                 )}
-              </div>
-
-              {/* QR Code Container */}
-              <div className={`p-3 rounded-2xl shadow-md relative group shrink-0 ${isChampion || isProX ? 'bg-white/10 backdrop-blur-md border border-white/20' : isStealth || isGlory ? 'bg-white' : 'bg-white shadow-slate-200'}`}>
-                 {(isChampion || isProX) && <div className="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl" />}
-                 <div className="bg-white p-1 rounded-lg">
-                    <QRCodeSVG value={person.id} size={70} level="H" />
-                 </div>
               </div>
             </div>
 
@@ -553,6 +578,38 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
                           </button>
                         </div>
                       ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-4 border-t border-slate-50">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Format Kode Identifikasi</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setBarcodeFormat('BARCODE_128')}
+                        className={`p-3 rounded-2xl border-2 transition-all flex flex-col gap-1 items-start ${
+                          barcodeFormat === 'BARCODE_128' 
+                            ? 'border-purple-600 bg-purple-50 text-purple-900 shadow-sm' 
+                            : 'border-slate-100 bg-white text-slate-400 hover:border-slate-200'
+                        }`}
+                      >
+                        <BarcodeIcon className={`w-5 h-5 ${barcodeFormat === 'BARCODE_128' ? 'text-purple-600' : 'text-slate-400'}`} />
+                        <span className="text-[9px] font-black uppercase tracking-tight">Barcode Batang</span>
+                        <span className="text-[7px] font-bold text-slate-400">Code 128 (Laser/USB)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBarcodeFormat('QR_CODE')}
+                        className={`p-3 rounded-2xl border-2 transition-all flex flex-col gap-1 items-start ${
+                          barcodeFormat === 'QR_CODE' 
+                            ? 'border-purple-600 bg-purple-50 text-purple-900 shadow-sm' 
+                            : 'border-slate-100 bg-white text-slate-400 hover:border-slate-200'
+                        }`}
+                      >
+                        <QrCode className={`w-5 h-5 ${barcodeFormat === 'QR_CODE' ? 'text-purple-600' : 'text-slate-400'}`} />
+                        <span className="text-[9px] font-black uppercase tracking-tight">QR Code 2D</span>
+                        <span className="text-[7px] font-bold text-slate-400">Standard Matrix</span>
+                      </button>
                     </div>
                   </div>
 

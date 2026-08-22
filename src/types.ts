@@ -32,6 +32,8 @@ export enum TargetType {
   FACE_60 = 'FACE_60',
   FACE_40 = 'FACE_40',
   FACE_3X20 = 'FACE_3X20',
+  FACE_5_RING = 'FACE_5_RING',
+  FACE_MEGA_MENDUNG = 'FACE_MEGA_MENDUNG',
   STANDARD = 'STANDARD',
   PUTA = 'PUTA',
   TRADITIONAL_6_RING = 'TRADITIONAL_6_RING',
@@ -142,6 +144,8 @@ export interface ParticipantRegistration {
   paymentType?: string;
   regType?: 'ARCHER' | 'OFFICIAL';
   _syncPending?: boolean;
+  checkedIn?: boolean;
+  checkInTimestamp?: number;
 }
 
 export interface Archer extends ParticipantRegistration {
@@ -155,6 +159,8 @@ export interface Archer extends ParticipantRegistration {
   platformFee?: number;
   createdAt?: number;
   updatedAt?: number;
+  checkedIn?: boolean;
+  checkInTimestamp?: number;
 }
 
 export interface Match {
@@ -296,4 +302,8 @@ export type ScorerAccess = {
   eventId?: string;
   accessCode?: string;
   permissions?: string[];
+  assignedTargets?: number[]; // list of target numbers, e.g. [1, 2]
+  targetRangeStart?: number;
+  targetRangeEnd?: number;
+  assignmentMode?: 'ALL' | 'RANGE' | 'CUSTOM';
 };

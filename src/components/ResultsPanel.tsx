@@ -41,6 +41,7 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
         
         const isSmallTarget = config?.targetType === TargetType.PUTA || config?.targetType === TargetType.TRADITIONAL_PUTA;
         const isSixRing = config?.targetType === TargetType.TRADITIONAL_6_RING;
+        const isFiveRing = config?.targetType === TargetType.FACE_5_RING;
         
         const allArrows = scores.flatMap(s => s.arrows || []).filter(v => v !== undefined && v !== -1);
         
@@ -53,6 +54,9 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
         } else if (isSixRing) {
           arrowSixes = allArrows.filter(v => v === 6).length;
           arrowFives = allArrows.filter(v => v === 5).length;
+        } else if (isFiveRing) {
+          arrowSixes = allArrows.filter(v => v === 5).length;
+          arrowFives = allArrows.filter(v => v === 4).length;
         } else {
           // Standard 10-ring
           arrowSixes = allArrows.filter(v => v === 'X' || v === 10).length;
@@ -98,6 +102,8 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
       return { highest: '2s', second: '1s' };
     } else if (targetType === TargetType.TRADITIONAL_6_RING) {
       return { highest: '6s', second: '5s' };
+    } else if (targetType === TargetType.FACE_5_RING) {
+      return { highest: '5s', second: '4s' };
     }
     return { highest: 'X+10', second: '9' };
   }, [config]);

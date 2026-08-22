@@ -256,15 +256,55 @@ const AdminPanel: React.FC<Props> = ({
   };
 
   const addScorer = () => {
+    const total = localSettings.totalTargets || 1;
     const newScorer: ScorerAccess = {
       id: 'scr_' + Math.random().toString(36).substr(2, 9),
-      name: '',
+      name: `Scorer ${localScorers.length + 1}`,
       pin: Math.floor(1000 + Math.random() * 9000).toString(),
       accessCode: Math.floor(1000 + Math.random() * 9000).toString(),
       eventId: '', // Filled by parent
-      permissions: ['INPUT_SCORE']
+      permissions: ['INPUT_SCORE'],
+      assignmentMode: 'ALL',
+      assignedTargets: []
     };
     setLocalScorers([...localScorers, newScorer]);
+    setIsDirty(true);
+  };
+
+  const autoDistributeTargets = () => {
+    if (localScorers.length === 0) return;
+    const total = localSettings.totalTargets || 1;
+    const count = localScorers.length;
+    const targetsPerScorer = Math.max(1, Math.ceil(total / count));
+
+    const updated = localScorers.map((s, idx) => {
+      const start = (idx * targetsPerScorer) + 1;
+      const end = Math.min(total, (idx + 1) * targetsPerScorer);
+      
+      if (start > total) {
+        return {
+          ...s,
+          assignmentMode: 'RANGE' as const,
+          targetRangeStart: total,
+          targetRangeEnd: total,
+          assignedTargets: [total]
+        };
+      }
+      
+      const targets: number[] = [];
+      for (let t = start; t <= end; t++) {
+        targets.push(t);
+      }
+      return {
+        ...s,
+        assignmentMode: 'RANGE' as const,
+        targetRangeStart: start,
+        targetRangeEnd: end,
+        assignedTargets: targets
+      };
+    });
+
+    setLocalScorers(updated);
     setIsDirty(true);
   };
 
@@ -1190,66 +1230,236 @@ const AdminPanel: React.FC<Props> = ({
                       <div className="p-3 bg-purple-50 rounded-2xl">
                         <UsersIcon className="w-6 h-6 text-purple-600" />
                       </div>
-                      <h3 className="text-2xl font-black font-oswald uppercase text-slate-800 italic">Tim Lapangan (Scorer)</h3>
+                      <div>
+                        <h3 className="text-2xl font-black font-oswald uppercase text-slate-800 italic">Tim Lapangan (Scorer)</h3>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Atur kode akses & batasan bantalan per petugas agar tidak tabrakan input</p>
+                      </div>
                   </div>
-                  <button type="button" onClick={addScorer} className="bg-purple-600 text-white px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
-                    <Plus className="w-3.5 h-3.5" /> Tambah Scorer
-                  </button>
+                  <div className="flex flex-wrap items-center gap-3">
+                    {localScorers.length > 0 && (
+                      <button 
+                        type="button" 
+                        onClick={autoDistributeTargets} 
+                        className="bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 transition-all"
+                        title="Bagi rata total bantalan ke seluruh scorer yang ada"
+                      >
+                        <Zap className="w-3.5 h-3.5 text-purple-600" /> Otomatis Bagi Rata Bantalan
+                      </button>
+                    )}
+                    <button type="button" onClick={addScorer} className="bg-purple-600 text-white px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 shadow-md shadow-purple-600/20 hover:bg-purple-700 transition-all">
+                      <Plus className="w-3.5 h-3.5" /> Tambah Scorer
+                    </button>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {localScorers.map((scorer) => (
-                    <div key={scorer.id} className="bg-white p-8 rounded-[2.5rem] border-2 border-slate-100 relative group transition-all shadow-sm space-y-6">
-                      <button type="button" onClick={() => removeScorer(scorer.id)} className="absolute top-6 right-6 p-2 text-slate-300 hover:text-red-500 rounded-xl transition-all"><X className="w-5 h-5" /></button>
-                      
-                      <div className="space-y-1">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Nama Petugas</span>
-                        <input 
-                          type="text" 
-                          value={scorer.name} 
-                          onChange={e => updateScorer(scorer.id, 'name', e.target.value)} 
-                          className="w-full rounded-xl border-slate-100 bg-slate-50 p-4 border text-sm font-bold" 
-                          placeholder="Contoh: Scorer Lapangan 1"
-                        />
-                      </div>
+                  {localScorers.map((scorer, scorerIdx) => {
+                    const totalTargets = localSettings.totalTargets || 1;
+                    const mode = scorer.assignmentMode || (scorer.assignedTargets && scorer.assignedTargets.length > 0 ? 'RANGE' : 'ALL');
+                    const assigned = scorer.assignedTargets || [];
 
-                      <div className="flex items-center justify-between bg-slate-900 p-6 rounded-2xl">
-                        <div>
-                          <span className="text-[9px] font-black text-white/50 uppercase tracking-widest block">Kode Akses</span>
-                          <span className="text-2xl font-black font-mono tracking-[0.3em] text-arcus-red">{scorer.accessCode}</span>
+                    return (
+                      <div key={scorer.id} className="bg-white p-8 rounded-[2.5rem] border-2 border-slate-100 relative group transition-all shadow-sm space-y-6">
+                        <button type="button" onClick={() => removeScorer(scorer.id)} className="absolute top-6 right-6 p-2 text-slate-300 hover:text-red-500 rounded-xl transition-all"><X className="w-5 h-5" /></button>
+                        
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Nama Petugas</span>
+                          <input 
+                            type="text" 
+                            value={scorer.name} 
+                            onChange={e => updateScorer(scorer.id, 'name', e.target.value)} 
+                            className="w-full rounded-xl border-slate-100 bg-slate-50 p-4 border text-sm font-bold" 
+                            placeholder="Contoh: Scorer Lapangan 1"
+                          />
                         </div>
-                        <button 
-                          type="button"
-                          onClick={() => updateScorer(scorer.id, 'accessCode', Math.floor(1000 + Math.random() * 9000).toString())}
-                          className="p-3 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all"
-                        >
-                          <Repeat className="w-4 h-4" />
-                        </button>
-                      </div>
 
-                      <div className="space-y-2">
-                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block px-1">Izin Akses</span>
-                         <div className="flex flex-wrap gap-2">
-                            {['INPUT_SCORE', 'EDIT_ARCHER', 'MANAGE_MATCHES'].map(perm => (
-                              <button
-                                key={perm}
-                                type="button"
-                                onClick={() => {
-                                  const current = scorer.permissions || [];
-                                  const next = current.includes(perm as any) 
-                                    ? current.filter(p => p !== perm)
-                                    : [...current, perm as any];
-                                  updateScorer(scorer.id, 'permissions', next);
-                                }}
-                                className={`px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all ${(scorer.permissions || []).includes(perm as any) ? 'bg-purple-600 border-purple-600 text-white' : 'bg-white border-slate-200 text-slate-400'}`}
-                              >
-                                {perm.replace('_', ' ')}
-                              </button>
-                            ))}
-                         </div>
+                        <div className="flex items-center justify-between bg-slate-900 p-6 rounded-2xl">
+                          <div>
+                            <span className="text-[9px] font-black text-white/50 uppercase tracking-widest block">Kode Akses</span>
+                            <span className="text-2xl font-black font-mono tracking-[0.3em] text-arcus-red">{scorer.accessCode}</span>
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => updateScorer(scorer.id, 'accessCode', Math.floor(1000 + Math.random() * 9000).toString())}
+                            className="p-3 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all"
+                            title="Acak Kode Akses"
+                          >
+                            <Repeat className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        {/* Target Assignment Section */}
+                        <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest flex items-center gap-1.5">
+                              <TargetIcon className="w-3.5 h-3.5 text-purple-600" /> Alokasi Bantalan Target
+                            </span>
+                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Total: {totalTargets} Bantalan</span>
+                          </div>
+
+                          {/* Mode Tabs */}
+                          <div className="grid grid-cols-3 gap-1 bg-white p-1 rounded-xl border border-slate-200 text-center">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                updateScorer(scorer.id, 'assignmentMode', 'ALL');
+                                updateScorer(scorer.id, 'assignedTargets', []);
+                              }}
+                              className={`py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mode === 'ALL' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                            >
+                              Semua
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const start = scorer.targetRangeStart || 1;
+                                const end = scorer.targetRangeEnd || Math.min(2, totalTargets);
+                                const targets = [];
+                                for (let t = start; t <= end; t++) targets.push(t);
+                                setLocalScorers(localScorers.map(s => s.id === scorer.id ? {
+                                  ...s,
+                                  assignmentMode: 'RANGE',
+                                  targetRangeStart: start,
+                                  targetRangeEnd: end,
+                                  assignedTargets: targets
+                                } : s));
+                                setIsDirty(true);
+                              }}
+                              className={`py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mode === 'RANGE' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                            >
+                              Rentang
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                updateScorer(scorer.id, 'assignmentMode', 'CUSTOM');
+                              }}
+                              className={`py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mode === 'CUSTOM' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                            >
+                              Pilih Manual
+                            </button>
+                          </div>
+
+                          {/* Mode Content */}
+                          {mode === 'ALL' && (
+                            <div className="p-3 bg-white rounded-xl border border-slate-100 text-slate-600 text-[10px] font-bold">
+                              Petugas dapat mengakses <span className="text-purple-700 font-black">Semua Bantalan (1 - {totalTargets})</span> tanpa pembatasan.
+                            </div>
+                          )}
+
+                          {mode === 'RANGE' && (
+                            <div className="space-y-2">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">Dari Bantalan</span>
+                                  <input 
+                                    type="number" 
+                                    min={1} 
+                                    max={totalTargets}
+                                    value={scorer.targetRangeStart || 1}
+                                    onChange={e => {
+                                      const start = Math.max(1, Math.min(totalTargets, parseInt(e.target.value) || 1));
+                                      const end = Math.max(start, scorer.targetRangeEnd || start);
+                                      const targets = [];
+                                      for (let t = start; t <= end; t++) targets.push(t);
+                                      setLocalScorers(localScorers.map(s => s.id === scorer.id ? {
+                                        ...s,
+                                        targetRangeStart: start,
+                                        targetRangeEnd: end,
+                                        assignedTargets: targets
+                                      } : s));
+                                      setIsDirty(true);
+                                    }}
+                                    className="w-full bg-white rounded-xl border border-slate-200 p-2.5 text-center font-black text-sm"
+                                  />
+                                </div>
+                                <div>
+                                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">Sampai Bantalan</span>
+                                  <input 
+                                    type="number" 
+                                    min={scorer.targetRangeStart || 1} 
+                                    max={totalTargets}
+                                    value={scorer.targetRangeEnd || Math.min(2, totalTargets)}
+                                    onChange={e => {
+                                      const start = scorer.targetRangeStart || 1;
+                                      const end = Math.max(start, Math.min(totalTargets, parseInt(e.target.value) || start));
+                                      const targets = [];
+                                      for (let t = start; t <= end; t++) targets.push(t);
+                                      setLocalScorers(localScorers.map(s => s.id === scorer.id ? {
+                                        ...s,
+                                        targetRangeStart: start,
+                                        targetRangeEnd: end,
+                                        assignedTargets: targets
+                                      } : s));
+                                      setIsDirty(true);
+                                    }}
+                                    className="w-full bg-white rounded-xl border border-slate-200 p-2.5 text-center font-black text-sm"
+                                  />
+                                </div>
+                              </div>
+                              <div className="p-2.5 bg-purple-50 rounded-xl border border-purple-100 flex items-center justify-between text-[9px] font-black text-purple-700 uppercase">
+                                <span>Akses: Bantalan {(scorer.assignedTargets || []).join(', ') || '-'}</span>
+                                <span className="bg-purple-200 text-purple-900 px-2 py-0.5 rounded">{(scorer.assignedTargets || []).length} Bantalan</span>
+                              </div>
+                            </div>
+                          )}
+
+                          {mode === 'CUSTOM' && (
+                            <div className="space-y-2">
+                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Klik untuk memilih bantalan:</span>
+                              <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto no-scrollbar p-1">
+                                {Array.from({ length: totalTargets }, (_, i) => i + 1).map(targetNum => {
+                                  const isSelected = (scorer.assignedTargets || []).includes(targetNum);
+                                  return (
+                                    <button
+                                      key={targetNum}
+                                      type="button"
+                                      onClick={() => {
+                                        const current = scorer.assignedTargets || [];
+                                        const next = isSelected 
+                                          ? current.filter(t => t !== targetNum) 
+                                          : [...current, targetNum].sort((a, b) => a - b);
+                                        updateScorer(scorer.id, 'assignedTargets', next);
+                                      }}
+                                      className={`w-9 h-9 rounded-xl font-black text-xs transition-all border ${isSelected ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'}`}
+                                    >
+                                      {targetNum}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <div className="p-2.5 bg-purple-50 rounded-xl border border-purple-100 flex items-center justify-between text-[9px] font-black text-purple-700 uppercase">
+                                <span>Akses: {(scorer.assignedTargets || []).length > 0 ? `Bantalan ${(scorer.assignedTargets || []).join(', ')}` : 'Belum dipilih'}</span>
+                                <span className="bg-purple-200 text-purple-900 px-2 py-0.5 rounded">{(scorer.assignedTargets || []).length} Bantalan</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block px-1">Izin Akses</span>
+                           <div className="flex flex-wrap gap-2">
+                              {['INPUT_SCORE', 'EDIT_ARCHER', 'MANAGE_MATCHES'].map(perm => (
+                                <button
+                                  key={perm}
+                                  type="button"
+                                  onClick={() => {
+                                    const current = scorer.permissions || [];
+                                    const next = current.includes(perm as any) 
+                                      ? current.filter(p => p !== perm)
+                                      : [...current, perm as any];
+                                    updateScorer(scorer.id, 'permissions', next);
+                                  }}
+                                  className={`px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all ${(scorer.permissions || []).includes(perm as any) ? 'bg-purple-600 border-purple-600 text-white' : 'bg-white border-slate-200 text-slate-400'}`}
+                                >
+                                  {perm.replace('_', ' ')}
+                                </button>
+                              ))}
+                           </div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {localScorers.length === 0 && (
                     <div className="md:col-span-2 py-20 text-center space-y-4 bg-slate-50 rounded-[3rem] border-2 border-dashed border-slate-200">
                       <UsersIcon className="w-12 h-12 mx-auto text-slate-300" />

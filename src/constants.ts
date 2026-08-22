@@ -23,6 +23,8 @@ export const TARGET_LABELS: Record<TargetType, string> = {
   [TargetType.FACE_60]: 'Face 60cm',
   [TargetType.FACE_40]: 'Face 40cm',
   [TargetType.FACE_3X20]: 'Face 3x20cm (Vertical)',
+  [TargetType.FACE_5_RING]: 'Face 5-Ring (Nilai 1-5, U9/U12)',
+  [TargetType.FACE_MEGA_MENDUNG]: 'Face Mega Mendung (Nilai 1-10)',
   [TargetType.STANDARD]: 'Standard Target',
   [TargetType.PUTA]: 'Puta (Turkey)',
   [TargetType.TRADITIONAL_6_RING]: 'Traditional 6-Ring (1-6)',

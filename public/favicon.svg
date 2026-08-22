@@ -1,1 +1,9 @@
-404: Not Found
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="128" fill="#0F172A"/>
+  <circle cx="256" cy="256" r="190" stroke="#334155" stroke-width="8" stroke-dasharray="16 16"/>
+  <g transform="matrix(1.9 0 0 1.9 66 66)">
+    <path d="M100 20L40 140H75L100 85L125 140H160L100 20Z" fill="#F43F5E"/>
+    <path d="M70 150L100 120L130 150L100 185L70 150Z" fill="#F43F5E"/>
+    <path d="M50 125L165 55M165 55L145 55M165 55L155 75" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

@@ -17,18 +17,25 @@ import {
   Image as ImageIcon,
   RefreshCw,
   Cloud,
-  Camera
+  Camera,
+  Barcode as BarcodeIcon,
+  UserCheck,
+  CheckCircle2,
+  XCircle,
+  ScanLine
 } from "lucide-react";
 import {
   Archer,
   CategoryType,
   TournamentSettings,
   GlobalSettings,
-  RegistrationStatus
+  RegistrationStatus,
+  ArcheryEvent
 } from "../types";
 import { CATEGORY_LABELS } from "../constants";
 import { compressPhoto, uploadPhotoToStorage } from "../lib/photoService";
 import ScoringSheet from "./ScoringSheet";
+import ParticipantScannerModal from "./ParticipantScannerModal";
 
 interface Props {
   archers: Archer[];
@@ -77,6 +84,9 @@ const ArcherList: React.FC<Props> = ({
   );
   const [filterWave, setFilterWave] = useState<number | "ALL">("ALL");
   const [filterClub, setFilterClub] = useState<string>("ALL");
+  const [filterCheckIn, setFilterCheckIn] = useState<"ALL" | "CHECKED_IN" | "NOT_CHECKED_IN">("ALL");
+  const [showScannerModal, setShowScannerModal] = useState(false);
+  const [initialScanQuery, setInitialScanQuery] = useState("");
   const [printAllCategories, setPrintAllCategories] = useState(false);
   const [showPrintOptions, setShowPrintOptions] = useState(false);
   const [scoringSheetSize, setScoringSheetSize] = useState<'A4' | 'A6'>('A4');
@@ -340,14 +350,20 @@ const ArcherList: React.FC<Props> = ({
         const matchesSearch =
           (a.name || "").toLowerCase().includes(search) ||
           (a.club || "").toLowerCase().includes(search) ||
+          (a.registrationNo || "").toLowerCase().includes(search) ||
+          (a.id || "").toLowerCase().includes(search) ||
           (String(a.targetNo || "") + String(a.position || "")).toLowerCase().includes(search);
 
         const matchesCategory =
         (activeCategory as any) === "ALL" || a.category === activeCategory;
         const matchesWave = filterWave === "ALL" || a.wave === filterWave;
         const matchesClub = filterClub === "ALL" || a.club === filterClub;
+        const matchesCheckIn = 
+          filterCheckIn === "ALL" || 
+          (filterCheckIn === "CHECKED_IN" && a.checkedIn) || 
+          (filterCheckIn === "NOT_CHECKED_IN" && !a.checkedIn);
 
-        return matchesSearch && matchesCategory && matchesWave && matchesClub;
+        return matchesSearch && matchesCategory && matchesWave && matchesClub && matchesCheckIn;
       })
       .sort((a: Archer, b: Archer) => {
         const wA = a.wave || 1;
@@ -360,7 +376,7 @@ const ArcherList: React.FC<Props> = ({
 
         return (a.position || "").localeCompare(b.position || "");
       });
-  }, [archers, activeCategory, searchTerm, filterWave, filterClub]);
+  }, [archers, activeCategory, searchTerm, filterWave, filterClub, filterCheckIn]);
 
   return (
     <div className="space-y-6">
@@ -414,6 +430,13 @@ const ArcherList: React.FC<Props> = ({
           )}
         </div>
         <div className="flex flex-wrap items-center justify-center md:justify-end gap-2">
+          <button
+            onClick={() => setShowScannerModal(true)}
+            className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-2 hover:bg-emerald-700 transition-all active:scale-95 shadow-xl shadow-emerald-600/20"
+          >
+            <BarcodeIcon className="w-4 h-4" />
+            Scan / Registrasi Ulang
+          </button>
           <button
             onClick={onGoToIdCardEditor}
             className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-2 hover:bg-blue-700 transition-all active:scale-95 shadow-xl shadow-blue-600/20"
@@ -1076,13 +1099,28 @@ const ArcherList: React.FC<Props> = ({
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Cari nama, klub, atau bantalan..."
+              placeholder="Cari nama, ID barcode, No. Registrasi, klub, atau bantalan..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-arcus-red transition-all"
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={filterCheckIn}
+              onChange={(e) => setFilterCheckIn(e.target.value as any)}
+              className={`border rounded-xl px-4 py-2.5 text-[10px] font-black uppercase outline-none transition-all ${
+                filterCheckIn === 'CHECKED_IN' 
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-300' 
+                  : filterCheckIn === 'NOT_CHECKED_IN'
+                  ? 'bg-amber-50 text-amber-700 border-amber-300'
+                  : 'bg-white border-slate-200 text-slate-700'
+              }`}
+            >
+              <option value="ALL">Semua Kehadiran</option>
+              <option value="CHECKED_IN">✓ Hadir (Registrasi Ulang)</option>
+              <option value="NOT_CHECKED_IN">⏳ Belum Hadir</option>
+            </select>
             <select
               value={filterWave}
               onChange={(e) =>
@@ -1121,15 +1159,17 @@ const ArcherList: React.FC<Props> = ({
                 <th className="p-4 w-12">No.</th>
                 <th className="p-4">Bantalan</th>
                 <th className="p-4">Nama Pemanah</th>
+                <th className="p-4">Registrasi Ulang</th>
                 <th className="p-4">Kontak</th>
                 <th className="p-4">Klub</th>
                 <th className="p-4">Kategori</th>
+                <th className="p-4">Status Bayar</th>
                 <th className="p-4 text-right">Aksi</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((a: Archer, idx: number) => (
-                <tr key={a.id} className="border-b hover:bg-slate-50">
+                <tr key={a.id} className={`border-b transition-colors ${a.checkedIn ? 'bg-emerald-50/20 hover:bg-emerald-50/40' : 'hover:bg-slate-50'}`}>
                   <td className="p-4 font-black text-slate-300">{idx + 1}</td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
@@ -1144,8 +1184,56 @@ const ArcherList: React.FC<Props> = ({
                       )}
                     </div>
                   </td>
-                  <td className="p-4 font-bold uppercase underline decoration-slate-100 underline-offset-4">
-                    {a.name}
+                  <td className="p-4">
+                    <div className="flex flex-col">
+                      <span className="font-bold uppercase text-slate-900 leading-tight">
+                        {a.name}
+                      </span>
+                      <span className="text-[8px] font-mono text-slate-400 mt-0.5">
+                        ID: {a.id.substring(0, 10)}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="p-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextState = !a.checkedIn;
+                        onUpdate({
+                          ...a,
+                          checkedIn: nextState,
+                          checkInTimestamp: nextState ? Date.now() : undefined
+                        });
+                        if (nextState) {
+                          toast.success(`Check-in berhasil: ${a.name}`);
+                        } else {
+                          toast.info(`Check-in dibatalkan: ${a.name}`);
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all border shadow-sm ${
+                        a.checkedIn 
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200' 
+                          : 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200'
+                      }`}
+                      title="Klik untuk toggle status kehadiran / registrasi ulang"
+                    >
+                      {a.checkedIn ? (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Hadir</span>
+                          {a.checkInTimestamp && (
+                            <span className="text-[7.5px] opacity-75 font-normal">
+                              ({new Date(a.checkInTimestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })})
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <UserCheck className="w-3.5 h-3.5 opacity-60" />
+                          <span>Belum Hadir</span>
+                        </>
+                      )}
+                    </button>
                   </td>
                   <td className="p-4">
                     <div className="flex flex-col">
@@ -1184,6 +1272,16 @@ const ArcherList: React.FC<Props> = ({
                   </td>
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => {
+                          setInitialScanQuery(a.id);
+                          setShowScannerModal(true);
+                        }}
+                        className="p-2 text-slate-400 hover:text-emerald-600 transition-colors"
+                        title="Scan / Detail Registrasi Barcode"
+                      >
+                        <BarcodeIcon className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={() => handlePrintScoringSheet(a.id)}
                         className="p-2 text-slate-300 hover:text-purple-600 transition-colors"
@@ -1231,6 +1329,21 @@ const ArcherList: React.FC<Props> = ({
           )}
         </div>
       </div>
+
+      {/* Participant Scanner & Check-in Modal */}
+      <ParticipantScannerModal
+        isOpen={showScannerModal}
+        onClose={() => {
+          setShowScannerModal(false);
+          setInitialScanQuery("");
+        }}
+        archers={archers}
+        onUpdateParticipant={(updated) => {
+          onUpdate(updated);
+        }}
+        eventTitle={settings.tournamentName}
+        initialQuery={initialScanQuery}
+      />
     </div>
   );
 };

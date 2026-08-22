@@ -258,8 +258,10 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
   }, [config]);
 
   const isSmallTarget = config?.targetType === TargetType.PUTA || config?.targetType === TargetType.TRADITIONAL_PUTA;
-  const labelSix = isSmallTarget ? '2s' : '6s';
-  const labelFive = isSmallTarget ? '1s' : '5s';
+  const isSixRing = config?.targetType === TargetType.TRADITIONAL_6_RING;
+  const isFiveRing = config?.targetType === TargetType.FACE_5_RING;
+  const labelSix = isSmallTarget ? '2s' : (isFiveRing ? '5s' : (isSixRing ? '6s' : '10s/X'));
+  const labelFive = isSmallTarget ? '1s' : (isFiveRing ? '4s' : (isSixRing ? '5s' : '9s'));
 
   const matches = useMemo(() => {
     return (state?.matches as any)?.[filterCategory] || [];
@@ -310,8 +312,21 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
         const manualFives = scores.reduce((acc, curr) => acc + (curr.count5 || 0), 0);
         
         const allArrows = scores.flatMap(s => s.arrows || []).filter(v => v !== -1);
-        const arrowSixes = allArrows.filter(v => isSmallTarget ? v === 2 : (v === 'X' || v === 6)).length;
-        const arrowFives = allArrows.filter(v => isSmallTarget ? v === 1 : v === 5).length;
+        let arrowSixes = 0;
+        let arrowFives = 0;
+        if (isSmallTarget) {
+          arrowSixes = allArrows.filter(v => v === 2).length;
+          arrowFives = allArrows.filter(v => v === 1).length;
+        } else if (isSixRing) {
+          arrowSixes = allArrows.filter(v => v === 6).length;
+          arrowFives = allArrows.filter(v => v === 5).length;
+        } else if (isFiveRing) {
+          arrowSixes = allArrows.filter(v => v === 5).length;
+          arrowFives = allArrows.filter(v => v === 4).length;
+        } else {
+          arrowSixes = allArrows.filter(v => v === 'X' || v === 10 || v === 6).length;
+          arrowFives = allArrows.filter(v => v === 9 || v === 5).length;
+        }
         
         const hasManual = scores.some(s => s.count6 !== undefined);
         const sixes = hasManual ? manualSixes : arrowSixes;

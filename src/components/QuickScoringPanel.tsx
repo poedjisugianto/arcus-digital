@@ -3,21 +3,33 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, Target, CheckCircle2, ChevronRight, ChevronLeft, 
   Save, User, Zap, Hash, Trophy, Keyboard, Search, X, Trash2,
-  ScanLine
+  ScanLine, Lock, ShieldCheck
 } from 'lucide-react';
-import { ArcheryEvent, ScoreEntry, Archer, CategoryType, TargetType, ScoreLog } from '../types';
+import { ArcheryEvent, ScoreEntry, Archer, CategoryType, TargetType, ScoreLog, ScorerAccess } from '../types';
 import { CATEGORY_LABELS } from '../constants';
 import QRScanner from './QRScanner';
 
 interface Props {
   event: ArcheryEvent;
+  currentScorer?: ScorerAccess | null;
   onSaveScore: (score: ScoreEntry | ScoreEntry[], log?: ScoreLog | ScoreLog[]) => void;
   onBack: () => void;
 }
 
-const QuickScoringPanel: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
+const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore, onBack }) => {
   const [mode, setMode] = useState<'TARGET' | 'CATEGORY'>('TARGET');
-  const [selectedTarget, setSelectedTarget] = useState(1);
+  
+  const allowedTargets = useMemo(() => {
+    const total = event.settings?.totalTargets || 1;
+    const allTargets = Array.from({ length: total }, (_, i) => i + 1);
+    if (!currentScorer || !currentScorer.assignedTargets || currentScorer.assignedTargets.length === 0) {
+      return allTargets;
+    }
+    const filtered = currentScorer.assignedTargets.filter(t => t >= 1 && t <= total);
+    return filtered.length > 0 ? filtered : allTargets;
+  }, [event.settings?.totalTargets, currentScorer]);
+
+  const [selectedTarget, setSelectedTarget] = useState<number>(() => allowedTargets[0] || 1);
   const [selectedCategory, setSelectedCategory] = useState<CategoryType | 'ALL'>('ALL');
   const [currentEnd, setCurrentEnd] = useState(0);
   const [searchTerm, setSearchTerm] = useState('');
@@ -25,6 +37,12 @@ const QuickScoringPanel: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
   const [showScanner, setShowScanner] = useState(false);
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const focusedArcher = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!allowedTargets.includes(selectedTarget)) {
+      setSelectedTarget(allowedTargets[0] || 1);
+    }
+  }, [allowedTargets, selectedTarget]);
 
   // Keyboard Shortcuts
   useEffect(() => {
@@ -41,19 +59,27 @@ const QuickScoringPanel: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
       // If not in input, allow arrow navigation
       if (!isInput) {
         if (e.key === 'ArrowLeft') {
-          if (mode === 'TARGET') setSelectedTarget(prev => Math.max(1, prev - 1));
-          else setCurrentEnd(prev => Math.max(0, prev - 1));
+          if (mode === 'TARGET') {
+            const idx = allowedTargets.indexOf(selectedTarget);
+            if (idx > 0) setSelectedTarget(allowedTargets[idx - 1]);
+          } else {
+            setCurrentEnd(prev => Math.max(0, prev - 1));
+          }
         }
         if (e.key === 'ArrowRight') {
-          if (mode === 'TARGET') setSelectedTarget(prev => Math.min(event.settings?.totalTargets || 1, prev + 1));
-          else setCurrentEnd(prev => prev + 1);
+          if (mode === 'TARGET') {
+            const idx = allowedTargets.indexOf(selectedTarget);
+            if (idx >= 0 && idx < allowedTargets.length - 1) setSelectedTarget(allowedTargets[idx + 1]);
+          } else {
+            setCurrentEnd(prev => prev + 1);
+          }
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mode, selectedTarget, currentEnd, event.settings?.totalTargets]);
+  }, [mode, selectedTarget, currentEnd, allowedTargets]);
 
   // Local state for inputs to allow "Save All"
   const [localScores, setLocalScores] = useState<Record<string, { total: number; count6: number; count5: number }>>({});
@@ -64,11 +90,14 @@ const QuickScoringPanel: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
 
   const archersInScope = useMemo(() => {
     if (mode === 'TARGET') {
-      return event.archers.filter(a => a.targetNo === selectedTarget);
+      return event.archers.filter(a => a.targetNo === selectedTarget && allowedTargets.includes(a.targetNo));
     } else {
-      return event.archers.filter(a => selectedCategory === 'ALL' || a.category === selectedCategory);
+      return event.archers.filter(a => 
+        (selectedCategory === 'ALL' || a.category === selectedCategory) &&
+        allowedTargets.includes(a.targetNo)
+      );
     }
-  }, [event.archers, selectedTarget, selectedCategory, mode]);
+  }, [event.archers, selectedTarget, selectedCategory, mode, allowedTargets]);
 
   const archersToDisplay = useMemo(() => {
     let filtered = [...archersInScope];
@@ -271,11 +300,12 @@ const QuickScoringPanel: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
       setShowToast(null);
       
       if (mode === 'TARGET') {
-        // Auto advance to next target
-        if (selectedTarget < (event.settings?.totalTargets || 0)) {
-          setSelectedTarget(prev => prev + 1);
-        } else if (currentEnd < 10) { // Arbitrary limit or use config
-          setSelectedTarget(1);
+        // Auto advance to next allowed target
+        const currentIdx = allowedTargets.indexOf(selectedTarget);
+        if (currentIdx >= 0 && currentIdx < allowedTargets.length - 1) {
+          setSelectedTarget(allowedTargets[currentIdx + 1]);
+        } else if (currentEnd < 10) {
+          setSelectedTarget(allowedTargets[0] || 1);
           setCurrentEnd(prev => prev + 1);
         }
       } else {
@@ -291,6 +321,10 @@ const QuickScoringPanel: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
     try {
       const parsed = JSON.parse(data);
       if (parsed.type === 'SCORING_SHEET' && parsed.eventId === event.id) {
+        if (allowedTargets.length > 0 && !allowedTargets.includes(parsed.targetNo)) {
+          alert(`Akses Ditolak: Anda hanya memiliki akses untuk Bantalan ${allowedTargets.join(', ')}.`);
+          return;
+        }
         setMode('TARGET');
         setSelectedTarget(parsed.targetNo);
         // Find the archer to focus
@@ -345,9 +379,16 @@ const QuickScoringPanel: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h2 className="text-xl md:text-3xl font-black font-oswald uppercase italic leading-none text-slate-900">Input Cepat Per-Rambahan</h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xl md:text-3xl font-black font-oswald uppercase italic leading-none text-slate-900">Input Cepat Per-Rambahan</h2>
+              {currentScorer?.assignedTargets && currentScorer.assignedTargets.length > 0 && (
+                <span className="px-2.5 py-1 bg-purple-100 text-purple-700 text-[9px] font-black rounded-lg uppercase tracking-wider flex items-center gap-1 border border-purple-200">
+                  <Lock className="w-3 h-3" /> Bantalan {allowedTargets.join(', ')}
+                </span>
+              )}
+            </div>
             <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">
-              Mode Input Total Skor {mode === 'TARGET' ? 'Bantalan' : 'Kategori'}
+              Mode Input Total Skor {mode === 'TARGET' ? 'Bantalan' : 'Kategori'} {currentScorer ? `(Petugas: ${currentScorer.name})` : ''}
             </p>
           </div>
         </div>
@@ -378,9 +419,33 @@ const QuickScoringPanel: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
 
            {mode === 'TARGET' ? (
              <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
-                <button onClick={() => setSelectedTarget(prev => Math.max(1, prev - 1))} className="p-2 bg-white rounded-lg text-slate-900"><ChevronLeft className="w-4 h-4" /></button>
-                <span className="px-4 text-xs font-black uppercase font-oswald text-slate-900">Bantalan {selectedTarget}</span>
-                <button onClick={() => setSelectedTarget(prev => Math.min(event.settings?.totalTargets || 1, prev + 1))} className="p-2 bg-white rounded-lg text-slate-900"><ChevronRight className="w-4 h-4" /></button>
+                <button 
+                  onClick={() => {
+                    const idx = allowedTargets.indexOf(selectedTarget);
+                    if (idx > 0) setSelectedTarget(allowedTargets[idx - 1]);
+                  }} 
+                  className="p-2 bg-white rounded-lg text-slate-900"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <select
+                  value={selectedTarget}
+                  onChange={(e) => setSelectedTarget(parseInt(e.target.value))}
+                  className="bg-transparent text-xs font-black uppercase font-oswald text-slate-900 px-2 outline-none cursor-pointer"
+                >
+                  {allowedTargets.map(t => (
+                    <option key={t} value={t}>Bantalan {t}</option>
+                  ))}
+                </select>
+                <button 
+                  onClick={() => {
+                    const idx = allowedTargets.indexOf(selectedTarget);
+                    if (idx >= 0 && idx < allowedTargets.length - 1) setSelectedTarget(allowedTargets[idx + 1]);
+                  }} 
+                  className="p-2 bg-white rounded-lg text-slate-900"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
              </div>
            ) : (
              <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">

@@ -1604,6 +1604,7 @@ export default function App() {
         if (!activeEvent) return null;
         return <ScoringPanel 
           state={activeEvent}
+          currentScorer={appState.activeScorer}
           onSaveScore={async (score) => {
             const scores = Array.isArray(score) ? score : [score];
             handleUpdateEvent(activeEvent.id, {
@@ -1831,6 +1832,7 @@ export default function App() {
         if (!activeEvent) return null;
         return <QuickScoringPanel 
           event={activeEvent}
+          currentScorer={appState.activeScorer}
           onSaveScore={async (score) => {
             const scores = Array.isArray(score) ? score : [score];
             handleUpdateEvent(activeEvent.id, {
