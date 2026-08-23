@@ -124,35 +124,18 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
 
   // Removed localStorage sync to prevent "stale" form data complaints
 
-  useEffect(() => {
-    if (globalSettings.paymentGatewayProvider === 'MIDTRANS') {
-      // Check if we are inside high-security/sandbox/preview environment to avoid cross-domain Script error
-      const isPreview = typeof window !== 'undefined' && window.location && (
-        window.location.hostname.includes('.run.app') || 
-        window.location.hostname.includes('aistudio') || 
-        window.location.hostname.includes('webcontainer') || 
-        window.location.hostname.includes('stackblitz') || 
-        window.location.hostname.includes('gitpod')
-      );
-
-      if (isPreview) {
-        console.log("[MIDTRANS] Preview/sandbox host detected. Avoiding dynamic Midtrans script injection to prevent unhandled cross-origin errors.");
-        return;
+  const ensureSnapLoaded = (clientKey: string, isProduction: boolean): Promise<any> => {
+    return new Promise((resolve) => {
+      if (typeof window !== 'undefined' && (window as any).snap) {
+        return resolve((window as any).snap);
       }
-
-      const clientKey = (globalSettings.paymentGatewayClientKey && globalSettings.paymentGatewayClientKey !== 'YOUR_MIDTRANS_CLIENT_KEY') 
-        ? globalSettings.paymentGatewayClientKey 
-        : "Mid-client-dZqaZ7wEUS4n0Cxc";
-      const isProduction = globalSettings.paymentGatewayIsProduction === true || String(globalSettings.paymentGatewayIsProduction) === "true";
       const snapSrc = isProduction ? "https://app.midtrans.com/snap/snap.js" : "https://app.sandbox.midtrans.com/snap/snap.js";
-
-      const existingScript = document.getElementById('midtrans-snap');
-      if (existingScript) {
-        if (existingScript.getAttribute('data-client-key') !== clientKey) {
-          existingScript.remove();
-        } else {
-          return;
+      const existing = document.getElementById('midtrans-snap');
+      if (existing) {
+        if (existing.getAttribute('data-client-key') === clientKey && (window as any).snap) {
+          return resolve((window as any).snap);
         }
+        existing.remove();
       }
 
       const script = document.createElement('script');
@@ -160,10 +143,28 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
       script.id = 'midtrans-snap';
       script.setAttribute('data-client-key', clientKey);
       script.async = true;
-      script.onerror = (e) => {
-        console.warn("[MIDTRANS-LOADER] Error loading Midtrans snap script.", e);
+      script.onload = () => {
+        resolve((window as any).snap || null);
+      };
+      script.onerror = () => {
+        console.warn("[MIDTRANS] Failed to load snap.js");
+        resolve(null);
       };
       document.body.appendChild(script);
+
+      setTimeout(() => {
+        resolve((window as any).snap || null);
+      }, 3000);
+    });
+  };
+
+  useEffect(() => {
+    if (globalSettings.paymentGatewayProvider === 'MIDTRANS') {
+      const clientKey = (globalSettings.paymentGatewayClientKey && globalSettings.paymentGatewayClientKey !== 'YOUR_MIDTRANS_CLIENT_KEY') 
+        ? globalSettings.paymentGatewayClientKey 
+        : "Mid-client-dZqaZ7wEUS4n0Cxc";
+      const isProduction = globalSettings.paymentGatewayIsProduction === true || String(globalSettings.paymentGatewayIsProduction) === "true";
+      ensureSnapLoaded(clientKey, isProduction);
     }
   }, [globalSettings.paymentGatewayClientKey, globalSettings.paymentGatewayProvider, globalSettings.paymentGatewayIsProduction]);
 
@@ -510,7 +511,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
         const data = await res.json();
         
         if (data.success) {
-          // Set active payment session. This will render an ultra-rich failover and status tracker page
+          // Set active payment session for backup modal / failover
           setActivePaymentSession({
             orderId: data.transactionId,
             redirectUrl: data.redirectUrl || '',
@@ -520,39 +521,57 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
             qrData: data.qrData
           });
 
+          const clientKey = (globalSettings.paymentGatewayClientKey && globalSettings.paymentGatewayClientKey !== 'YOUR_MIDTRANS_CLIENT_KEY') 
+            ? globalSettings.paymentGatewayClientKey 
+            : "Mid-client-dZqaZ7wEUS4n0Cxc";
+          const isProduction = globalSettings.paymentGatewayIsProduction === true || String(globalSettings.paymentGatewayIsProduction) === "true";
+
+          const snapInstance = await ensureSnapLoaded(clientKey, isProduction);
+
           // Standard Snap popup if available
-          if (data.token && window.snap) {
-            console.log("Snap token received, opening popup");
-            // @ts-ignore
-            window.snap.pay(data.token, {
-              onSuccess: (result: any) => { 
-                console.log("Payment success", result);
-                const approvedRegs = registrations.map(r => ({ ...r, status: RegistrationStatus.APPROVED, paymentId: result.transaction_id }));
-                setRecentRegistrations(approvedRegs);
-                onRegister(approvedRegs); 
-                setActivePaymentSession(null);
-                setStep(3); 
-              },
-              onPending: (result: any) => { 
-                console.log("Payment pending", result);
-                const pendingRegs = registrations.map(r => ({ ...r, status: RegistrationStatus.PENDING, paymentId: result.transaction_id }));
-                setRecentRegistrations(pendingRegs);
-                onRegister(pendingRegs); 
-                setActivePaymentSession(null);
-                setStep(3); 
-              },
-              onError: (result: any) => { 
-                console.error("Payment error", result);
-                toast.error("Pembayaran Gagal atau Dibatalkan.");
-                setIsSubmitting(false);
-              },
-              onClose: () => {
-                console.log("Payment popup closed");
-                setIsSubmitting(false);
+          if (data.token && snapInstance) {
+            console.log("Snap token received, opening Midtrans Snap popup...");
+            try {
+              snapInstance.pay(data.token, {
+                onSuccess: (result: any) => { 
+                  console.log("Payment success", result);
+                  const approvedRegs = registrations.map(r => ({ ...r, status: RegistrationStatus.APPROVED, paymentId: result.transaction_id || data.transactionId }));
+                  setRecentRegistrations(approvedRegs);
+                  onRegister(approvedRegs); 
+                  setActivePaymentSession(null);
+                  setStep(3); 
+                },
+                onPending: (result: any) => { 
+                  console.log("Payment pending", result);
+                  const pendingRegs = registrations.map(r => ({ ...r, status: RegistrationStatus.PENDING, paymentId: result.transaction_id || data.transactionId }));
+                  setRecentRegistrations(pendingRegs);
+                  onRegister(pendingRegs); 
+                  setActivePaymentSession(null);
+                  setStep(3); 
+                },
+                onError: (result: any) => { 
+                  console.error("Payment error", result);
+                  toast.error("Pembayaran Gagal atau Dibatalkan.");
+                  setIsSubmitting(false);
+                },
+                onClose: () => {
+                  console.log("Payment popup closed");
+                  setIsSubmitting(false);
+                }
+              });
+            } catch (snapErr) {
+              console.warn("Snap pay error, falling back to direct redirect:", snapErr);
+              if (data.redirectUrl) {
+                window.open(data.redirectUrl, '_blank');
               }
-            });
+            }
           } else if (data.redirectUrl) {
-            console.log("Running in direct redirect or failover modal flow.");
+            console.log("Opening Midtrans payment page directly via redirectUrl:", data.redirectUrl);
+            const opened = window.open(data.redirectUrl, '_blank');
+            if (!opened) {
+              // If popup blocker stopped window.open, navigate directly
+              window.location.href = data.redirectUrl;
+            }
           }
         } else {
           console.warn("API returned success = false", data);
