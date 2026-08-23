@@ -1865,9 +1865,52 @@ export default function App() {
       case 'SUPER_ADMIN':
         return <SuperAdminPanel 
           state={appState}
-          onUpdateSettings={(gs) => {
+          onUpdateSettings={async (gs) => {
             setAppState(prev => ({ ...prev, globalSettings: gs }));
-            setHasPendingChanges(true);
+            if (appStateRef.current) {
+              appStateRef.current.globalSettings = gs;
+            }
+            
+            // Save to localStorage immediately
+            try {
+              const stateToSave = {
+                globalSettings: gs,
+                events: appState.events
+              };
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+            } catch (storageErr) {
+              console.warn("Error saving to localStorage", storageErr);
+            }
+
+            // Save to Firestore client SDK if connected
+            if (db) {
+              try {
+                await setDoc(doc(db, 'systemConfigs', 'global'), { 
+                  id: 'global', 
+                  data: gs, 
+                  updatedAt: serverTimestamp() 
+                }, { merge: true });
+              } catch (fsErr: any) {
+                console.warn("[FIRESTORE] Direct write error:", fsErr.message);
+              }
+            }
+
+            // Also call server API endpoint to update backend cache & Firestore server-side
+            try {
+              await fetch('/api/admin/save-settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                  settings: gs, 
+                  authEmail: appState.currentUser?.email 
+                })
+              });
+            } catch (apiErr) {
+              console.warn("[API] Save settings endpoint error:", apiErr);
+            }
+
+            setHasPendingChanges(false);
+            pushNotification("Pengaturan Tersimpan", "Konfigurasi master berhasil disimpan.", "SUCCESS");
           }}
           onResetSystemData={() => onResetSystemData()}
           onUpdateEvent={handleUpdateEvent}

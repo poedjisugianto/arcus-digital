@@ -11,7 +11,7 @@ import { CATEGORY_LABELS } from '../constants';
 
 interface Props {
   state: AppState;
-  onUpdateSettings: (gs: GlobalSettings) => void;
+  onUpdateSettings: (gs: GlobalSettings) => Promise<void> | void;
   onResetSystemData?: () => void;
   onUpdateEvent: (eventId: string, updated: Partial<ArcheryEvent>) => void;
   onDeleteEvent: (eventId: string, reason?: string) => void;
@@ -25,14 +25,21 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'EVENTS' | 'USERS' | 'SETTINGS'>('OVERVIEW');
   const [searchTerm, setSearchTerm] = useState('');
   const [localSettings, setLocalSettings] = useState<GlobalSettings>(state.globalSettings);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [showSavedFlag, setShowSavedFlag] = useState(false);
 
-  // Sync localSettings if global settings change in the app state (e.g. from cloud)
+  // Sync localSettings only if not currently edited by the user
   useEffect(() => {
-    if (!showSavedFlag) {
+    if (!isDirty && !showSavedFlag && state.globalSettings) {
       setLocalSettings(state.globalSettings);
     }
-  }, [state.globalSettings, showSavedFlag]);
+  }, [state.globalSettings, isDirty, showSavedFlag]);
+
+  const updateSettingField = <K extends keyof GlobalSettings>(key: K, value: GlobalSettings[K]) => {
+    setIsDirty(true);
+    setLocalSettings(prev => ({ ...prev, [key]: value }));
+  };
   const [confirmDeleteEvent, setConfirmDeleteEvent] = useState<{ id: string, name: string } | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<{ id: string, name: string } | null>(null);
@@ -97,10 +104,18 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
     return { totalEvents, totalUsers, totalArchers, potentialFee, collectedFee, pendingFee: potentialFee - collectedFee };
   }, [state.events, state.users]);
 
-  const handleSaveGlobal = () => {
-    onUpdateSettings(localSettings);
-    setShowSavedFlag(true);
-    setTimeout(() => setShowSavedFlag(false), 3000);
+  const handleSaveGlobal = async () => {
+    setIsSaving(true);
+    try {
+      await onUpdateSettings(localSettings);
+      setIsDirty(false);
+      setShowSavedFlag(true);
+      setTimeout(() => setShowSavedFlag(false), 4000);
+    } catch (err) {
+      console.error("Save global failed", err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleTestEmail = async () => {
@@ -362,15 +377,46 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
         <div className="bg-white rounded-[2.5rem] border shadow-sm p-10 space-y-10">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             <div className="space-y-6">
-               <h4 className="font-black text-xs uppercase text-slate-400 border-b pb-2">Biaya Layanan Platform</h4>
-               <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                     <label className="text-[9px] font-black uppercase text-slate-400">Fee Dewasa</label>
-                     <input type="number" value={localSettings.feeAdult} onChange={e => setLocalSettings({...localSettings, feeAdult: parseInt(e.target.value) || 0})} className="w-full p-4 bg-slate-50 border rounded-2xl font-black" />
+               <div className="flex items-center justify-between border-b pb-2">
+                  <h4 className="font-black text-xs uppercase text-slate-400">Biaya Layanan Platform</h4>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase">Tarif per archer</span>
+               </div>
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5 bg-slate-50/70 p-4 rounded-2xl border border-slate-100">
+                     <label className="text-[9px] font-black uppercase text-slate-500">Fee Dewasa (Umum/Senior)</label>
+                     <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">Rp</span>
+                        <input 
+                          type="number" 
+                          min="0"
+                          step="500"
+                          placeholder="0"
+                          value={localSettings.feeAdult === 0 ? '' : localSettings.feeAdult} 
+                          onChange={e => updateSettingField('feeAdult', parseInt(e.target.value) || 0)} 
+                          className="w-full pl-10 pr-3 py-3 bg-white border border-slate-200 rounded-xl font-black text-sm outline-none focus:ring-2 ring-arcus-red/20" 
+                        />
+                     </div>
+                     <p className="text-[10px] font-bold text-slate-400">
+                       {localSettings.feeAdult > 0 ? `Rp ${localSettings.feeAdult.toLocaleString('id-ID')} / archer` : 'Gratis (Rp 0)'}
+                     </p>
                   </div>
-                  <div className="space-y-1.5">
-                     <label className="text-[9px] font-black uppercase text-slate-400">Fee Anak</label>
-                     <input type="number" value={localSettings.feeKids} onChange={e => setLocalSettings({...localSettings, feeKids: parseInt(e.target.value) || 0})} className="w-full p-4 bg-slate-50 border rounded-2xl font-black" />
+                  <div className="space-y-1.5 bg-slate-50/70 p-4 rounded-2xl border border-slate-100">
+                     <label className="text-[9px] font-black uppercase text-slate-500">Fee Anak (U9, U12, U18)</label>
+                     <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">Rp</span>
+                        <input 
+                          type="number" 
+                          min="0"
+                          step="500"
+                          placeholder="0"
+                          value={localSettings.feeKids === 0 ? '' : localSettings.feeKids} 
+                          onChange={e => updateSettingField('feeKids', parseInt(e.target.value) || 0)} 
+                          className="w-full pl-10 pr-3 py-3 bg-white border border-slate-200 rounded-xl font-black text-sm outline-none focus:ring-2 ring-arcus-red/20" 
+                        />
+                     </div>
+                     <p className="text-[10px] font-bold text-slate-400">
+                       {localSettings.feeKids > 0 ? `Rp ${localSettings.feeKids.toLocaleString('id-ID')} / archer` : 'Gratis (Rp 0)'}
+                     </p>
                   </div>
                </div>
                <div className="space-y-1.5">
@@ -379,7 +425,7 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                     type="url" 
                     placeholder="Contoh: https://arcus-archery.id" 
                     value={localSettings.productionUrl || ''} 
-                    onChange={e => setLocalSettings({...localSettings, productionUrl: e.target.value})} 
+                    onChange={e => updateSettingField('productionUrl', e.target.value)} 
                     className="w-full p-4 bg-slate-50 border rounded-2xl font-bold text-sm" 
                   />
                   <p className="text-[8px] font-bold text-slate-400 uppercase leading-relaxed">
@@ -567,9 +613,24 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
 
           <button 
             onClick={handleSaveGlobal}
-            className="w-full bg-arcus-red text-white py-6 rounded-3xl font-black uppercase text-xs tracking-widest shadow-xl shadow-arcus-red/20 flex items-center justify-center gap-3"
+            disabled={isSaving}
+            className={`w-full py-6 rounded-3xl font-black uppercase text-xs tracking-widest shadow-xl flex items-center justify-center gap-3 transition-all ${
+              isSaving 
+                ? 'bg-slate-400 text-white cursor-not-allowed' 
+                : isDirty 
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20' 
+                  : 'bg-arcus-red hover:bg-black text-white shadow-arcus-red/20'
+            }`}
           >
-            <Save className="w-5 h-5" /> Simpan Konfigurasi Global
+            {isSaving ? (
+              <>
+                <RefreshCw className="w-5 h-5 animate-spin" /> Menyimpan Pengaturan ke Database Cloud...
+              </>
+            ) : (
+              <>
+                <Save className="w-5 h-5" /> {isDirty ? 'Simpan Perubahan Konfigurasi Global' : 'Simpan Konfigurasi Global'}
+              </>
+            )}
           </button>
         </div>
       )}

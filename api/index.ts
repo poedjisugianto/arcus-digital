@@ -187,15 +187,20 @@ const getSnapInstance = async () => {
   let clientKey = (settings?.paymentGatewayClientKey || process.env.MIDTRANS_CLIENT_KEY || "").trim();
   let isProduction = settings?.paymentGatewayIsProduction === true || settings?.paymentGatewayIsProduction === "true" || process.env.MIDTRANS_IS_PRODUCTION === "true";
 
-  // Dynamic fallback to the correct Sandbox credentials obtained from poedji.sugianto@gmail.com
-  if (!serverKey || serverKey === "YOUR_MIDTRANS_SERVER_KEY" || serverKey === "" || !serverKey.startsWith("Mid-server")) {
+  // Auto-detect Sandbox from Key prefix (Midtrans Sandbox keys start with SB-)
+  if (serverKey.startsWith("SB-") || clientKey.startsWith("SB-")) {
+    isProduction = false;
+  }
+
+  // Fallback if no valid key is supplied
+  if (!serverKey || serverKey === "YOUR_MIDTRANS_SERVER_KEY" || serverKey === "") {
     console.log("[FIREBASE/PAYMENT] Using verified sandbox server keys fallback");
     serverKey = "Mid-server-7mVgq0OHQSBIBVUm8Z-N9P55";
     clientKey = "Mid-client-dZqaZ7wEUS4n0Cxc";
     isProduction = false;
   }
 
-  // Double check: if it is poedji's sandbox key, we MUST enforce isProduction = false
+  // If using default poedji sandbox key, enforce sandbox mode
   if (serverKey === "Mid-server-7mVgq0OHQSBIBVUm8Z-N9P55") {
     isProduction = false;
     clientKey = "Mid-client-dZqaZ7wEUS4n0Cxc";
@@ -891,6 +896,65 @@ app.post("/api/reset-event/:eventId", async (req, res) => {
     res.json({ success: true, message: "Event data has been reset to fresh state." });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/admin/save-settings", async (req, res) => {
+  const { settings, authEmail } = req.body;
+  if (!settings) {
+    return res.status(400).json({ error: "Missing settings payload" });
+  }
+
+  try {
+    const currentDb = getAdminDB();
+    if (currentDb) {
+      const docRef = currentDb.collection('systemConfigs').doc('global');
+      await docRef.set({
+        id: 'global',
+        data: settings,
+        updatedAt: new Date()
+      }, { merge: true });
+    }
+
+    // Also fallback / write via REST if SDK is not available
+    const pid = firebaseConfig.projectId;
+    const dbId = firebaseConfig.firestoreDatabaseId || "(default)";
+    if (pid && firebaseConfig.apiKey) {
+      try {
+        const url = `https://firestore.googleapis.com/v1/projects/${pid}/databases/${dbId}/documents/systemConfigs/global?key=${firebaseConfig.apiKey}`;
+        const restFields: any = {
+          id: { stringValue: 'global' },
+          data: {
+            mapValue: {
+              fields: Object.entries(settings).reduce((acc: any, [k, v]) => {
+                if (typeof v === 'number') acc[k] = { integerValue: v.toString() };
+                else if (typeof v === 'boolean') acc[k] = { booleanValue: v };
+                else acc[k] = { stringValue: String(v || '') };
+                return acc;
+              }, {})
+            }
+          }
+        };
+        await axios.patch(url, { fields: restFields }, { timeout: 4000 }).catch(() => {});
+      } catch (restErr: any) {
+        console.warn("[REST] Settings write error:", restErr.message);
+      }
+    }
+
+    // Reset cached settings in server so Midtrans and other features pick it up immediately
+    cachedGlobalSettings = settings;
+    lastGlobalSettingsUpdate = Date.now();
+
+    console.log("[SETTINGS] Global system settings saved successfully via API:", {
+      feeAdult: settings.feeAdult,
+      feeKids: settings.feeKids,
+      paymentGatewayProvider: settings.paymentGatewayProvider
+    });
+
+    res.json({ success: true, settings });
+  } catch (err: any) {
+    console.error("[SETTINGS] Error saving global settings:", err);
+    res.status(500).json({ error: err.message || "Failed to save settings to database" });
   }
 });
 
