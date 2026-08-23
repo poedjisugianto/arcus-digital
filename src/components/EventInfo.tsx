@@ -24,11 +24,21 @@ interface Props {
 export default function EventInfo({ event, onBack, onRegister, onShare, onViewParticipants, onViewLiveScoreboard }: Props) {
   const isExpired = event.settings?.registrationDeadline && new Date() > new Date(event.settings?.registrationDeadline);
   const isRegistrationOpen = event.status !== 'DRAFT' && event.status !== 'COMPLETED';
+  
   const verifiedArchers = (event.archers || []).filter(a => {
     const status = (a.status || 'PENDING').toUpperCase();
     return !['REJECTED', 'CANCELLED'].includes(status) && a.category !== CategoryType.OFFICIAL;
   });
-  const totalParticipants = verifiedArchers.length;
+  const verifiedRegs = (event.registrations || []).filter((r: any) => {
+    const status = (r.status || 'PENDING').toUpperCase();
+    return !['REJECTED', 'CANCELLED'].includes(status) && r.regType !== 'OFFICIAL' && r.category !== CategoryType.OFFICIAL;
+  });
+  
+  const allParticipantIds = new Set([
+    ...verifiedArchers.map(a => a.id),
+    ...verifiedRegs.map((r: any) => r.id)
+  ]);
+  const totalParticipants = Math.max(allParticipantIds.size, event.registrationCount || 0);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-arcus-red selection:text-white">

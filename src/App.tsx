@@ -287,22 +287,42 @@ export default function App() {
         const eventMap = new Map(prev.events.map(e => [e.id, e]));
         publicEvents.forEach(pe => {
           const existing = eventMap.get(pe.id);
-          const keepDetailed = existing?.isDetailedLoaded;
-          eventMap.set(pe.id, {
-            ...(existing || {}),
-            ...pe,
-            settings: { ...(existing?.settings || {}), ...pe.settings } as any,
-            registrations: keepDetailed ? existing.registrations : (existing?.registrations?.length ? existing.registrations : (pe.registrations || [])),
-            archers: keepDetailed ? existing.archers : (existing?.archers?.length ? existing.archers : (pe.archers || [])),
-            officials: keepDetailed ? existing.officials : (existing?.officials?.length ? existing.officials : (pe.officials || [])),
-            isDetailedLoaded: keepDetailed || false
-          });
+          if (existing) {
+            // Keep all rich participant data from existing state
+            const archerMap = new Map((existing.archers || []).map(a => [a.id, a]));
+            (pe.archers || []).forEach((a: any) => archerMap.set(a.id, a));
+
+            const officialMap = new Map((existing.officials || []).map(o => [o.id, o]));
+            (pe.officials || []).forEach((o: any) => officialMap.set(o.id, o));
+
+            const regMap = new Map((existing.registrations || []).map(r => [r.id, r]));
+            (pe.registrations || []).forEach((r: any) => regMap.set(r.id, r));
+
+            const finalArchers = Array.from(archerMap.values());
+            const finalOfficials = Array.from(officialMap.values());
+            const finalRegs = Array.from(regMap.values());
+
+            eventMap.set(pe.id, {
+              ...existing,
+              ...pe,
+              settings: { ...(existing.settings || {}), ...(pe.settings || {}) } as any,
+              registrations: finalRegs,
+              archers: finalArchers,
+              officials: finalOfficials,
+              registrationCount: Math.max(
+                existing.registrationCount || 0,
+                pe.registrationCount || 0,
+                finalRegs.length,
+                finalArchers.length
+              ),
+              scores: existing.scores?.length ? existing.scores : (pe.scores || []),
+              scoreLogs: existing.scoreLogs?.length ? existing.scoreLogs : (pe.scoreLogs || []),
+              isDetailedLoaded: existing.isDetailedLoaded || false
+            });
+          } else {
+            eventMap.set(pe.id, pe);
+          }
         });
-        
-        // Remove events that are no longer in the filtered set if they were marked as DELETED
-        const activeIds = new Set(publicEvents.map(e => e.id));
-        // We only remove if we're sure it's deleted (not just because it's not in this specific snapshot)
-        // Actually, simple filtering is enough since we're using a Map.
         
         return { 
           ...prev, 
@@ -351,7 +371,7 @@ export default function App() {
             };
             return { 
               ...base, 
-              ...d,
+              ...d, 
               id: doc.id, 
               settings,
               status: (d.status || base.status || 'DRAFT').toString().toUpperCase() 
@@ -362,16 +382,40 @@ export default function App() {
             const eventMap = new Map(prev.events.map(e => [e.id, e]));
             userEvents.forEach(ue => {
               const existing = eventMap.get(ue.id);
-              const keepDetailed = existing?.isDetailedLoaded;
-              eventMap.set(ue.id, {
-                ...(existing || {}),
-                ...ue,
-                settings: { ...(existing?.settings || {}), ...ue.settings } as any,
-                registrations: keepDetailed ? existing.registrations : (existing?.registrations?.length ? existing.registrations : (ue.registrations || [])),
-                archers: keepDetailed ? existing.archers : (existing?.archers?.length ? existing.archers : (ue.archers || [])),
-                officials: keepDetailed ? existing.officials : (existing?.officials?.length ? existing.officials : (ue.officials || [])),
-                isDetailedLoaded: keepDetailed || false
-              });
+              if (existing) {
+                const archerMap = new Map((existing.archers || []).map(a => [a.id, a]));
+                (ue.archers || []).forEach((a: any) => archerMap.set(a.id, a));
+
+                const officialMap = new Map((existing.officials || []).map(o => [o.id, o]));
+                (ue.officials || []).forEach((o: any) => officialMap.set(o.id, o));
+
+                const regMap = new Map((existing.registrations || []).map(r => [r.id, r]));
+                (ue.registrations || []).forEach((r: any) => regMap.set(r.id, r));
+
+                const finalArchers = Array.from(archerMap.values());
+                const finalOfficials = Array.from(officialMap.values());
+                const finalRegs = Array.from(regMap.values());
+
+                eventMap.set(ue.id, {
+                  ...existing,
+                  ...ue,
+                  settings: { ...(existing.settings || {}), ...(ue.settings || {}) } as any,
+                  registrations: finalRegs,
+                  archers: finalArchers,
+                  officials: finalOfficials,
+                  registrationCount: Math.max(
+                    existing.registrationCount || 0,
+                    ue.registrationCount || 0,
+                    finalRegs.length,
+                    finalArchers.length
+                  ),
+                  scores: existing.scores?.length ? existing.scores : (ue.scores || []),
+                  scoreLogs: existing.scoreLogs?.length ? existing.scoreLogs : (ue.scoreLogs || []),
+                  isDetailedLoaded: existing.isDetailedLoaded || false
+                });
+              } else {
+                eventMap.set(ue.id, ue);
+              }
             });
             return { ...prev, events: Array.from(eventMap.values()).filter(e => e.status !== 'DELETED') };
           });
@@ -394,11 +438,9 @@ export default function App() {
 
   // 3. Active Event & Data Subscriptions
   useEffect(() => {
-    if (!db || !appState.activeEventId) return;
+    if (!appState.activeEventId) return;
 
     const eventId = appState.activeEventId;
-    const isGuest = !appState.currentUser && !appState.activeScorer;
-
     let unsubActiveEventDoc = () => {};
     let unsubSubmissions = () => {};
     let unsubScores = () => {};
@@ -435,17 +477,34 @@ export default function App() {
               if (exists) {
                 updatedEvents = prev.events.map(e => {
                   if (e.id === eventId) {
-                    const fallbackArchers = cloudArchers.length ? cloudArchers : (evData.archers || e.archers || []);
-                    const fallbackOfficials = cloudOfficials.length ? cloudOfficials : (evData.officials || e.officials || []);
-                    const fallbackRegistrations = rawSubmissions.length ? rawSubmissions : (evData.registrations || e.registrations || []);
+                    const archerMap = new Map((e.archers || []).map(a => [a.id, a]));
+                    cloudArchers.forEach((a: any) => archerMap.set(a.id, a as Archer));
+                    (evData.archers || []).forEach((a: any) => archerMap.set(a.id, a as Archer));
+
+                    const officialMap = new Map((e.officials || []).map(o => [o.id, o]));
+                    cloudOfficials.forEach((o: any) => officialMap.set(o.id, o as any));
+                    (evData.officials || []).forEach((o: any) => officialMap.set(o.id, o as any));
+
+                    const regMap = new Map((e.registrations || []).map(r => [r.id, r]));
+                    rawSubmissions.forEach((r: any) => regMap.set(r.id, r));
+                    (evData.registrations || []).forEach((r: any) => regMap.set(r.id, r));
+
+                    const finalArchers = Array.from(archerMap.values());
+                    const finalOfficials = Array.from(officialMap.values());
+                    const finalRegs = Array.from(regMap.values());
 
                     return {
                       ...e,
                       ...evData,
-                      registrations: fallbackRegistrations,
-                      archers: fallbackArchers,
-                      officials: fallbackOfficials,
-                      registrationCount: fallbackRegistrations.length || fallbackArchers.length || e.registrationCount || 0,
+                      registrations: finalRegs,
+                      archers: finalArchers,
+                      officials: finalOfficials,
+                      registrationCount: Math.max(
+                        evData.registrationCount || 0,
+                        e.registrationCount || 0,
+                        finalRegs.length,
+                        finalArchers.length
+                      ),
                       scores: cloudScores.length ? cloudScores : (e.scores || []),
                       scoreLogs: cloudScoreLogs.length ? cloudScoreLogs : (e.scoreLogs || []),
                       isDetailedLoaded: true
@@ -454,17 +513,13 @@ export default function App() {
                   return e;
                 });
               } else {
-                const fallbackArchers = cloudArchers.length ? cloudArchers : (evData.archers || []);
-                const fallbackOfficials = cloudOfficials.length ? cloudOfficials : (evData.officials || []);
-                const fallbackRegistrations = rawSubmissions.length ? rawSubmissions : (evData.registrations || []);
-
                 const newEvent = {
                   ...evData,
                   id: eventId,
-                  registrations: fallbackRegistrations,
-                  archers: fallbackArchers,
-                  officials: fallbackOfficials,
-                  registrationCount: fallbackRegistrations.length || fallbackArchers.length || 0,
+                  registrations: rawSubmissions,
+                  archers: cloudArchers,
+                  officials: cloudOfficials,
+                  registrationCount: Math.max(evData.registrationCount || 0, rawSubmissions.length, cloudArchers.length),
                   scores: cloudScores,
                   scoreLogs: cloudScoreLogs,
                   isDetailedLoaded: true
@@ -483,11 +538,105 @@ export default function App() {
 
     fetchDataViaAPI();
 
-    // 2. Bind real-time listeners directly to Firestore for everyone (both guests and authenticated managers)
-    // This connects directly to the database for instant, 100% accurate participant/score updates.
+    // 2. Bind direct Firestore reads and real-time listeners
     if (db) {
-      console.log(`[REALTIME-SYNC] Binding direct Firestore real-time listeners for event: ${eventId}`);
+      console.log(`[REALTIME-SYNC] Binding direct Firestore queries and listeners for event: ${eventId}`);
       
+      // Direct fast query to get instant full data
+      const directFetchFromFirestore = async () => {
+        try {
+          const [eventDocSnap, submissionsSnap, scoresSnap, logsSnap] = await Promise.all([
+            getDoc(doc(db, 'events', eventId)),
+            getDocs(collection(db, 'events', eventId, 'submissions')),
+            getDocs(collection(db, 'events', eventId, 'scores')),
+            getDocs(collection(db, 'events', eventId, 'scoreLogs'))
+          ]);
+
+          if (eventDocSnap.exists()) {
+            const d = eventDocSnap.data();
+            const base = d.data || d;
+            const settings = { ...(base.settings || base || {}), ...(d.settings || {}) };
+            
+            const rawSubmissions = submissionsSnap.docs.map(sd => {
+              const sdData = sd.data();
+              const sBase = sdData.archerData || sdData.officialData || sdData.participantData || sdData.data || sdData;
+              const regType = sdData.regType || sBase.regType || (sdData.category === 'OFFICIAL' ? 'OFFICIAL' : 'ARCHER');
+              return { ...sBase, ...sdData, id: sd.id, regType };
+            });
+
+            const cloudArchers = rawSubmissions.filter(s => s.regType !== 'OFFICIAL');
+            const cloudOfficials = rawSubmissions.filter(s => s.regType === 'OFFICIAL');
+            const rawScores = scoresSnap.docs.map(s => ({ ...s.data(), id: s.id }));
+            const rawLogs = logsSnap.docs.map(l => ({ ...l.data(), id: l.id }));
+
+            setAppState(prev => {
+              if (prev.activeEventId !== eventId) return prev;
+              const exists = prev.events.some(e => e.id === eventId);
+              let updatedEvents;
+              if (exists) {
+                updatedEvents = prev.events.map(e => {
+                  if (e.id === eventId) {
+                    const archerMap = new Map((e.archers || []).map(a => [a.id, a]));
+                    cloudArchers.forEach(a => archerMap.set(a.id, a as Archer));
+
+                    const officialMap = new Map((e.officials || []).map(o => [o.id, o]));
+                    cloudOfficials.forEach(o => officialMap.set(o.id, o as any));
+
+                    const regMap = new Map((e.registrations || []).map(r => [r.id, r]));
+                    rawSubmissions.forEach(r => regMap.set(r.id, r));
+
+                    const finalArchers = Array.from(archerMap.values());
+                    const finalOfficials = Array.from(officialMap.values());
+                    const finalRegs = Array.from(regMap.values());
+
+                    return {
+                      ...base,
+                      ...d,
+                      ...e,
+                      id: eventId,
+                      settings: { ...(base.settings || {}), ...(d.settings || {}), ...(e.settings || {}) },
+                      registrations: finalRegs,
+                      archers: finalArchers,
+                      officials: finalOfficials,
+                      registrationCount: Math.max(
+                        d.registrationCount || 0,
+                        e.registrationCount || 0,
+                        finalRegs.length,
+                        finalArchers.length
+                      ),
+                      scores: rawScores.length ? rawScores : (e.scores || []),
+                      scoreLogs: rawLogs.length ? rawLogs : (e.scoreLogs || []),
+                      isDetailedLoaded: true
+                    };
+                  }
+                  return e;
+                });
+              } else {
+                const newEv = {
+                  ...base,
+                  ...d,
+                  id: eventId,
+                  settings,
+                  registrations: rawSubmissions,
+                  archers: cloudArchers,
+                  officials: cloudOfficials,
+                  registrationCount: Math.max(d.registrationCount || 0, rawSubmissions.length, cloudArchers.length),
+                  scores: rawScores,
+                  scoreLogs: rawLogs,
+                  isDetailedLoaded: true
+                } as any;
+                updatedEvents = [newEv, ...prev.events];
+              }
+              return { ...prev, events: updatedEvents };
+            });
+          }
+        } catch (dbErr: any) {
+          console.warn("[DIRECT-FIRESTORE] Direct fetch warning:", dbErr.message);
+        }
+      };
+
+      directFetchFromFirestore();
+
       unsubActiveEventDoc = onSnapshot(doc(db, 'events', eventId), (snap) => {
         if (!snap.exists()) return;
         const d = snap.data();
@@ -537,6 +686,12 @@ export default function App() {
                   registrations: mergedRegistrations,
                   archers: mergedArchers,
                   officials: mergedOfficials,
+                  registrationCount: Math.max(
+                    parentEvent.registrationCount || 0,
+                    e.registrationCount || 0,
+                    mergedRegistrations.length,
+                    mergedArchers.length
+                  ),
                   status: parentEvent.status as any
                 };
               }
@@ -546,9 +701,9 @@ export default function App() {
             updatedEvents = [
               {
                 ...parentEvent,
-                registrations: [],
-                archers: [],
-                officials: [],
+                registrations: parentEvent.registrations || [],
+                archers: parentEvent.archers || [],
+                officials: parentEvent.officials || [],
                 scores: [],
                 scoreLogs: [],
                 isDetailedLoaded: false
@@ -616,23 +771,30 @@ export default function App() {
           if (exists) {
             updatedEvents = prev.events.map(e => {
               if (e.id === eventId) {
-                // Protect against empty snapshot race conditions wiping out valid loaded data
-                const finalSubmissions = rawSubmissions.length > 0 
-                  ? rawSubmissions 
-                  : (e.registrations && e.registrations.length > 0 ? e.registrations : []);
-                const finalArchers = cloudArchers.length > 0 
-                  ? cloudArchers 
-                  : (e.archers && e.archers.length > 0 ? e.archers : []);
-                const finalOfficials = cloudOfficials.length > 0 
-                  ? cloudOfficials 
-                  : (e.officials && e.officials.length > 0 ? e.officials : []);
+                // Merge cleanly via Map to never lose items
+                const archerMap = new Map((e.archers || []).map(a => [a.id, a]));
+                cloudArchers.forEach(a => archerMap.set(a.id, a as Archer));
+
+                const officialMap = new Map((e.officials || []).map(o => [o.id, o]));
+                cloudOfficials.forEach(o => officialMap.set(o.id, o as any));
+
+                const regMap = new Map((e.registrations || []).map(r => [r.id, r]));
+                rawSubmissions.forEach(r => regMap.set(r.id, r));
+
+                const finalArchers = Array.from(archerMap.values());
+                const finalOfficials = Array.from(officialMap.values());
+                const finalRegs = Array.from(regMap.values());
 
                 return {
                   ...e,
-                  registrations: finalSubmissions,
+                  registrations: finalRegs,
                   archers: finalArchers,
                   officials: finalOfficials,
-                  registrationCount: finalSubmissions.length || (e.registrationCount || 0),
+                  registrationCount: Math.max(
+                    e.registrationCount || 0,
+                    finalRegs.length,
+                    finalArchers.length
+                  ),
                   isDetailedLoaded: true
                 };
               }
@@ -645,7 +807,7 @@ export default function App() {
               registrations: rawSubmissions,
               archers: cloudArchers,
               officials: cloudOfficials,
-              registrationCount: rawSubmissions.length,
+              registrationCount: rawSubmissions.length || cloudArchers.length,
               scores: [],
               scoreLogs: [],
               isDetailedLoaded: true
