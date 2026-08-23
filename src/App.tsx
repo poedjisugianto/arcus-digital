@@ -616,12 +616,23 @@ export default function App() {
           if (exists) {
             updatedEvents = prev.events.map(e => {
               if (e.id === eventId) {
+                // Protect against empty snapshot race conditions wiping out valid loaded data
+                const finalSubmissions = rawSubmissions.length > 0 
+                  ? rawSubmissions 
+                  : (e.registrations && e.registrations.length > 0 ? e.registrations : []);
+                const finalArchers = cloudArchers.length > 0 
+                  ? cloudArchers 
+                  : (e.archers && e.archers.length > 0 ? e.archers : []);
+                const finalOfficials = cloudOfficials.length > 0 
+                  ? cloudOfficials 
+                  : (e.officials && e.officials.length > 0 ? e.officials : []);
+
                 return {
                   ...e,
-                  registrations: rawSubmissions,
-                  archers: cloudArchers,
-                  officials: cloudOfficials,
-                  registrationCount: rawSubmissions.length,
+                  registrations: finalSubmissions,
+                  archers: finalArchers,
+                  officials: finalOfficials,
+                  registrationCount: finalSubmissions.length || (e.registrationCount || 0),
                   isDetailedLoaded: true
                 };
               }
