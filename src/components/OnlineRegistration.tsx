@@ -484,14 +484,9 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
 
     if (formData.paymentType === 'GATEWAY') {
       setIsSubmitting(true);
+      const loadingToastId = toast.loading("Menghubungkan ke gerbang pembayaran Midtrans...");
       try {
         console.log("Initiating payment gateway for:", totalAmount);
-        
-        if (!window.snap && globalSettings.paymentGatewayProvider === 'MIDTRANS') {
-           toast.error("Sedang memuat sistem pembayaran. Silakan tunggu sebentar atau refresh...");
-           setIsSubmitting(false);
-           return;
-        }
 
         const res = await fetch('/api/payment/create', {
           method: 'POST',
@@ -505,6 +500,8 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
           })
         });
         
+        toast.dismiss(loadingToastId);
+
         if (!res.ok) {
           const errorData = await res.json().catch(() => ({}));
           throw new Error(errorData.error || errorData.message || "Gagal membuat transaksi pembayaran di server");
@@ -523,7 +520,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
             qrData: data.qrData
           });
 
-          // Also try standard Snap popup if available
+          // Standard Snap popup if available
           if (data.token && window.snap) {
             console.log("Snap token received, opening popup");
             // @ts-ignore
@@ -544,9 +541,9 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                 setActivePaymentSession(null);
                 setStep(3); 
               },
-              onError: (result: any) => {
+              onError: (result: any) => { 
                 console.error("Payment error", result);
-                toast.error("Pembayaran Gagal atau Dibatalkan. Silakan coba lagi.");
+                toast.error("Pembayaran Gagal atau Dibatalkan.");
                 setIsSubmitting(false);
               },
               onClose: () => {
@@ -554,15 +551,16 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                 setIsSubmitting(false);
               }
             });
-          } else {
-            console.log("No snap script or token. Running in simulation or direct redirect flow.");
+          } else if (data.redirectUrl) {
+            console.log("Running in direct redirect or failover modal flow.");
           }
         } else {
           console.warn("API returned success = false", data);
-          toast.error(data.error || "Gagal membuat transaksi pembayaran.");
+          toast.error(data.error || data.message || "Gagal membuat transaksi pembayaran.");
           setIsSubmitting(false);
         }
       } catch (err: any) {
+        toast.dismiss(loadingToastId);
         console.error("Payment registration error:", err);
         toast.error(err.message || "Terjadi kesalahan sistem pendaftaran.");
         setIsSubmitting(false);
