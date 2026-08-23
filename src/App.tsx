@@ -1475,6 +1475,31 @@ export default function App() {
     appState.events.find(e => e.id === appState.activeEventId) || null
   , [appState.events, appState.activeEventId]);
 
+  const activeEventArchers = useMemo(() => {
+    if (!activeEvent) return [];
+    const fromArchers = (activeEvent.archers || []).filter(a => a.category !== CategoryType.OFFICIAL);
+    const fromRegs = (activeEvent.registrations || [])
+      .filter((r: any) => r.regType !== 'OFFICIAL' && r.category !== CategoryType.OFFICIAL)
+      .map((r: any) => ({
+        ...r,
+        category: r.category as CategoryType,
+        targetNo: r.targetNo || 0,
+        wave: r.wave || 1
+      } as Archer));
+    const combined = [...fromArchers, ...fromRegs];
+    return Array.from(new Map(combined.map(item => [item.id, item])).values());
+  }, [activeEvent]);
+
+  const activeEventOfficials = useMemo(() => {
+    if (!activeEvent) return [];
+    const fromArchers = (activeEvent.archers || []).filter(a => a.category === CategoryType.OFFICIAL);
+    const fromOfficials = activeEvent.officials || [];
+    const fromRegs = (activeEvent.registrations || [])
+      .filter((r: any) => r.regType === 'OFFICIAL' || r.category === CategoryType.OFFICIAL);
+    const combined = [...fromArchers, ...fromOfficials, ...fromRegs];
+    return Array.from(new Map(combined.map(item => [item.id, item])).values());
+  }, [activeEvent]);
+
   // Main UI Router
   const renderView = () => {
     if (quotaExceeded && !isOnline) {
@@ -1539,6 +1564,41 @@ export default function App() {
           globalSettings={appState.globalSettings}
           onRegister={async (regs) => {
             console.log("App: onRegister called with", regs.length, "registrations");
+            
+            const newArchers = regs.filter(r => r.regType !== 'OFFICIAL');
+            const newOfficials = regs.filter(r => r.regType === 'OFFICIAL');
+
+            // 1. Instantly update React local state so UI updates without lag
+            setAppState(prev => {
+              const updatedEvents = prev.events.map(e => {
+                if (e.id === activeEvent.id) {
+                  const existingArchers = e.archers || [];
+                  const existingOfficials = e.officials || [];
+                  const existingRegs = e.registrations || [];
+
+                  const archerMap = new Map(existingArchers.map(a => [a.id, a]));
+                  newArchers.forEach(a => archerMap.set(a.id, a as Archer));
+
+                  const officialMap = new Map(existingOfficials.map(o => [o.id, o]));
+                  newOfficials.forEach(o => officialMap.set(o.id, o as any));
+
+                  const regMap = new Map(existingRegs.map(r => [r.id, r]));
+                  regs.forEach(r => regMap.set(r.id, r));
+
+                  return {
+                    ...e,
+                    archers: Array.from(archerMap.values()),
+                    officials: Array.from(officialMap.values()),
+                    registrations: Array.from(regMap.values()),
+                    registrationCount: regMap.size
+                  };
+                }
+                return e;
+              });
+              return { ...prev, events: updatedEvents };
+            });
+
+            // 2. Persist to server API
             try {
               const res = await fetch("/api/register-participant", {
                 method: "POST",
@@ -1546,8 +1606,8 @@ export default function App() {
                 body: JSON.stringify({
                   eventId: activeEvent.id,
                   registrations: regs,
-                  archers: regs.filter(r => r.regType !== 'OFFICIAL'),
-                  officials: regs.filter(r => r.regType === 'OFFICIAL')
+                  archers: newArchers,
+                  officials: newOfficials
                 })
               });
               
@@ -1603,7 +1663,7 @@ export default function App() {
       case 'SCORER_PANEL':
         if (!activeEvent) return null;
         return <ScoringPanel 
-          state={activeEvent}
+          state={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           currentScorer={appState.activeScorer}
           onSaveScore={async (score) => {
             const scores = Array.isArray(score) ? score : [score];
@@ -1774,8 +1834,8 @@ export default function App() {
           eventId={activeEvent.id}
           settings={activeEvent.settings}
           scorerAccess={activeEvent.scorerAccess || []}
-          archers={activeEvent.archers || []}
-          officials={activeEvent.officials || []}
+          archers={activeEventArchers}
+          officials={activeEventOfficials}
           onSave={async (updatedSettings) => {
             handleUpdateEvent(activeEvent.id, { settings: updatedSettings });
           }}
@@ -1807,7 +1867,7 @@ export default function App() {
       case 'ID_CARD_EDITOR':
         if (!activeEvent) return null;
         return <IdCardEditor 
-          archers={activeEvent.archers || []}
+          archers={activeEventArchers}
           settings={activeEvent.settings}
           onBack={() => setView('EVENT_ADMIN')}
         />;
@@ -1815,7 +1875,7 @@ export default function App() {
       case 'OPERATOR_CENTER':
         if (!activeEvent) return null;
         return <OperatorCenter 
-          event={activeEvent}
+          event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           onSaveScore={async (score, log) => {
             const scores = Array.isArray(score) ? score : [score];
             const logs = log ? (Array.isArray(log) ? log : [log]) : [];
@@ -1831,7 +1891,7 @@ export default function App() {
       case 'QUICK_SCORING_PANEL':
         if (!activeEvent) return null;
         return <QuickScoringPanel 
-          event={activeEvent}
+          event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           currentScorer={appState.activeScorer}
           onSaveScore={async (score) => {
             const scores = Array.isArray(score) ? score : [score];
@@ -1924,7 +1984,7 @@ export default function App() {
       case 'PUBLIC_EVENT_INFO':
         if (!activeEvent) return null;
         return <EventInfo 
-          event={activeEvent}
+          event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           onRegister={() => setView('REGISTER_PARTICIPANT')}
           onBack={() => setView('LANDING')}
           onShare={() => {
@@ -1941,7 +2001,7 @@ export default function App() {
       case 'LIVE_SCOREBOARD':
         if (!activeEvent) return null;
         return <LiveScoreboard 
-          state={activeEvent}
+          state={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           onBack={() => {
             if (appState.currentUser) {
               setView('EVENT_ADMIN');
@@ -1954,7 +2014,7 @@ export default function App() {
       case 'ENTRY_LIST':
         if (!activeEvent) return null;
         return <EntryList 
-          event={activeEvent}
+          event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           onBack={() => setView('PUBLIC_EVENT_INFO')}
           onRefresh={() => refreshActiveEventDetails(true)}
           isSyncing={isSyncing}

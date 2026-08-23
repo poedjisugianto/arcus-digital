@@ -21,16 +21,29 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing }: Props
   }, []);
 
   const archers = useMemo(() => {
-    return (event.archers || []).filter(a => a.category !== CategoryType.OFFICIAL);
-  }, [event.archers]);
+    const fromArchers = (event.archers || []).filter(a => a.category !== CategoryType.OFFICIAL);
+    const fromRegs = (event.registrations || [])
+      .filter((r: any) => r.regType !== 'OFFICIAL' && r.category !== CategoryType.OFFICIAL)
+      .map((r: any) => ({
+        ...r,
+        category: r.category as CategoryType,
+        targetNo: r.targetNo || 0,
+        wave: r.wave || 1
+      }));
+    const combined = [...fromArchers, ...fromRegs];
+    const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
+    return unique;
+  }, [event.archers, event.registrations]);
 
   const officials = useMemo(() => {
     const fromArchers = (event.archers || []).filter(a => a.category === CategoryType.OFFICIAL);
     const fromOfficials = event.officials || [];
-    const combined = [...fromArchers, ...fromOfficials];
+    const fromRegs = (event.registrations || [])
+      .filter((r: any) => r.regType === 'OFFICIAL' || r.category === CategoryType.OFFICIAL);
+    const combined = [...fromArchers, ...fromOfficials, ...fromRegs];
     const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
     return unique;
-  }, [event.archers, event.officials]);
+  }, [event.archers, event.officials, event.registrations]);
 
   const currentList = viewMode === 'ARCHERS' ? archers : officials;
 

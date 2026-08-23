@@ -195,13 +195,13 @@ const getSnapInstance = async () => {
   // Fallback if no valid key is supplied
   if (!serverKey || serverKey === "YOUR_MIDTRANS_SERVER_KEY" || serverKey === "") {
     console.log("[FIREBASE/PAYMENT] Using verified sandbox server keys fallback");
-    serverKey = "Mid-server-7mVgq0OHQSBIBVUm8Z-N9P55";
+    serverKey = "Mid-server-7mVgq00HQSBIBVUm8Z-N9P55";
     clientKey = "Mid-client-dZqaZ7wEUS4n0Cxc";
     isProduction = false;
   }
 
   // If using default poedji sandbox key, enforce sandbox mode
-  if (serverKey === "Mid-server-7mVgq0OHQSBIBVUm8Z-N9P55") {
+  if (serverKey === "Mid-server-7mVgq00HQSBIBVUm8Z-N9P55" || serverKey === "Mid-server-7mVgq0OHQSBIBVUm8Z-N9P55") {
     isProduction = false;
     clientKey = "Mid-client-dZqaZ7wEUS4n0Cxc";
   }
@@ -428,46 +428,69 @@ const simulatedPayments: Record<string, { status: string, amount: number }> = {}
 
 // Test Midtrans Key Connection Endpoint
 app.post("/api/admin/test-midtrans", async (req, res) => {
-  const { serverKey, isProduction } = req.body;
+  const { serverKey, clientKey, isProduction } = req.body;
   const keyToTest = (serverKey || "").trim();
 
   if (!keyToTest) {
     return res.status(400).json({ success: false, message: "Server Key tidak boleh kosong" });
   }
 
-  const endpoint = isProduction 
-    ? "https://api.midtrans.com/v2/ping"
-    : "https://api.sandbox.midtrans.com/v2/ping";
+  const modeIsProduction = isProduction === true || String(isProduction) === "true";
+
+  const endpoint = modeIsProduction 
+    ? "https://app.midtrans.com/snap/v1/transactions"
+    : "https://app.sandbox.midtrans.com/snap/v1/transactions";
 
   try {
     const authHeader = "Basic " + Buffer.from(keyToTest + ":").toString("base64");
-    const response = await axios.get(endpoint, {
+    const testOrderId = "PING-" + Date.now().toString().slice(-6);
+
+    const response = await axios.post(endpoint, {
+      transaction_details: {
+        order_id: testOrderId,
+        gross_amount: 10000
+      },
+      customer_details: {
+        first_name: "Test Connection",
+        email: "test@arcus.id"
+      }
+    }, {
       headers: {
         Authorization: authHeader,
+        "Content-Type": "application/json",
         Accept: "application/json"
       },
-      timeout: 6000
+      timeout: 10000
     });
+
+    if (response.data && (response.data.token || response.data.redirect_url)) {
+      return res.json({ 
+        success: true, 
+        message: `Koneksi Midtrans Sandbox Berhasil Terhubung! Token Snap resmi berhasil dibuat.`,
+        data: response.data 
+      });
+    }
 
     return res.json({ 
       success: true, 
-      message: "Koneksi Midtrans Berhasil! Server Key valid.",
+      message: "Koneksi Midtrans Berhasil!",
       data: response.data 
     });
   } catch (err: any) {
     const statusCode = err.response?.status;
-    const errorMsg = err.response?.data?.status_message || err.message;
+    const errorData = err.response?.data;
+    const errorMsg = (errorData && (errorData.error_messages ? errorData.error_messages.join(', ') : errorData.status_message)) || err.message;
     
     if (statusCode === 401) {
       return res.status(401).json({
         success: false,
-        message: "Autentikasi Gagal (401): Server Key tidak cocok atau salah lingkungan (Sandbox vs Production). Pastikan mengambil Server Key dari Dashboard Midtrans Sandbox (Settings > Access Keys)."
+        message: `Autentikasi Gagal (401): Server Key tidak diakui oleh Midtrans (${modeIsProduction ? 'Production' : 'Sandbox'}). Pastikan Server Key disalin persis dari menu Settings > Access Keys di dashboard Midtrans Sandbox.`
       });
     }
 
     return res.status(400).json({
       success: false,
-      message: `Uji coba gagal (${statusCode || 'Network Error'}): ${errorMsg}`
+      message: `Uji coba Snap gagal (${statusCode || 'Network Error'}): ${errorMsg}`
     });
   }
 });

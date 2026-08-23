@@ -523,7 +523,7 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                    <label className="text-[9px] font-black uppercase text-slate-400">Server Key / Secret (Wajib)</label>
                    <input 
                      type="text" 
-                     placeholder="SB-Mid-server-..." 
+                     placeholder="Mid-server-..." 
                      value={localSettings.paymentGatewayServerKey || ''} 
                      onChange={e => updateSettingField('paymentGatewayServerKey', e.target.value.trim())}
                      className="w-full p-4 bg-slate-50 border rounded-2xl font-black text-xs font-mono outline-none focus:ring-2 ring-arcus-red/20" 
@@ -534,7 +534,7 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                    <label className="text-[9px] font-black uppercase text-slate-400">Client Key / Public (Wajib)</label>
                    <input 
                      type="text" 
-                     placeholder="SB-Mid-client-..." 
+                     placeholder="Mid-client-..." 
                      value={localSettings.paymentGatewayClientKey || ''} 
                      onChange={e => updateSettingField('paymentGatewayClientKey', e.target.value.trim())}
                      className="w-full p-4 bg-slate-50 border rounded-2xl font-black text-xs font-mono outline-none focus:ring-2 ring-arcus-red/20" 

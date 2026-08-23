@@ -519,12 +519,26 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
         const data = await res.json();
         
         if (data.success) {
+          // Immediately save registrations as PENDING in the database so data is not lost even if user closes popup
+          const pendingRegs = registrations.map(r => ({
+            ...r,
+            status: RegistrationStatus.PENDING,
+            paymentId: data.transactionId
+          }));
+
+          try {
+            await onRegister(pendingRegs);
+            console.log("[ONLINE-REG] Initial pending registration saved successfully");
+          } catch (initRegErr) {
+            console.warn("[ONLINE-REG] Initial pending registration save warning:", initRegErr);
+          }
+
           // Set active payment session for backup modal / failover
           setActivePaymentSession({
             orderId: data.transactionId,
             redirectUrl: data.redirectUrl || '',
             token: data.token,
-            registrations,
+            registrations: pendingRegs,
             isReal: !!data.isReal,
             qrData: data.qrData
           });
@@ -541,29 +555,35 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
             console.log("Snap token received, opening Midtrans Snap popup...");
             try {
               snapInstance.pay(data.token, {
-                onSuccess: (result: any) => { 
+                onSuccess: async (result: any) => { 
                   console.log("Payment success", result);
                   const approvedRegs = registrations.map(r => ({ ...r, status: RegistrationStatus.APPROVED, paymentId: result.transaction_id || data.transactionId }));
                   setRecentRegistrations(approvedRegs);
-                  onRegister(approvedRegs); 
+                  await onRegister(approvedRegs); 
                   setActivePaymentSession(null);
                   setStep(3); 
+                  setIsSubmitting(false);
                 },
                 onPending: (result: any) => { 
                   console.log("Payment pending", result);
-                  const pendingRegs = registrations.map(r => ({ ...r, status: RegistrationStatus.PENDING, paymentId: result.transaction_id || data.transactionId }));
-                  setRecentRegistrations(pendingRegs);
-                  onRegister(pendingRegs); 
+                  const pendingSaved = registrations.map(r => ({ ...r, status: RegistrationStatus.PENDING, paymentId: result.transaction_id || data.transactionId }));
+                  setRecentRegistrations(pendingSaved);
                   setActivePaymentSession(null);
                   setStep(3); 
+                  setIsSubmitting(false);
                 },
                 onError: (result: any) => { 
                   console.error("Payment error", result);
-                  toast.error("Pembayaran Gagal atau Dibatalkan.");
+                  toast.error("Pembayaran Gagal atau Dibatalkan. Pendaftaran Anda tetap tercatat (Menunggu Pembayaran).");
+                  setRecentRegistrations(pendingRegs);
+                  setStep(3);
                   setIsSubmitting(false);
                 },
                 onClose: () => {
                   console.log("Payment popup closed");
+                  toast.info("Pendaftaran Anda telah tersimpan dengan status 'Menunggu Pembayaran'.");
+                  setRecentRegistrations(pendingRegs);
+                  setStep(3);
                   setIsSubmitting(false);
                 }
               });
@@ -572,9 +592,15 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
               if (data.redirectUrl) {
                 window.open(data.redirectUrl, '_blank');
               }
+              setRecentRegistrations(pendingRegs);
+              setStep(3);
+              setIsSubmitting(false);
             }
           } else if (data.redirectUrl) {
             console.log("Opening Midtrans payment page directly via redirectUrl:", data.redirectUrl);
+            setRecentRegistrations(pendingRegs);
+            setStep(3);
+            setIsSubmitting(false);
             const opened = window.open(data.redirectUrl, '_blank');
             if (!opened) {
               // If popup blocker stopped window.open, navigate directly
