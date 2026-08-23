@@ -4,7 +4,8 @@ import {
   Users, Calendar, DollarSign, Settings, 
   ShieldCheck, CheckCircle2, 
   AlertCircle, Save, ArrowLeft, Trash2, 
-  Search, Eye, ShieldAlert, Activity, Landmark, Check, Mail, Send, RefreshCw
+  Search, Eye, ShieldAlert, Activity, Landmark, Check, Mail, Send, RefreshCw,
+  Zap, AlertTriangle
 } from 'lucide-react';
 import { AppState, GlobalSettings, ArcheryEvent, User, AppNotification, CategoryType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
@@ -47,6 +48,8 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
   const [isTestingEmail, setIsTestingEmail] = useState(false);
   const [testEmailResult, setTestEmailResult] = useState<{ success: boolean, message: string } | null>(null);
   const [smtpStatus, setSmtpStatus] = useState<any>(null);
+  const [isTestingMidtrans, setIsTestingMidtrans] = useState(false);
+  const [midtransTestResult, setMidtransTestResult] = useState<{ success: boolean, message: string } | null>(null);
 
   useEffect(() => {
     if (activeTab === 'SETTINGS') {
@@ -115,6 +118,41 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
       console.error("Save global failed", err);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleTestMidtrans = async () => {
+    if (!localSettings.paymentGatewayServerKey) {
+      setMidtransTestResult({
+        success: false,
+        message: "Silakan masukkan Server Key Midtrans terlebih dahulu (contoh: SB-Mid-server-...)"
+      });
+      return;
+    }
+    setIsTestingMidtrans(true);
+    setMidtransTestResult(null);
+    try {
+      const res = await fetch('/api/admin/test-midtrans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          serverKey: localSettings.paymentGatewayServerKey,
+          isProduction: localSettings.paymentGatewayIsProduction
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setMidtransTestResult({ success: true, message: data.message || "Koneksi Midtrans Berhasil & Valid!" });
+      } else {
+        setMidtransTestResult({ 
+          success: false, 
+          message: data.message || "Uji coba koneksi gagal. Periksa Server Key & Mode." 
+        });
+      }
+    } catch (err: any) {
+      setMidtransTestResult({ success: false, message: err.message || "Terjadi kesalahan saat menguji koneksi." });
+    } finally {
+      setIsTestingMidtrans(false);
     }
   };
 
@@ -472,8 +510,8 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                    <label className="text-[9px] font-black uppercase text-slate-400">Provider</label>
                    <select 
                      value={localSettings.paymentGatewayProvider} 
-                     onChange={e => setLocalSettings({...localSettings, paymentGatewayProvider: e.target.value as any})}
-                     className="w-full p-4 bg-slate-50 border rounded-2xl font-black text-xs"
+                     onChange={e => updateSettingField('paymentGatewayProvider', e.target.value as any)}
+                     className="w-full p-4 bg-slate-50 border rounded-2xl font-black text-xs outline-none focus:ring-2 ring-arcus-red/20"
                    >
                       <option value="NONE">Nonaktif (Manual Only)</option>
                       <option value="MIDTRANS">Midtrans (Indonesia)</option>
@@ -482,44 +520,85 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                    </select>
                 </div>
                 <div className="space-y-1.5">
-                   <label className="text-[9px] font-black uppercase text-slate-400">Server Key / Secret</label>
+                   <label className="text-[9px] font-black uppercase text-slate-400">Server Key / Secret (Wajib)</label>
                    <input 
                      type="text" 
                      placeholder="SB-Mid-server-..." 
                      value={localSettings.paymentGatewayServerKey || ''} 
-                     onChange={e => setLocalSettings({...localSettings, paymentGatewayServerKey: e.target.value})}
-                     className="w-full p-4 bg-slate-50 border rounded-2xl font-black text-xs" 
+                     onChange={e => updateSettingField('paymentGatewayServerKey', e.target.value.trim())}
+                     className="w-full p-4 bg-slate-50 border rounded-2xl font-black text-xs font-mono outline-none focus:ring-2 ring-arcus-red/20" 
                    />
+                   <p className="text-[8px] font-bold text-slate-400">Dari: Midtrans Dashboard &gt; Settings &gt; Access Keys</p>
                 </div>
                 <div className="space-y-1.5">
-                   <label className="text-[9px] font-black uppercase text-slate-400">Client Key / Public</label>
+                   <label className="text-[9px] font-black uppercase text-slate-400">Client Key / Public (Wajib)</label>
                    <input 
                      type="text" 
                      placeholder="SB-Mid-client-..." 
                      value={localSettings.paymentGatewayClientKey || ''} 
-                     onChange={e => setLocalSettings({...localSettings, paymentGatewayClientKey: e.target.value})}
-                     className="w-full p-4 bg-slate-50 border rounded-2xl font-black text-xs" 
+                     onChange={e => updateSettingField('paymentGatewayClientKey', e.target.value.trim())}
+                     className="w-full p-4 bg-slate-50 border rounded-2xl font-black text-xs font-mono outline-none focus:ring-2 ring-arcus-red/20" 
                    />
+                   <p className="text-[8px] font-bold text-slate-400">Dari: Midtrans Dashboard &gt; Settings &gt; Access Keys</p>
                 </div>
              </div>
+
+             {/* Test Midtrans Connection Action */}
+             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                <div className="space-y-1">
+                   <h5 className="font-black text-xs text-slate-700">Uji Validitas Server Key Midtrans</h5>
+                   <p className="text-[10px] text-slate-500 font-medium">Tes apakah Server Key Anda dapat berkomunikasi dengan API Midtrans ({localSettings.paymentGatewayIsProduction ? 'Production' : 'Sandbox'}).</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleTestMidtrans}
+                  disabled={isTestingMidtrans || !localSettings.paymentGatewayServerKey}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shrink-0"
+                >
+                  {isTestingMidtrans ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Menguji...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-3.5 h-3.5" /> Tes Koneksi Midtrans
+                    </>
+                  )}
+                </button>
+             </div>
+
+             {midtransTestResult && (
+               <div className={`p-4 rounded-2xl border text-xs font-bold flex items-start gap-3 animate-in fade-in duration-300 ${
+                 midtransTestResult.success ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-red-50 text-red-800 border-red-200'
+               }`}>
+                 {midtransTestResult.success ? <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" /> : <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />}
+                 <div className="space-y-1">
+                   <p>{midtransTestResult.message}</p>
+                   {midtransTestResult.success && (
+                     <p className="text-[10px] font-medium text-emerald-700">Jangan lupa klik tombol <strong>Simpan Perubahan Konfigurasi Global</strong> di bawah agar tersimpan permanen!</p>
+                   )}
+                 </div>
+               </div>
+             )}
              
              <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                <ShieldAlert className="w-5 h-5 text-blue-600" />
+                <ShieldAlert className="w-5 h-5 text-blue-600 shrink-0" />
                 <div className="flex-1">
                   <p className="text-[10px] font-medium text-blue-700 leading-relaxed">
-                    <strong>PENTING:</strong> Pastikan Server Key disimpan dengan aman. Gunakan Sandbox Mode untuk pengujian sebelum beralih ke Production.
+                    <strong>PENTING:</strong> Di Midtrans Sandbox, Server Key selalu diawali dengan <code>SB-Mid-server-</code> dan Client Key diawali dengan <code>SB-Mid-client-</code>.
                   </p>
                   <p className="text-[9px] font-black text-blue-800 uppercase mt-2">
-                    Webhook URL: <code className="bg-white/40 px-2 py-0.5 rounded ml-1 underline">{window.location.origin}/api/payment/webhook</code>
+                    Webhook URL: <code className="bg-white/60 px-2 py-0.5 rounded ml-1 underline">{window.location.origin}/api/payment/webhook</code>
                   </p>
                   <p className="text-[8px] font-medium text-blue-500 italic">
-                    * Tempelkan URL ini di "Notification URL" Dashboard Midtrans Anda.
+                    * Tempelkan URL ini di "Notification URL" Dashboard Midtrans Anda (Settings &gt; Configuration).
                   </p>
                 </div>
-                <div className="ml-auto flex items-center gap-2">
+                <div className="ml-auto flex items-center gap-2 shrink-0">
                    <span className="text-[9px] font-black uppercase text-slate-400">Production?</span>
                    <button 
-                     onClick={() => setLocalSettings({...localSettings, paymentGatewayIsProduction: !localSettings.paymentGatewayIsProduction})}
+                     type="button"
+                     onClick={() => updateSettingField('paymentGatewayIsProduction', !localSettings.paymentGatewayIsProduction)}
                      className={`w-12 h-6 rounded-full relative transition-all ${localSettings.paymentGatewayIsProduction ? 'bg-red-500' : 'bg-slate-300'}`}
                    >
                       <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${localSettings.paymentGatewayIsProduction ? 'left-7' : 'left-1'}`} />

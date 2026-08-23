@@ -16,7 +16,7 @@ import {
   ArrowLeft, User, Mail, ShieldCheck, CreditCard, 
   Upload, Check, AlertCircle, Zap, Sparkles, 
   Target, Trophy, Users, Activity, Info, FileText, Landmark, Smartphone,
-  Camera, Loader2, ExternalLink, ShieldAlert, QrCode, RefreshCw, Printer
+  Camera, Loader2, ExternalLink, ShieldAlert, QrCode, RefreshCw, Printer, AlertTriangle
 } from 'lucide-react';
 
 interface Props {
@@ -72,6 +72,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
   const [collectiveMembers, setCollectiveMembers] = useState<{name: string, category: string, photoUrl?: string}[]>([]);
   const [newMember, setNewMember] = useState({ name: '', category: '', photoUrl: '' });
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [paymentErrorDetail, setPaymentErrorDetail] = useState<{ title: string; message: string; isAuthError?: boolean } | null>(null);
 
   const isGatewayEnabled = event.settings?.enableGateway !== false;
 
@@ -505,7 +506,14 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
 
         if (!res.ok) {
           const errorData = await res.json().catch(() => ({}));
-          throw new Error(errorData.error || errorData.message || "Gagal membuat transaksi pembayaran di server");
+          const errMsg = errorData.error || errorData.message || "Gagal membuat transaksi pembayaran di server";
+          const is401 = res.status === 401 || errMsg.includes("401") || errMsg.includes("Server Key");
+          setPaymentErrorDetail({
+            title: is401 ? "Autentikasi Midtrans Gagal" : "Gagal Membuka Pembayaran",
+            message: errMsg,
+            isAuthError: is401
+          });
+          throw new Error(errMsg);
         }
         
         const data = await res.json();
@@ -575,13 +583,25 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
           }
         } else {
           console.warn("API returned success = false", data);
-          toast.error(data.error || data.message || "Gagal membuat transaksi pembayaran.");
+          const errMsg = data.error || data.message || "Gagal membuat transaksi pembayaran.";
+          setPaymentErrorDetail({
+            title: "Gagal Membuka Pembayaran",
+            message: errMsg,
+            isAuthError: errMsg.includes("401") || errMsg.includes("Server Key")
+          });
+          toast.error(errMsg);
           setIsSubmitting(false);
         }
       } catch (err: any) {
         toast.dismiss(loadingToastId);
         console.error("Payment registration error:", err);
-        toast.error(err.message || "Terjadi kesalahan sistem pendaftaran.");
+        if (!paymentErrorDetail) {
+          setPaymentErrorDetail({
+            title: "Kendala Sistem Pembayaran",
+            message: err.message || "Terjadi kesalahan saat memproses transaksi.",
+            isAuthError: (err.message || "").includes("401") || (err.message || "").includes("Server Key")
+          });
+        }
         setIsSubmitting(false);
       }
     } else {
@@ -1567,6 +1587,53 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                 className="px-5 py-3 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] hover:bg-arcus-red transition-all flex items-center gap-2 shadow-lg animate-pulse"
               >
                 <Printer className="w-3.5 h-3.5" /> CETAK / SIMPAN BUKTI
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Payment Error Diagnostic Modal */}
+      {paymentErrorDetail && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200">
+            <div className="w-14 h-14 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mb-5 mx-auto">
+              <AlertTriangle className="w-8 h-8" />
+            </div>
+
+            <h3 className="text-lg font-black text-slate-900 text-center uppercase tracking-tight mb-2">
+              {paymentErrorDetail.title}
+            </h3>
+
+            <div className="bg-red-50/70 border border-red-100 rounded-2xl p-4 mb-5 text-left">
+              <p className="text-xs text-red-900 font-bold leading-relaxed">
+                {paymentErrorDetail.message}
+              </p>
+            </div>
+
+            {paymentErrorDetail.isAuthError ? (
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-6 text-left space-y-2">
+                <p className="text-[11px] font-black uppercase text-slate-700">Langkah Memperbaiki Koneksi Midtrans:</p>
+                <ol className="text-[10px] text-slate-600 space-y-1.5 list-decimal pl-4 font-medium">
+                  <li>Buka <strong>Midtrans Sandbox Dashboard</strong> (<code>dashboard.sandbox.midtrans.com</code>).</li>
+                  <li>Buka menu <strong>Settings &gt; Access Keys</strong>.</li>
+                  <li>Salin <strong>Server Key</strong> (diawali dengan <code className="bg-slate-200 px-1 rounded">SB-Mid-server-</code>) dan <strong>Client Key</strong> (<code className="bg-slate-200 px-1 rounded">SB-Mid-client-</code>).</li>
+                  <li>Buka <strong>Super Admin Panel &gt; Tab Pengaturan Master &gt; Konfigurasi Payment Gateway</strong> di ARCUS.</li>
+                  <li>Tempelkan Server Key &amp; Client Key, lalu klik <strong>"Tes Koneksi Midtrans"</strong> dan klik <strong>"Simpan Perubahan"</strong>.</li>
+                </ol>
+              </div>
+            ) : (
+              <p className="text-[11px] text-slate-500 text-center mb-6">
+                Silakan coba lagi beberapa saat lagi atau pilih metode <strong>Transfer Manual</strong> untuk melanjutkan pendaftaran.
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setPaymentErrorDetail(null)}
+                className="flex-1 py-3.5 bg-slate-900 hover:bg-black text-white text-xs font-black uppercase tracking-wider rounded-2xl transition-all shadow-lg"
+              >
+                Saya Mengerti
               </button>
             </div>
           </div>

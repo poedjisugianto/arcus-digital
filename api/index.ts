@@ -426,15 +426,62 @@ app.post("/api/send-otp", async (req, res) => {
 // Payment Database (In-memory for simulation)
 const simulatedPayments: Record<string, { status: string, amount: number }> = {};
 
+// Test Midtrans Key Connection Endpoint
+app.post("/api/admin/test-midtrans", async (req, res) => {
+  const { serverKey, isProduction } = req.body;
+  const keyToTest = (serverKey || "").trim();
+
+  if (!keyToTest) {
+    return res.status(400).json({ success: false, message: "Server Key tidak boleh kosong" });
+  }
+
+  const endpoint = isProduction 
+    ? "https://api.midtrans.com/v2/ping"
+    : "https://api.sandbox.midtrans.com/v2/ping";
+
+  try {
+    const authHeader = "Basic " + Buffer.from(keyToTest + ":").toString("base64");
+    const response = await axios.get(endpoint, {
+      headers: {
+        Authorization: authHeader,
+        Accept: "application/json"
+      },
+      timeout: 6000
+    });
+
+    return res.json({ 
+      success: true, 
+      message: "Koneksi Midtrans Berhasil! Server Key valid.",
+      data: response.data 
+    });
+  } catch (err: any) {
+    const statusCode = err.response?.status;
+    const errorMsg = err.response?.data?.status_message || err.message;
+    
+    if (statusCode === 401) {
+      return res.status(401).json({
+        success: false,
+        message: "Autentikasi Gagal (401): Server Key tidak cocok atau salah lingkungan (Sandbox vs Production). Pastikan mengambil Server Key dari Dashboard Midtrans Sandbox (Settings > Access Keys)."
+      });
+    }
+
+    return res.status(400).json({
+      success: false,
+      message: `Uji coba gagal (${statusCode || 'Network Error'}): ${errorMsg}`
+    });
+  }
+});
+
 // API Route for creating a payment transaction
 app.post("/api/payment/create", async (req, res) => {
   const { amount, method, provider, customerDetails, itemDetails } = req.body;
-  const orderId = "ARCUS-" + Date.now() + "-" + Math.random().toString(36).toUpperCase().substr(2, 4);
+  const cleanAmount = Math.round(Number(amount) || 0);
+  const orderId = "ARCUS-" + Date.now().toString().slice(-8) + "-" + Math.random().toString(36).toUpperCase().substring(2, 6);
   
-  console.log(`[PAYMENT] Initiating ${amount} via ${method} using provider: ${provider}`);
+  console.log(`[PAYMENT] Initiating ${cleanAmount} via ${method} using provider: ${provider}`);
 
-  if (!amount || amount <= 0) {
-    return res.status(400).json({ success: false, message: "Amount must be greater than 0" });
+  if (!cleanAmount || cleanAmount <= 0) {
+    return res.status(400).json({ success: false, message: "Nominal pembayaran harus lebih besar dari 0" });
   }
 
   const snap = await getSnapInstance();
@@ -442,23 +489,73 @@ app.post("/api/payment/create", async (req, res) => {
   // If Midtrans is configured, use it
   if (snap) {
     try {
+      // Build and sanitize item_details
+      let sanitizedItems: any[] = [];
+      if (Array.isArray(itemDetails) && itemDetails.length > 0) {
+        sanitizedItems = itemDetails.map((it: any, idx: number) => ({
+          id: String(it.id || `ITEM-${idx + 1}`).substring(0, 50),
+          price: Math.round(Number(it.price) || 0),
+          quantity: Math.max(1, Math.round(Number(it.quantity) || 1)),
+          name: String(it.name || `Item ${idx + 1}`).replace(/[^\w\s\-\.\,\(\)]/gi, '').substring(0, 45) || `Biaya Pendaftaran ${idx + 1}`
+        }));
+
+        // Validate that items total matches gross_amount exactly
+        const itemsTotal = sanitizedItems.reduce((s: number, i: any) => s + (i.price * i.quantity), 0);
+        if (itemsTotal !== cleanAmount) {
+          // If mismatch, simplify to single item to prevent Midtrans 400 rejection
+          sanitizedItems = [{
+            id: 'REG-TOTAL',
+            price: cleanAmount,
+            quantity: 1,
+            name: 'Total Pendaftaran Turnamen'
+          }];
+        }
+      } else {
+        sanitizedItems = [{
+          id: 'REG-TOTAL',
+          price: cleanAmount,
+          quantity: 1,
+          name: 'Total Pendaftaran Turnamen'
+        }];
+      }
+
+      // Sanitize customer details
+      const sanitizedCustomer: any = {};
+      if (customerDetails?.name) {
+        sanitizedCustomer.first_name = String(customerDetails.name).replace(/[^\w\s]/gi, '').substring(0, 45) || 'Peserta';
+      }
+      if (customerDetails?.email && customerDetails.email.includes('@')) {
+        sanitizedCustomer.email = String(customerDetails.email).trim().substring(0, 50);
+      }
+      if (customerDetails?.phone) {
+        sanitizedCustomer.phone = String(customerDetails.phone).replace(/[^\d\+]/g, '').substring(0, 19);
+      }
+
       const parameter = {
         transaction_details: {
           order_id: orderId,
-          gross_amount: amount
+          gross_amount: cleanAmount
         },
         credit_card: {
           secure: true
         },
-        customer_details: customerDetails,
-        item_details: itemDetails
+        customer_details: sanitizedCustomer,
+        item_details: sanitizedItems
       };
+
+      console.log("[MIDTRANS] Creating transaction with parameters:", JSON.stringify(parameter));
 
       // @ts-ignore
       const transaction = await snap.createTransaction(parameter);
       
       // Store locally for status tracking if needed
-      simulatedPayments[orderId] = { status: "PENDING", amount };
+      simulatedPayments[orderId] = { status: "PENDING", amount: cleanAmount };
+
+      console.log("[MIDTRANS] Transaction created successfully:", {
+        orderId,
+        token: transaction.token ? transaction.token.substring(0, 10) + "..." : "none",
+        redirectUrl: transaction.redirect_url
+      });
 
       return res.json({ 
         success: true, 
@@ -468,21 +565,35 @@ app.post("/api/payment/create", async (req, res) => {
         isReal: true
       });
     } catch (error: any) {
-      console.error("Midtrans Error:", error);
-      // Detailed error for debugging if it's unauthorized
-      if (error.message?.includes("401")) {
-        return res.status(500).json({ 
+      console.error("[MIDTRANS-ERROR] createTransaction failed:", error);
+      const errMsg = error.message || String(error);
+
+      if (errMsg.includes("401") || errMsg.includes("Access denied")) {
+        return res.status(401).json({ 
           success: false, 
-          message: "Midtrans Auth Error: Server Key tidak valid atau salah mode (Sandbox/Production).",
-          error: error.message 
+          message: "Autentikasi Midtrans Gagal (401): Server Key tidak valid atau salah mode (Sandbox vs Production). Periksa konfigurasi di Super Admin Panel > Konfigurasi Payment Gateway.",
+          error: errMsg 
         });
       }
-      return res.status(500).json({ success: false, message: "Gagal membuat transaksi Midtrans", error: error.message });
+      
+      if (errMsg.includes("400")) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Midtrans Bad Request (400): Parameter transaksi tidak diterima oleh Midtrans.",
+          error: errMsg 
+        });
+      }
+
+      return res.status(500).json({ 
+        success: false, 
+        message: "Gagal menghubungkan ke Midtrans: " + errMsg, 
+        error: errMsg 
+      });
     }
   }
   
   // Fallback to simulation
-  simulatedPayments[orderId] = { status: "PENDING", amount };
+  simulatedPayments[orderId] = { status: "PENDING", amount: cleanAmount };
   
   // Simulate automatic success after 10 seconds
   setTimeout(() => {
