@@ -176,6 +176,15 @@ export interface Match {
   endsB: number[];
   winnerId?: string;
   status: 'PENDING' | 'LIVE' | 'COMPLETED';
+  // Shoot-Off / Penentuan Skor Seri
+  isShootOff?: boolean;
+  shootOffA?: number | string; // Nilai panah tembakan shoot-off atlet A (cth: 10, 'X', 9, 8)
+  shootOffB?: number | string; // Nilai panah tembakan shoot-off atlet B (cth: 10, 'X', 9, 8)
+  shootOffClosestA?: boolean; // Tanda panah A lebih dekat ke titik tengah / X (closest to center)
+  shootOffClosestB?: boolean; // Tanda panah B lebih dekat ke titik tengah / X (closest to center)
+  shootOffDistanceA?: number; // Jarak panah A ke pusat target dalam mm (opsional)
+  shootOffDistanceB?: number; // Jarak panah B ke pusat target dalam mm (opsional)
+  shootOffNote?: string; // Catatan keputusan wasit / judge
 }
 
 export interface CategoryConfig {
@@ -186,7 +195,7 @@ export interface CategoryConfig {
   targetType: TargetType;
   quota?: number; // Kuota maksimal peserta kategori ini
   // Konfigurasi aduan/Eliminasi
-  h2hStartSize: 2 | 4 | 8 | 16 | 32 | 0; // 0 berarti tidak ada aduan
+  h2hStartSize: 2 | 4 | 8 | 16 | 32 | 64 | 0; // 0 berarti tidak ada aduan
   eliminationStages: number[]; // Contoh: [32, 16] berarti ada penyaringan skor top 32 lalu top 16 baru masuk aduan
 }
 

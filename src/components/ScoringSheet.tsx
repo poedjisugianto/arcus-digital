@@ -42,26 +42,26 @@ const ScoringSheet: React.FC<Props> = ({ settings, eventId, archer, isA6 = false
             </div>
             <div>
               <h1 className={isA6 ? "text-[11px] font-black uppercase tracking-tighter leading-none" : "text-4xl font-black uppercase tracking-tighter leading-none"}>{settings.tournamentName}</h1>
-              {!isA6 && <p className="text-sm font-bold text-slate-500 mt-1 uppercase tracking-widest">{settings.location} | {settings.eventDate}</p>}
+              {!isA6 && <p className="text-sm font-bold text-slate-800 mt-1 uppercase tracking-widest">{settings.location} | {settings.eventDate}</p>}
             </div>
           </div>
           
           {isA6 ? (
             <div className="grid grid-cols-1 gap-1 mt-1 text-[9px] w-full max-w-[170px]">
               <div className="flex items-center gap-1.5">
-                <span className="text-[7px] font-black uppercase text-slate-500 shrink-0 w-8">Nama</span>
+                <span className="text-[7px] font-black uppercase text-slate-800 shrink-0 w-8">Nama</span>
                 <span className="text-[10px] font-black uppercase border-b border-black flex-1 truncate pb-0.5">{archer.name}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[7px] font-black uppercase text-slate-500 shrink-0 w-8">Klub</span>
+                <span className="text-[7px] font-black uppercase text-slate-800 shrink-0 w-8">Klub</span>
                 <span className="text-[10px] font-black uppercase border-b border-black flex-1 truncate pb-0.5">{archer.club || '-'}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[7px] font-black uppercase text-slate-500 shrink-0 w-8">Kategori</span>
+                <span className="text-[7px] font-black uppercase text-slate-800 shrink-0 w-8">Kategori</span>
                 <span className="text-[9px] font-black uppercase border-b border-black flex-1 truncate pb-0.5 leading-none">{CATEGORY_LABELS[archer.category]}</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[7px] font-black uppercase text-slate-500 shrink-0 w-8">Jarak</span>
+                <span className="text-[7px] font-black uppercase text-slate-800 shrink-0 w-8">Jarak</span>
                 <span className="text-[10px] font-black uppercase border-b border-black flex-1 pb-0.5">{config.distance}</span>
               </div>
             </div>
@@ -155,14 +155,14 @@ const ScoringSheet: React.FC<Props> = ({ settings, eventId, archer, isA6 = false
       </div>
 
       {/* Footer */}
-      <div className={isA6 ? "mt-2 pt-1 text-[6px] text-slate-400 font-bold flex justify-between items-end border-t border-slate-100" : "mt-auto pt-12 text-[11px] text-slate-500 font-bold flex justify-between items-end border-t border-slate-200"}>
+      <div className={isA6 ? "mt-2 pt-1 text-[6px] text-slate-700 font-bold flex justify-between items-end border-t border-slate-100" : "mt-auto pt-12 text-[11px] text-slate-800 font-bold flex justify-between items-end border-t border-slate-200"}>
         <div>
           <p className="uppercase tracking-widest">ARCUS Digital Archery</p>
-          {!isA6 && <p className="text-[9px] text-slate-400 mt-1">Generated on {new Date().toLocaleString('id-ID')}</p>}
+          {!isA6 && <p className="text-[9px] text-slate-700 mt-1">Generated on {new Date().toLocaleString('id-ID')}</p>}
         </div>
         <div className="text-right">
           <p className="uppercase">ID: {archer.id}</p>
-          {!isA6 && <p className="text-[9px] text-slate-400 mt-1">Official Score Sheet v2.5</p>}
+          {!isA6 && <p className="text-[9px] text-slate-700 mt-1">Official Score Sheet v2.5</p>}
         </div>
       </div>
     </div>

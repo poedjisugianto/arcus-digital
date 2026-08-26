@@ -1471,7 +1471,7 @@ app.get("/api/event-details/:id", async (req, res) => {
 
   const currentDb = getAdminDB();
   if (!currentDb) {
-    return res.status(500).json({ error: "Sistem Cloud tidak siap" });
+    return res.json({ success: false, message: "Sistem Cloud belum dikonfigurasi", data: null });
   }
 
   const pid = firebaseConfig.projectId;
@@ -1484,7 +1484,7 @@ app.get("/api/event-details/:id", async (req, res) => {
     const eventSnap = await eventRef.get();
     
     if (!eventSnap.exists) {
-      return res.status(404).json({ error: "Event tidak ditemukan" });
+      return res.json({ success: false, notFound: true, message: "Event tidak ditemukan", data: null });
     }
     
     const data = eventSnap.data() || {};
@@ -1503,19 +1503,21 @@ app.get("/api/event-details/:id", async (req, res) => {
     } catch (subErr: any) {
       console.warn(`[API/EVENT-DETAILS] Submissions fetch failed via Admin SDK, trying REST fallback... ${subErr.message}`);
       // REST fallback...
-      const subUrl = `https://firestore.googleapis.com/v1/projects/${pid}/databases/${dbId}/documents/events/${eventId}/submissions?key=${firebaseConfig.apiKey}&pageSize=1000`;
-      try {
-        const subRes = await axios.get(subUrl, { timeout: 4000 });
-        if (subRes.data && subRes.data.documents) {
-          subRes.data.documents.forEach((d: any) => {
-            const transformed = transformRestFields(d.fields);
-            const docId = d.name.split('/').pop();
-            submissions.push({ ...transformed, id: docId });
-          });
-          console.log(`[API/EVENT-DETAILS] REST fallback success: fetched ${submissions.length} submissions`);
+      if (pid && firebaseConfig.apiKey) {
+        const subUrl = `https://firestore.googleapis.com/v1/projects/${pid}/databases/${dbId}/documents/events/${eventId}/submissions?key=${firebaseConfig.apiKey}&pageSize=1000`;
+        try {
+          const subRes = await axios.get(subUrl, { timeout: 4000 });
+          if (subRes.data && subRes.data.documents) {
+            subRes.data.documents.forEach((d: any) => {
+              const transformed = transformRestFields(d.fields);
+              const docId = d.name.split('/').pop();
+              submissions.push({ ...transformed, id: docId });
+            });
+            console.log(`[API/EVENT-DETAILS] REST fallback success: fetched ${submissions.length} submissions`);
+          }
+        } catch (restErr: any) {
+          console.warn(`[API/EVENT-DETAILS] Submissions REST fallback:`, restErr.message);
         }
-      } catch (restErr: any) {
-        console.error(`[API/EVENT-DETAILS] All submissions fetch methods failed:`, restErr.message);
       }
     }
 
@@ -1525,7 +1527,7 @@ app.get("/api/event-details/:id", async (req, res) => {
       const scoresSnap = await eventRef.collection('scores').limit(5000).get();
       scoresSnap.forEach((d: any) => scores.push({ id: d.id, ...d.data() }));
     } catch (scoreErr: any) {
-      console.warn(`[API/EVENT-DETAILS] Scores fetch failed via Admin SDK: ${scoreErr.message}`);
+      console.warn(`[API/EVENT-DETAILS] Scores fetch note: ${scoreErr.message}`);
     }
 
     // 4. Fetch ScoreLogs
@@ -1534,7 +1536,7 @@ app.get("/api/event-details/:id", async (req, res) => {
       const logsSnap = await eventRef.collection('scoreLogs').limit(2000).get();
       logsSnap.forEach((d: any) => scoreLogs.push({ id: d.id, ...d.data() }));
     } catch (logErr: any) {
-      console.warn(`[API/EVENT-DETAILS] ScoreLogs fetch failed via Admin SDK: ${logErr.message}`);
+      console.warn(`[API/EVENT-DETAILS] ScoreLogs fetch note: ${logErr.message}`);
     }
 
     console.log(`[API/EVENT-DETAILS] Successfully fetched details for ${eventId}: Submissions Count=${submissions.length}, Scores Count=${scores.length}, ScoreLogs Count=${scoreLogs.length}`);
@@ -1554,28 +1556,30 @@ app.get("/api/event-details/:id", async (req, res) => {
     return res.json({ success: true, data: responseData, source: 'admin-sdk' });
   } catch (error: any) {
     // REST API Fallback for Detail
-    try {
-      const url = `https://firestore.googleapis.com/v1/projects/${pid}/databases/${dbId}/documents/events/${eventId}?key=${firebaseConfig.apiKey}`;
-      const response = await axios.get(url, { timeout: 3000 });
-      
-      if (response.data) {
-        const transformedData = transformRestFields(response.data.fields);
-        const data = transformedData.data || transformedData;
+    if (pid && firebaseConfig.apiKey) {
+      try {
+        const url = `https://firestore.googleapis.com/v1/projects/${pid}/databases/${dbId}/documents/events/${eventId}?key=${firebaseConfig.apiKey}`;
+        const response = await axios.get(url, { timeout: 3000 });
         
-        return res.json({ 
-          success: true, 
-          data: { ...data, id: eventId, registrations: [] }, 
-          source: 'cloud-rest-fallback' 
-        });
+        if (response.data) {
+          const transformedData = transformRestFields(response.data.fields);
+          const data = transformedData.data || transformedData;
+          
+          return res.json({ 
+            success: true, 
+            data: { ...data, id: eventId, registrations: [] }, 
+            source: 'cloud-rest-fallback' 
+          });
+        }
+      } catch (restErr: any) {
+        console.warn("[API/EVENT-DETAILS] REST Fallback:", restErr.message);
       }
-    } catch (restErr: any) {
-      console.warn("[API/EVENT-DETAILS] REST Fallback failed:", restErr.message);
     }
 
     if (eventDetailsCache[eventId]) {
       return res.json({ success: true, data: eventDetailsCache[eventId].data, source: 'error-fallback' });
     }
-    res.status(500).json({ error: "Gagal mengambil detail dari cloud", details: error.message, code: error.code });
+    return res.json({ success: false, message: "Event detail tidak tersedia di cloud", data: null });
   }
 });
 

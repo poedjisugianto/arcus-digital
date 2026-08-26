@@ -71,7 +71,7 @@ export const InstallAppModal: React.FC<Props> = ({
                   PWA Ready
                 </span>
               </div>
-              <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest mt-0.5">
+              <p className="text-[10px] font-bold text-white/90 uppercase tracking-widest mt-0.5">
                 Aplikasi Resmi • Bisa di HP & PC / Komputer
               </p>
             </div>
@@ -92,7 +92,7 @@ export const InstallAppModal: React.FC<Props> = ({
             className={`flex-1 py-3 px-4 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
               activeTab === 'mobile'
                 ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20'
-                : 'bg-white text-slate-500 hover:text-slate-900 border border-slate-200'
+                : 'bg-white text-slate-800 hover:text-slate-900 border border-slate-200'
             }`}
           >
             <Smartphone className="w-4 h-4 text-arcus-red" />
@@ -103,7 +103,7 @@ export const InstallAppModal: React.FC<Props> = ({
             className={`flex-1 py-3 px-4 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all ${
               activeTab === 'desktop'
                 ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20'
-                : 'bg-white text-slate-500 hover:text-slate-900 border border-slate-200'
+                : 'bg-white text-slate-800 hover:text-slate-900 border border-slate-200'
             }`}
           >
             <Monitor className="w-4 h-4 text-blue-500" />
@@ -161,7 +161,7 @@ export const InstallAppModal: React.FC<Props> = ({
                 <button
                   onClick={() => setMobileSubTab('android')}
                   className={`flex-1 py-2 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
-                    mobileSubTab === 'android' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-700'
+                    mobileSubTab === 'android' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700 hover:text-slate-700'
                   }`}
                 >
                   Android (Chrome / Browser)
@@ -169,7 +169,7 @@ export const InstallAppModal: React.FC<Props> = ({
                 <button
                   onClick={() => setMobileSubTab('ios')}
                   className={`flex-1 py-2 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
-                    mobileSubTab === 'ios' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400 hover:text-slate-700'
+                    mobileSubTab === 'ios' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700 hover:text-slate-700'
                   }`}
                 >
                   iPhone / iPad (Safari)
@@ -178,7 +178,7 @@ export const InstallAppModal: React.FC<Props> = ({
 
               {mobileSubTab === 'android' ? (
                 <div className="space-y-4">
-                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-700">
                     Cara Pasang di HP Android:
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -187,7 +187,7 @@ export const InstallAppModal: React.FC<Props> = ({
                         01
                       </div>
                       <h5 className="text-xs font-black uppercase text-slate-900">Buka di Chrome</h5>
-                      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+                      <p className="text-[11px] font-medium text-slate-800 leading-relaxed">
                         Buka website turnamen menggunakan browser <strong>Google Chrome</strong> di smartphone Android Anda.
                       </p>
                     </div>
@@ -197,7 +197,7 @@ export const InstallAppModal: React.FC<Props> = ({
                         02
                       </div>
                       <h5 className="text-xs font-black uppercase text-slate-900">Menu Titik Tiga (⋮)</h5>
-                      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+                      <p className="text-[11px] font-medium text-slate-800 leading-relaxed">
                         Tap ikon <strong>menu tiga titik (⋮)</strong> di sudut kanan atas layar browser Chrome.
                       </p>
                     </div>
@@ -207,7 +207,7 @@ export const InstallAppModal: React.FC<Props> = ({
                         03
                       </div>
                       <h5 className="text-xs font-black uppercase text-slate-900">Instal Aplikasi</h5>
-                      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+                      <p className="text-[11px] font-medium text-slate-800 leading-relaxed">
                         Pilih <strong>"Instal aplikasi"</strong> atau <strong>"Tambahkan ke Layar Utama"</strong>. Ikon Arcus akan muncul di HP Anda!
                       </p>
                     </div>
@@ -215,7 +215,7 @@ export const InstallAppModal: React.FC<Props> = ({
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-slate-700">
                     Cara Pasang di iPhone & iPad (iOS Safari):
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -224,7 +224,7 @@ export const InstallAppModal: React.FC<Props> = ({
                         01
                       </div>
                       <h5 className="text-xs font-black uppercase text-slate-900">Buka di Safari</h5>
-                      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+                      <p className="text-[11px] font-medium text-slate-800 leading-relaxed">
                         Pastikan Anda membuka website ini menggunakan browser bawaan <strong>Safari</strong> pada iPhone/iPad.
                       </p>
                     </div>
@@ -234,7 +234,7 @@ export const InstallAppModal: React.FC<Props> = ({
                         02
                       </div>
                       <h5 className="text-xs font-black uppercase text-slate-900">Tombol Share (⎋)</h5>
-                      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+                      <p className="text-[11px] font-medium text-slate-800 leading-relaxed">
                         Tap tombol <strong>Bagikan / Share</strong> (ikon kotak dengan panah ke atas) di bagian bawah layar.
                       </p>
                     </div>
@@ -244,7 +244,7 @@ export const InstallAppModal: React.FC<Props> = ({
                         03
                       </div>
                       <h5 className="text-xs font-black uppercase text-slate-900">Add to Home Screen</h5>
-                      <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+                      <p className="text-[11px] font-medium text-slate-800 leading-relaxed">
                         Gulir ke bawah dan pilih <strong>"Add to Home Screen"</strong> (Tambah ke Layar Utama), lalu tap <strong>"Add"</strong>.
                       </p>
                     </div>
@@ -257,7 +257,7 @@ export const InstallAppModal: React.FC<Props> = ({
           {/* DESKTOP / PC GUIDE */}
           {activeTab === 'desktop' && (
             <div className="space-y-6">
-              <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">
+              <h4 className="text-xs font-black uppercase tracking-widest text-slate-700">
                 Cara Pasang di Laptop / PC (Windows & macOS):
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -266,7 +266,7 @@ export const InstallAppModal: React.FC<Props> = ({
                     01
                   </div>
                   <h5 className="text-xs font-black uppercase text-slate-900">Gunakan Chrome / Edge</h5>
-                  <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+                  <p className="text-[11px] font-medium text-slate-800 leading-relaxed">
                     Buka situs web turnamen menggunakan browser <strong>Google Chrome</strong> atau <strong>Microsoft Edge</strong> di PC/Laptop Anda.
                   </p>
                 </div>
@@ -276,7 +276,7 @@ export const InstallAppModal: React.FC<Props> = ({
                     02
                   </div>
                   <h5 className="text-xs font-black uppercase text-slate-900">Ikon Pasang di Address Bar</h5>
-                  <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+                  <p className="text-[11px] font-medium text-slate-800 leading-relaxed">
                     Lihat di sebelah kanan kolom alamat URL (address bar), klik ikon <strong>Pasang / Install [⊕]</strong> atau klik tombol <strong>"Instal Sekarang"</strong> di atas.
                   </p>
                 </div>
@@ -286,7 +286,7 @@ export const InstallAppModal: React.FC<Props> = ({
                     03
                   </div>
                   <h5 className="text-xs font-black uppercase text-slate-900">Buka Seperti Aplikasi PC</h5>
-                  <p className="text-[11px] font-medium text-slate-500 leading-relaxed">
+                  <p className="text-[11px] font-medium text-slate-800 leading-relaxed">
                     Arcus Digital akan memiliki jendela mandiri tanpa tab browser, muncul di Desktop & Start Menu, dan berjalan super cepat!
                   </p>
                 </div>
@@ -296,7 +296,7 @@ export const InstallAppModal: React.FC<Props> = ({
 
           {/* Benefits Grid */}
           <div className="pt-4 border-t border-slate-100 space-y-3">
-            <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">
+            <h4 className="text-xs font-black uppercase tracking-widest text-slate-700">
               Keunggulan Aplikasi Terpasang (PWA):
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -306,7 +306,7 @@ export const InstallAppModal: React.FC<Props> = ({
                 </div>
                 <div>
                   <h5 className="text-[11px] font-black uppercase text-slate-900">Ringan & Instan</h5>
-                  <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
+                  <p className="text-[10px] text-slate-800 font-medium leading-tight mt-0.5">
                     Hanya ukuran beberapa kilobyte tanpa memakan ruang penyimpanan perangkat.
                   </p>
                 </div>
@@ -318,7 +318,7 @@ export const InstallAppModal: React.FC<Props> = ({
                 </div>
                 <div>
                   <h5 className="text-[11px] font-black uppercase text-slate-900">Bisa Offline</h5>
-                  <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
+                  <p className="text-[10px] text-slate-800 font-medium leading-tight mt-0.5">
                     Bantalan & wasit tetap dapat memasukkan skor meskipun sinyal di lapangan buruk.
                   </p>
                 </div>
@@ -330,7 +330,7 @@ export const InstallAppModal: React.FC<Props> = ({
                 </div>
                 <div>
                   <h5 className="text-[11px] font-black uppercase text-slate-900">Selalu Terupdate</h5>
-                  <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">
+                  <p className="text-[10px] text-slate-800 font-medium leading-tight mt-0.5">
                     Otomatis sinkron dengan pembaruan sistem terbaru tanpa perlu install ulang manual.
                   </p>
                 </div>
@@ -341,7 +341,7 @@ export const InstallAppModal: React.FC<Props> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">
+        <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[10px] font-bold text-slate-700 uppercase tracking-wider shrink-0">
           <span>Arcus Archery Progressive Web App (PWA)</span>
           <button
             onClick={onClose}

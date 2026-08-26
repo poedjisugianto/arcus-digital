@@ -83,7 +83,7 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing }: Props
       case 'REJECTED':
         return <span className="px-2 py-1 bg-red-50 text-red-600 rounded text-[8px] font-black uppercase tracking-widest border border-red-100 italic">DITOLAK</span>;
       default:
-        return <span className="px-2 py-1 bg-slate-50 text-slate-400 rounded text-[8px] font-black uppercase tracking-widest border border-slate-100">PROSES</span>;
+        return <span className="px-2 py-1 bg-slate-50 text-slate-700 rounded text-[8px] font-black uppercase tracking-widest border border-slate-100">PROSES</span>;
     }
   };
 
@@ -95,7 +95,7 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing }: Props
           <div className="flex items-center gap-1.5 md:gap-6">
             <button 
               onClick={onBack}
-              className="p-1.5 md:p-3 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded-lg md:rounded-2xl transition-all"
+              className="p-1.5 md:p-3 text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-lg md:rounded-2xl transition-all"
             >
               <ArrowLeft className="w-4 h-4 md:w-6 md:h-6" />
             </button>
@@ -207,20 +207,20 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing }: Props
                 {filteredData.map((item, idx) => (
                   <tr key={item.id} className="group hover:bg-slate-50 transition-all">
                     <td className="px-4 md:px-10 py-3 md:py-6">
-                      <div className={`w-8 h-8 md:w-10 md:h-10 bg-slate-100 rounded-lg md:rounded-xl flex items-center justify-center font-black font-oswald italic text-xs md:text-base text-slate-400 group-hover:text-white transition-all ${viewMode === 'ARCHERS' ? 'group-hover:bg-arcus-red' : 'group-hover:bg-blue-600'}`}>
+                      <div className={`w-8 h-8 md:w-10 md:h-10 bg-slate-100 rounded-lg md:rounded-xl flex items-center justify-center font-black font-oswald italic text-xs md:text-base text-slate-700 group-hover:text-white transition-all ${viewMode === 'ARCHERS' ? 'group-hover:bg-arcus-red' : 'group-hover:bg-blue-600'}`}>
                         {idx + 1}
                       </div>
                     </td>
                     <td className="px-4 md:px-10 py-3 md:py-6">
                       <p className="text-sm md:text-xl font-black font-oswald uppercase italic text-slate-900 leading-none tracking-tight">{item.name}</p>
-                      <p className="text-[7px] font-bold text-slate-400 md:hidden uppercase mt-1">{item.club}</p>
+                      <p className="text-[7px] font-bold text-slate-700 md:hidden uppercase mt-1">{item.club}</p>
                     </td>
                     <td className="px-10 py-6 hidden md:table-cell">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.club}</p>
+                      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{item.club}</p>
                     </td>
                     {viewMode === 'ARCHERS' && (
                       <td className="px-10 py-6 hidden sm:table-cell">
-                        <span className="px-4 py-2 bg-slate-100 rounded-xl text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                        <span className="px-4 py-2 bg-slate-100 rounded-xl text-[9px] font-black text-slate-800 uppercase tracking-widest">
                           {CATEGORY_LABELS[item.category as CategoryType]}
                         </span>
                       </td>
@@ -246,7 +246,7 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing }: Props
           {filteredData.length === 0 && (
             <div className="py-24 text-center">
               <Users className="w-16 h-16 text-slate-100 mx-auto mb-6" />
-              <p className="text-xl font-black font-oswald uppercase italic text-slate-300">Tidak Ada {viewMode === 'ARCHERS' ? 'Peserta' : 'Official'} Ditemukan</p>
+              <p className="text-xl font-black font-oswald uppercase italic text-slate-600">Tidak Ada {viewMode === 'ARCHERS' ? 'Peserta' : 'Official'} Ditemukan</p>
             </div>
           )}
         </div>
@@ -260,7 +260,7 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing }: Props
             </div>
             <div>
               <p className="text-sm font-black font-oswald uppercase italic text-white tracking-wider">{viewMode === 'ARCHERS' ? 'Informasi Start List' : 'Informasi Official Area'}</p>
-              <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-1">
+              <p className="text-[10px] font-bold text-white/80 uppercase tracking-widest mt-1">
                 {viewMode === 'ARCHERS' 
                   ? "Nomor bantalan akan diupdate oleh panitia setelah pendaftaran ditutup."
                   : "Official terdaftar mendapatkan akses ke area steril atlit selama perlombaan berlangsung."}

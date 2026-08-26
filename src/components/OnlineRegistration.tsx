@@ -668,13 +668,13 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
               type="button"
               tabIndex={-1}
               onClick={onBack} 
-              className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-lg md:rounded-xl text-slate-400 hover:text-arcus-red transition-all"
+              className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center bg-slate-50 border border-slate-200 rounded-lg md:rounded-xl text-slate-700 hover:text-arcus-red transition-all"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div className="flex flex-col">
               <h1 className="text-xs md:text-lg font-black font-oswald uppercase italic text-slate-900 tracking-tighter leading-none">REGISTRASI</h1>
-              <p className="text-[6px] md:text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] italic truncate max-w-[100px] md:max-w-[200px]">{event.settings?.tournamentName}</p>
+              <p className="text-[6px] md:text-[8px] font-black text-slate-700 uppercase tracking-[0.2em] italic truncate max-w-[100px] md:max-w-[200px]">{event.settings?.tournamentName}</p>
             </div>
           </div>
           <button onClick={onViewParticipants} className="px-3 py-2 bg-slate-900 text-white rounded-lg text-[7px] md:text-[9px] font-black uppercase tracking-widest flex items-center gap-2">
@@ -695,12 +695,12 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
             
             <div className="space-y-2">
               <h1 className="text-3xl md:text-5xl font-black font-oswald text-slate-900 uppercase italic leading-none">BERHASIL!</h1>
-              <p className="text-sm md:text-xl text-slate-500 font-bold italic tracking-tight max-w-xs md:max-w-md mx-auto">Selamat <strong>{formData.name}</strong>, pendaftaran Anda telah tercatat.</p>
+              <p className="text-sm md:text-xl text-slate-800 font-bold italic tracking-tight max-w-xs md:max-w-md mx-auto">Selamat <strong>{formData.name}</strong>, pendaftaran Anda telah tercatat.</p>
             </div>
 
             <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-xl border border-slate-100 max-w-sm mx-auto space-y-6">
               <div className="space-y-3">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Pendaftaran Anda Berhasil</p>
+                <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest leading-none">Pendaftaran Anda Berhasil</p>
                 <button 
                   onClick={onViewParticipants} 
                   className="w-full py-4 bg-slate-950 text-white rounded-2xl font-black uppercase text-xs hover:bg-arcus-red transition-all flex items-center justify-center gap-3"
@@ -713,12 +713,12 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                 >
                   <FileText className="w-4 h-4" /> UNDUH / CETAK INVOICE
                 </button>
-                <p className="text-[9px] font-bold text-slate-400 italic">Pastikan nama Anda sudah muncul di daftar peserta.</p>
+                <p className="text-[9px] font-bold text-slate-700 italic">Pastikan nama Anda sudah muncul di daftar peserta.</p>
               </div>
 
               {event.settings?.waGroupLink && (
                 <div className="pt-4 border-t border-slate-100 space-y-3">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">GABUNG GRUP WHATSAPP</p>
+                  <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest leading-none">GABUNG GRUP WHATSAPP</p>
                   <a 
                     href={event.settings.waGroupLink}
                     target="_blank"
@@ -739,7 +739,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                 </button>
                 <button 
                   onClick={onBack} 
-                  className="w-full py-4 bg-slate-100 text-slate-400 rounded-2xl font-black uppercase text-xs hover:bg-slate-200 transition-all"
+                  className="w-full py-4 bg-slate-100 text-slate-700 rounded-2xl font-black uppercase text-xs hover:bg-slate-200 transition-all"
                 >
                   KEMBALI KE BERANDA
                 </button>
@@ -759,8 +759,8 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
             <div className="flex items-center justify-center gap-6 mb-6">
               {[1, 2].map(i => (
                 <div key={i} className="flex flex-col items-center gap-1.5">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-sm transition-all ${step >= i ? 'bg-slate-900 text-white' : 'bg-white text-slate-300 border border-slate-100'}`}>{i}</div>
-                  <span className={`text-[7px] font-black uppercase tracking-widest ${step >= i ? 'text-slate-900' : 'text-slate-300'}`}>{i === 1 ? 'BIODATA' : 'PEMBAYARAN'}</span>
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-sm transition-all ${step >= i ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 border border-slate-100'}`}>{i}</div>
+                  <span className={`text-[7px] font-black uppercase tracking-widest ${step >= i ? 'text-slate-900' : 'text-slate-600'}`}>{i === 1 ? 'BIODATA' : 'PEMBAYARAN'}</span>
                 </div>
               ))}
             </div>
@@ -768,13 +768,13 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
             {step === 1 && (
               <form onSubmit={(e) => { e.preventDefault(); setStep(2); }} className="bg-white p-4 md:p-6 rounded-[2rem] shadow-xl space-y-4">
                 <div className="flex gap-3 bg-slate-50 p-1 rounded-xl">
-                  <button type="button" onClick={() => setRegMode('INDIVIDUAL')} className={`flex-1 py-2.5 rounded-lg font-black text-[10px] transition-all ${regMode === 'INDIVIDUAL' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400'}`}>INDIVIDU</button>
-                  <button type="button" onClick={() => setRegMode('COLLECTIVE')} className={`flex-1 py-2.5 rounded-lg font-black text-[10px] transition-all ${regMode === 'COLLECTIVE' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-400'}`}>KOLEKTIF (KLUB)</button>
+                  <button type="button" onClick={() => setRegMode('INDIVIDUAL')} className={`flex-1 py-2.5 rounded-lg font-black text-[10px] transition-all ${regMode === 'INDIVIDUAL' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-700'}`}>INDIVIDU</button>
+                  <button type="button" onClick={() => setRegMode('COLLECTIVE')} className={`flex-1 py-2.5 rounded-lg font-black text-[10px] transition-all ${regMode === 'COLLECTIVE' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-700'}`}>KOLEKTIF (KLUB)</button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="md:col-span-2 space-y-0.5">
-                    <span className="text-[7.5px] font-black text-slate-400 uppercase ml-2 italic">Nama Klub</span>
+                    <span className="text-[7.5px] font-black text-slate-700 uppercase ml-2 italic">Nama Klub</span>
                     <input 
                       required 
                       type="text"
@@ -785,11 +785,11 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                     />
                   </div>
                   <div className="space-y-0.5">
-                    <span className="text-[7.5px] font-black text-slate-400 uppercase ml-2 italic">Email Kontak</span>
+                    <span className="text-[7.5px] font-black text-slate-700 uppercase ml-2 italic">Email Kontak</span>
                     <input required type="email" placeholder="EMAIL" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full p-2.5 bg-slate-50 rounded-xl font-black italic border border-slate-100 outline-none focus:border-arcus-red text-[11px]" />
                   </div>
                   <div className="space-y-0.5">
-                    <span className="text-[7.5px] font-black text-slate-400 uppercase ml-2 italic">Nomor WA Pengurus</span>
+                    <span className="text-[7.5px] font-black text-slate-700 uppercase ml-2 italic">Nomor WA Pengurus</span>
                     <input 
                       required 
                       type="text"
@@ -803,17 +803,17 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                   {regMode === 'INDIVIDUAL' ? (
                     <>
                       <div className="md:col-span-2 bg-slate-50 p-1 rounded-xl flex gap-1">
-                        <button type="button" onClick={() => setFormData({...formData, regType: 'ARCHER'})} className={`flex-1 py-2 rounded-lg font-black text-[9px] transition-all ${formData.regType === 'ARCHER' ? 'bg-arcus-red text-white' : 'text-slate-400'}`}>ATLET</button>
-                        <button type="button" onClick={() => setFormData({...formData, regType: 'OFFICIAL', category: 'OFFICIAL'})} className={`flex-1 py-2 rounded-lg font-black text-[9px] transition-all ${formData.regType === 'OFFICIAL' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>OFFICIAL</button>
+                        <button type="button" onClick={() => setFormData({...formData, regType: 'ARCHER'})} className={`flex-1 py-2 rounded-lg font-black text-[9px] transition-all ${formData.regType === 'ARCHER' ? 'bg-arcus-red text-white' : 'text-slate-700'}`}>ATLET</button>
+                        <button type="button" onClick={() => setFormData({...formData, regType: 'OFFICIAL', category: 'OFFICIAL'})} className={`flex-1 py-2 rounded-lg font-black text-[9px] transition-all ${formData.regType === 'OFFICIAL' ? 'bg-blue-600 text-white' : 'text-slate-700'}`}>OFFICIAL</button>
                       </div>
                       <div className="md:col-span-2 space-y-0.5">
-                        <span className="text-[7.5px] font-black text-slate-400 uppercase ml-2 italic">Nama Peserta</span>
+                        <span className="text-[7.5px] font-black text-slate-700 uppercase ml-2 italic">Nama Peserta</span>
                         <input required type="text" placeholder="NAMA LENGKAP" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value.toUpperCase()})} className="w-full p-2.5 bg-slate-50 rounded-xl font-black italic border border-slate-100 outline-none focus:border-arcus-red text-[11px]" />
                       </div>
                       <div className="md:col-span-2 flex flex-col items-center justify-center p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                         <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-2">Foto Peserta (Untuk Kartu ID Card)</span>
                         <div className="flex items-center gap-4">
-                          <div className="relative w-16 h-16 rounded-2xl bg-slate-200 border-2 border-white overflow-hidden shadow-md flex items-center justify-center text-slate-400 shrink-0">
+                          <div className="relative w-16 h-16 rounded-2xl bg-slate-200 border-2 border-white overflow-hidden shadow-md flex items-center justify-center text-slate-700 shrink-0">
                             {formData.photoUrl ? (
                               <img src={formData.photoUrl} alt="Preview" className="w-full h-full object-cover" />
                             ) : (
@@ -830,13 +830,13 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                               {formData.photoUrl ? "Ganti Foto" : "Pilih Foto Anda"}
                               <input type="file" accept="image/*" onChange={(e) => handlePhotoChange(e, false)} className="hidden" />
                             </label>
-                            <p className="text-[7.5px] font-bold text-slate-400 mt-1 uppercase">Sangat direkomendasikan rasio 3x4 atau pasfoto formal.</p>
+                            <p className="text-[7.5px] font-bold text-slate-700 mt-1 uppercase">Sangat direkomendasikan rasio 3x4 atau pasfoto formal.</p>
                           </div>
                         </div>
                       </div>
                       {formData.regType === 'ARCHER' && (
                         <div className="md:col-span-2 space-y-0.5">
-                          <span className="text-[7.5px] font-black text-slate-400 uppercase ml-2 italic">Kategori</span>
+                          <span className="text-[7.5px] font-black text-slate-700 uppercase ml-2 italic">Kategori</span>
                           <select required value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full p-2.5 bg-slate-50 rounded-xl font-black italic border border-slate-100 outline-none appearance-none text-[11px]">
                             <option value="">PILIH KATEGORI</option>
                             {categories.map(cat => {
@@ -868,7 +868,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                           {collectiveMembers.map((m, i) => (
                             <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden shrink-0 flex items-center justify-center text-slate-400">
+                                <div className="w-8 h-8 rounded-full bg-slate-200 overflow-hidden shrink-0 flex items-center justify-center text-slate-700">
                                   {m.photoUrl ? (
                                     <img src={m.photoUrl} alt="" className="w-full h-full object-cover" />
                                   ) : (
@@ -877,7 +877,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                                 </div>
                                 <div className="text-left">
                                   <p className="text-[10px] font-black text-slate-900 uppercase italic">{m.name}</p>
-                                  <p className="text-[8px] font-bold text-slate-400 uppercase">{CATEGORY_LABELS[m.category as CategoryType] || m.category}</p>
+                                  <p className="text-[8px] font-bold text-slate-700 uppercase">{CATEGORY_LABELS[m.category as CategoryType] || m.category}</p>
                                 </div>
                               </div>
                               <button onClick={() => setCollectiveMembers(prev => prev.filter((_, idx) => idx !== i))} className="p-1.5 text-slate-300 hover:text-arcus-red transition-colors">
@@ -889,7 +889,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                       )}
 
                       <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                        <p className="text-[8px] font-black text-slate-400 uppercase italic text-center">Tambah Anggota Baru</p>
+                        <p className="text-[8px] font-black text-slate-700 uppercase italic text-center">Tambah Anggota Baru</p>
                         <div className="grid grid-cols-1 gap-2">
                           <input type="text" placeholder="NAMA ANGGOTA" value={newMember.name} onChange={e => setNewMember({...newMember, name: e.target.value.toUpperCase()})} className="w-full p-2.5 bg-white rounded-xl font-black italic border border-slate-200 text-[10px]" />
                           <select value={newMember.category} onChange={e => setNewMember({...newMember, category: e.target.value})} className="w-full p-2.5 bg-white rounded-xl font-black italic border border-slate-200 text-[10px]">
@@ -914,7 +914,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                           </select>
                           
                           <div className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-slate-200">
-                            <div className="w-10 h-10 rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center text-slate-400 shrink-0">
+                            <div className="w-10 h-10 rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center text-slate-700 shrink-0">
                               {newMember.photoUrl ? (
                                 <img src={newMember.photoUrl} alt="" className="w-full h-full object-cover" />
                               ) : (
@@ -982,7 +982,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                       <div className="flex items-start justify-between text-[11px] md:text-xs">
                         <div className="space-y-0.5">
                           <p className="font-bold text-slate-800 leading-tight">{formData.name || 'Pendaftar'}</p>
-                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider leading-none">
+                          <p className="text-[8px] font-black text-slate-700 uppercase tracking-wider leading-none">
                             {formData.regType === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (CATEGORY_LABELS[formData.category as CategoryType] || formData.category)}
                           </p>
                         </div>
@@ -990,7 +990,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                           <p className="font-extrabold text-slate-900">
                             Rp {((formData.regType === 'OFFICIAL' ? event.settings?.officialFee : event.settings?.categoryConfigs?.[formData.category as CategoryType]?.registrationFee) || 0).toLocaleString()}
                           </p>
-                          <p className="text-[8px] font-medium text-slate-500 leading-none">
+                          <p className="text-[8px] font-medium text-slate-800 leading-none">
                             Platform: Rp {([
                               CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
                               CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
@@ -1014,13 +1014,13 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                           <div key={idx} className="flex items-start justify-between text-[11px] md:text-xs border-b border-slate-100 pb-2 last:border-0 last:pb-0">
                             <div className="space-y-0.5">
                               <p className="font-bold text-slate-800 leading-tight">{member.name}</p>
-                              <p className="text-[8px] font-black text-slate-400 uppercase tracking-wider leading-none">
+                              <p className="text-[8px] font-black text-slate-700 uppercase tracking-wider leading-none">
                                 {member.category === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (CATEGORY_LABELS[member.category as CategoryType] || member.category)}
                               </p>
                             </div>
                             <div className="text-right space-y-0.5">
                               <p className="font-extrabold text-slate-900">Rp {regFee.toLocaleString()}</p>
-                              <p className="text-[8px] font-medium text-slate-500 leading-none">Platform: Rp {pFee.toLocaleString()}</p>
+                              <p className="text-[8px] font-medium text-slate-800 leading-none">Platform: Rp {pFee.toLocaleString()}</p>
                             </div>
                           </div>
                         );
@@ -1029,7 +1029,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                   </div>
 
                   <div className="border-t border-dashed border-slate-200 pt-2.5 space-y-1.5 text-[10px] md:text-xs">
-                    <div className="flex justify-between items-center text-slate-500 font-bold">
+                    <div className="flex justify-between items-center text-slate-800 font-bold">
                       <span>Subtotal Biaya Pendaftaran:</span>
                       <span>
                         Rp {(() => {
@@ -1046,7 +1046,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                         })()}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center text-slate-500 font-bold">
+                    <div className="flex justify-between items-center text-slate-800 font-bold">
                       <span>Subtotal Biaya Platform:</span>
                       <span>
                         Rp {(() => {
@@ -1107,16 +1107,16 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
 
                 {isGatewayEnabled ? (
                   <div className="flex bg-slate-100 p-1 rounded-xl">
-                    <button onClick={() => setFormData({...formData, paymentType: 'MANUAL'})} className={`flex-1 py-2.5 rounded-lg font-black text-[9px] transition-all ${formData.paymentType === 'MANUAL' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-400'}`}>TRANSFER MANUAL</button>
-                    <button onClick={() => setFormData({...formData, paymentType: 'GATEWAY'})} className={`flex-1 py-2.5 rounded-lg font-black text-[9px] transition-all ${formData.paymentType === 'GATEWAY' ? 'bg-arcus-red text-white shadow-md' : 'text-slate-400'}`}>PAYMENT GATEWAY</button>
+                    <button onClick={() => setFormData({...formData, paymentType: 'MANUAL'})} className={`flex-1 py-2.5 rounded-lg font-black text-[9px] transition-all ${formData.paymentType === 'MANUAL' ? 'bg-white text-slate-900 shadow-md' : 'text-slate-700'}`}>TRANSFER MANUAL</button>
+                    <button onClick={() => setFormData({...formData, paymentType: 'GATEWAY'})} className={`flex-1 py-2.5 rounded-lg font-black text-[9px] transition-all ${formData.paymentType === 'GATEWAY' ? 'bg-arcus-red text-white shadow-md' : 'text-slate-700'}`}>PAYMENT GATEWAY</button>
                   </div>
                 ) : (
                   <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-center space-y-2">
-                    <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center mx-auto text-slate-400">
+                    <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center mx-auto text-slate-700">
                       <Landmark className="w-5 h-5" />
                     </div>
                     <p className="text-[10px] font-black text-slate-900 uppercase italic">Pembayaran via Transfer Bank</p>
-                    <p className="text-[8px] font-bold text-slate-400 uppercase leading-none">Pembayaran instan sedang tidak aktif untuk turnamen ini</p>
+                    <p className="text-[8px] font-bold text-slate-700 uppercase leading-none">Pembayaran instan sedang tidak aktif untuk turnamen ini</p>
                   </div>
                 )}
 
@@ -1124,14 +1124,14 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                   <div className="space-y-4">
                     <div className="text-center p-4 bg-slate-950 rounded-2xl text-white relative overflow-hidden">
                       <div className="absolute top-0 right-0 p-3 opacity-10"><Landmark className="w-10 h-10" /></div>
-                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{activeMethod.provider}</p>
+                      <p className="text-[8px] font-black text-slate-800 uppercase tracking-widest">{activeMethod.provider}</p>
                       <p className="text-xl md:text-2xl font-black font-mono text-arcus-red my-0.5 tracking-widest italic">{activeMethod.accountNumber}</p>
-                      <p className="text-[8px] font-bold text-white/30 uppercase italic leading-none">A/N {activeMethod.accountName}</p>
+                      <p className="text-[8px] font-bold text-white/70 uppercase italic leading-none">A/N {activeMethod.accountName}</p>
                     </div>
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between px-2">
-                        <p className="text-[8px] font-black text-slate-400 uppercase italic">Upload Bukti Transfer</p>
-                        <p className="text-[6px] font-bold text-slate-300 uppercase italic">Otomatis Dikompresi</p>
+                        <p className="text-[8px] font-black text-slate-700 uppercase italic">Upload Bukti Transfer</p>
+                        <p className="text-[6px] font-bold text-slate-600 uppercase italic">Otomatis Dikompresi</p>
                       </div>
                       <div className="relative group">
                         <input type="file" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
@@ -1143,8 +1143,8 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                             </>
                           ) : (
                             <>
-                              <Upload className="w-5 h-5 text-slate-300" />
-                              <p className="text-[9px] font-black text-slate-400 uppercase">Klik/Drag Bukti Transfer</p>
+                              <Upload className="w-5 h-5 text-slate-600" />
+                              <p className="text-[9px] font-black text-slate-700 uppercase">Klik/Drag Bukti Transfer</p>
                             </>
                           )}
                         </div>
@@ -1156,19 +1156,19 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                     <div className="absolute inset-0 bg-gradient-to-br from-arcus-red/10 to-transparent" />
                     <Zap className="w-8 h-8 text-arcus-red mx-auto animate-pulse relative z-10" />
                     <h3 className="text-lg font-black text-white uppercase italic relative z-10">Pembayaran Instan</h3>
-                    <p className="text-white/40 text-[9px] italic relative z-10 tracking-tight">Portal pembayaran aman Midtrans.</p>
+                    <p className="text-white/80 text-[9px] italic relative z-10 tracking-tight">Portal pembayaran aman Midtrans.</p>
                   </div>
                 )}
 
                 <div className="flex items-start gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
                   <input type="checkbox" id="terms" checked={agreedToTerms} onChange={e => setAgreedToTerms(e.target.checked)} className="mt-0.5 w-3.5 h-3.5 rounded border-slate-300 text-arcus-red focus:ring-arcus-red transition-all cursor-pointer" />
-                  <label htmlFor="terms" className="text-[8.5px] text-slate-500 italic leading-snug cursor-pointer select-none">
+                  <label htmlFor="terms" className="text-[8.5px] text-slate-800 italic leading-snug cursor-pointer select-none">
                     Saya menyatakan data benar dan menyetujui seluruh <strong>Syarat & Ketentuan</strong> Arcus Archery.
                   </label>
                 </div>
 
                 <div className="flex gap-2">
-                  <button onClick={() => setStep(1)} className="px-5 py-3.5 bg-slate-50 text-slate-400 rounded-xl font-black uppercase text-[10px] hover:bg-slate-100 transition-all">Kembali</button>
+                  <button onClick={() => setStep(1)} className="px-5 py-3.5 bg-slate-50 text-slate-700 rounded-xl font-black uppercase text-[10px] hover:bg-slate-100 transition-all">Kembali</button>
                   <button 
                     onClick={handleSubmit} 
                     disabled={isSubmitting || isRegistrationClosed} 
@@ -1193,7 +1193,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                 <CreditCard className="w-6 h-6 animate-pulse" />
               </div>
               <h3 className="text-xl font-black font-oswald uppercase italic tracking-tight text-slate-900">Portal Pembayaran Aman</h3>
-              <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Midtrans Gateway</p>
+              <p className="text-[10px] font-black uppercase text-slate-700 tracking-wider">Midtrans Gateway</p>
             </div>
 
             {/* Total Amount to Pay */}
@@ -1210,7 +1210,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                 <ShieldAlert className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <p className="text-[10px] font-bold text-slate-700 uppercase">Deteksi Sandbox / Sandbox Iframe</p>
-                  <p className="text-[9px] font-medium text-slate-500 leading-normal">
+                  <p className="text-[9px] font-medium text-slate-800 leading-normal">
                     Karena keterbatasan iFrame browser pada layar preview sandbox, popup Midtrans Snap dapat terhalang muat secara langsung. 
                     Klik tombol di bawah ini untuk membuka halaman pembayaran resmi secara mandiri.
                   </p>
@@ -1218,7 +1218,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
               </div>
 
               <div className="border-t border-slate-200 pt-2.5 flex items-center justify-between text-[10px] font-mono">
-                <span className="text-slate-400">ORDER ID:</span>
+                <span className="text-slate-700">ORDER ID:</span>
                 <span className="font-extrabold text-slate-900">{activePaymentSession.orderId}</span>
               </div>
             </div>
@@ -1266,7 +1266,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
 
             {/* Simulated Block Check Status */}
             <div className="space-y-3 pt-2 text-center">
-              <div className="flex items-center justify-center gap-2 text-slate-400">
+              <div className="flex items-center justify-center gap-2 text-slate-700">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 <span className="text-[10px] font-bold uppercase tracking-wider animate-pulse">Menghubungkan & Memantau Status...</span>
               </div>
@@ -1314,7 +1314,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                   setActivePaymentSession(null);
                   setIsSubmitting(false);
                 }} 
-                className="text-slate-400 hover:text-slate-600 text-[10px] font-black uppercase tracking-wider transition-all"
+                className="text-slate-700 hover:text-slate-600 text-[10px] font-black uppercase tracking-wider transition-all"
               >
                 Batal & Kembali ke Pendaftaran
               </button>
@@ -1366,7 +1366,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                   >
                     Berhasil (Mock)
                   </button>
-            <button onClick={() => setIsSimulatingPayment(false)} className="text-slate-400 text-xs font-bold uppercase">Batal</button>
+            <button onClick={() => setIsSimulatingPayment(false)} className="text-slate-700 text-xs font-bold uppercase">Batal</button>
           </div>
         </div>
       )}
@@ -1402,13 +1402,13 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-100 pb-5 gap-4">
               <div>
                 <h2 className="text-xl font-black font-oswald text-slate-900 italic tracking-wide uppercase">ARCUS ARCHERY</h2>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">REGISTRATION INVOICE</p>
+                <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">REGISTRATION INVOICE</p>
               </div>
               <div className="text-left md:text-right text-xs">
                 <p className="font-extrabold text-slate-800">
                   No. Invoice: <span className="font-mono text-arcus-red italic">{recentRegistrations[0]?.registrationNo || `INV-${Date.now().toString().slice(-6)}`}</span>
                 </p>
-                <p className="text-[10px] font-bold text-slate-400">
+                <p className="text-[10px] font-bold text-slate-700">
                   Tanggal: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </p>
               </div>
@@ -1417,22 +1417,22 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
             {/* Tournament Details */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200/50 text-xs">
               <div className="space-y-1">
-                <p className="text-[8px] font-black text-slate-400 uppercase">Turnamen / Event</p>
+                <p className="text-[8px] font-black text-slate-700 uppercase">Turnamen / Event</p>
                 <p className="font-extrabold text-slate-800 uppercase leading-tight">{event.settings?.tournamentName || 'Turnamen Panahan Arcus'}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-[8px] font-black text-slate-400 uppercase">Kontak Pembayar</p>
+                <p className="text-[8px] font-black text-slate-700 uppercase">Kontak Pembayar</p>
                 <p className="font-extrabold text-slate-800">{formData.name || 'Pendaftar'} ({formData.club || 'Umum'})</p>
-                <p className="text-[10px] font-bold text-slate-500 leading-none">{formData.phone || '-'}</p>
+                <p className="text-[10px] font-bold text-slate-800 leading-none">{formData.phone || '-'}</p>
               </div>
               <div className="space-y-1">
-                <p className="text-[8px] font-black text-slate-400 uppercase">Metode Pembayaran</p>
+                <p className="text-[8px] font-black text-slate-700 uppercase">Metode Pembayaran</p>
                 <p className="font-extrabold text-slate-800">
                   {formData.paymentType === 'GATEWAY' ? 'Payment Gateway (Midtrans)' : 'Transfer Bank Manual'}
                 </p>
               </div>
               <div className="space-y-1">
-                <p className="text-[8px] font-black text-slate-400 uppercase">Status Pembayaran</p>
+                <p className="text-[8px] font-black text-slate-700 uppercase">Status Pembayaran</p>
                 {(() => {
                   const sampleStatus = recentRegistrations[0]?.status || RegistrationStatus.PENDING;
                   const isPaid = sampleStatus === RegistrationStatus.APPROVED || sampleStatus === 'PAID';
@@ -1447,11 +1447,11 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
 
             {/* Items List */}
             <div className="space-y-3">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Rincian Komponen Pendaftar</p>
+              <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest leading-none">Rincian Komponen Pendaftar</p>
               <div className="border border-slate-100 rounded-xl overflow-hidden">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="bg-slate-50 border-b border-slate-100 font-bold text-slate-400 text-[10px] uppercase">
+                    <tr className="bg-slate-50 border-b border-slate-100 font-bold text-slate-700 text-[10px] uppercase">
                       <th className="p-3">Nama</th>
                       <th className="p-3">Kategori</th>
                       <th className="p-3 text-right">Biaya Registrasi</th>
@@ -1509,11 +1509,11 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                         return (
                           <tr key={idx} className="hover:bg-slate-50/50">
                             <td className="p-3 font-bold text-slate-800">{item.name}</td>
-                            <td className="p-3 text-slate-400 font-extrabold uppercase text-[9px] tracking-wide">
+                            <td className="p-3 text-slate-700 font-extrabold uppercase text-[9px] tracking-wide">
                               {item.category === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (CATEGORY_LABELS[item.category as CategoryType] || item.category)}
                             </td>
                             <td className="p-3 text-right font-bold text-slate-600">Rp {baseFee.toLocaleString()}</td>
-                            <td className="p-3 text-right font-medium text-slate-500">Rp {(item.platformFee || 0).toLocaleString()}</td>
+                            <td className="p-3 text-right font-medium text-slate-800">Rp {(item.platformFee || 0).toLocaleString()}</td>
                             <td className="p-3 text-right font-extrabold text-slate-900">Rp {item.totalPaid.toLocaleString()}</td>
                           </tr>
                         );
@@ -1526,7 +1526,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
 
             {/* Total Calculation */}
             <div className="border-t border-dashed border-slate-200 pt-4 flex flex-col items-end text-xs space-y-1">
-              <div className="flex justify-between w-full max-w-xs text-slate-500 font-semibold">
+              <div className="flex justify-between w-full max-w-xs text-slate-800 font-semibold">
                 <span>Subtotal Biaya Pendaftaran:</span>
                 <span>
                   Rp {(() => {
@@ -1543,7 +1543,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                   })()}
                 </span>
               </div>
-              <div className="flex justify-between w-full max-w-xs text-slate-500 font-semibold">
+              <div className="flex justify-between w-full max-w-xs text-slate-800 font-semibold">
                 <span>Subtotal Biaya Platform:</span>
                 <span>
                   Rp {(() => {
@@ -1604,7 +1604,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
             <div className="flex gap-2.5 justify-end border-t border-slate-100 pt-5 no-print">
               <button 
                 onClick={() => setShowInvoice(false)} 
-                className="px-5 py-3 bg-slate-100 text-slate-500 rounded-xl font-bold uppercase text-[10px] hover:bg-slate-200 transition-all"
+                className="px-5 py-3 bg-slate-100 text-slate-800 rounded-xl font-bold uppercase text-[10px] hover:bg-slate-200 transition-all"
               >
                 Tutup
               </button>
@@ -1648,7 +1648,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                 </ol>
               </div>
             ) : (
-              <p className="text-[11px] text-slate-500 text-center mb-6">
+              <p className="text-[11px] text-slate-800 text-center mb-6">
                 Silakan coba lagi beberapa saat lagi atau pilih metode <strong>Transfer Manual</strong> untuk melanjutkan pendaftaran.
               </p>
             )}

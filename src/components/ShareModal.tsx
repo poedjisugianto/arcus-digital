@@ -37,17 +37,17 @@ export default function ShareModal({ isOpen, onClose, tournamentName, url, regis
               </div>
               <div>
                 <h3 className="text-xl font-black font-oswald uppercase italic text-slate-900 leading-none">Bagikan Event</h3>
-                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">Tournament OS v1.2.0</p>
+                <p className="text-[8px] font-bold text-slate-700 uppercase tracking-widest mt-1">Tournament OS v1.2.0</p>
               </div>
             </div>
-            <button onClick={onClose} className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-900 hover:text-white transition-all">
+            <button onClick={onClose} className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-700 hover:bg-slate-900 hover:text-white transition-all">
               <X className="w-5 h-5" />
             </button>
           </div>
 
           <div className="space-y-6">
             <div className="space-y-3">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Link Informasi Turnamen</p>
+              <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest ml-1">Link Informasi Turnamen</p>
               <div className="flex gap-2 p-2 bg-slate-50 rounded-2xl border border-slate-100">
                 <input 
                   readOnly
@@ -97,7 +97,7 @@ export default function ShareModal({ isOpen, onClose, tournamentName, url, regis
                 <div className={`w-14 h-14 ${option.color} rounded-2xl flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform`}>
                   <option.icon className="w-6 h-6" />
                 </div>
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{option.name}</span>
+                <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{option.name}</span>
               </a>
             ))}
           </div>

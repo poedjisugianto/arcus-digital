@@ -382,7 +382,7 @@ const AdminPanel: React.FC<Props> = ({
                   onBack();
                 }
               }}
-              className="w-9 h-9 md:w-11 md:h-11 flex items-center justify-center bg-white border border-slate-100 rounded-lg text-slate-400 hover:text-arcus-red transition-all shadow-sm"
+              className="w-9 h-9 md:w-11 md:h-11 flex items-center justify-center bg-white border border-slate-100 rounded-lg text-slate-700 hover:text-arcus-red transition-all shadow-sm"
             >
               <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" />
             </button>
@@ -426,7 +426,7 @@ const AdminPanel: React.FC<Props> = ({
             <button 
               onClick={handleSubmit}
               disabled={!isDirty}
-              className={`flex-1 md:flex-none px-6 md:px-8 py-2.5 md:py-3 rounded-xl text-[8px] md:text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 md:gap-3 transition-all active:scale-95 ${isDirty ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-300 cursor-not-allowed'}`}
+              className={`flex-1 md:flex-none px-6 md:px-8 py-2.5 md:py-3 rounded-xl text-[8px] md:text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 md:gap-3 transition-all active:scale-95 ${isDirty ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 cursor-not-allowed'}`}
             >
               <Save className="w-3.5 h-3.5 md:w-4 md:h-4" /> SIMPAN <span className="hidden sm:inline">KONFIGURASI</span>
             </button>
@@ -574,7 +574,7 @@ const AdminPanel: React.FC<Props> = ({
                             onChange={e => updateSettings({ waGroupLink: e.target.value })} 
                             className="block w-full rounded-lg border-slate-200 p-3 border font-bold text-sm outline-none focus:border-emerald-500 transition-all text-slate-900" 
                           />
-                          <p className="mt-1.5 text-[8px] font-bold text-slate-400 uppercase tracking-wider italic">
+                          <p className="mt-1.5 text-[8px] font-bold text-slate-700 uppercase tracking-wider italic">
                             * Link ini akan ditampilkan kepada peserta setelah berhasil mendaftar.
                           </p>
                         </label>
@@ -602,7 +602,7 @@ const AdminPanel: React.FC<Props> = ({
                           </div>
                           <div>
                             <p className="text-[10px] font-black uppercase text-slate-900 leading-none">Mode Turnamen</p>
-                            <p className="text-[8px] font-bold text-slate-400 uppercase mt-1">
+                            <p className="text-[8px] font-bold text-slate-700 uppercase mt-1">
                               {localSettings.isPractice ? 'Latihan' : 'Turnamen'}
                             </p>
                           </div>
@@ -618,7 +618,7 @@ const AdminPanel: React.FC<Props> = ({
                           }}
                           className="transition-all active:scale-90"
                         >
-                           {!localSettings.isPractice ? <ToggleRight className="w-10 h-10 text-arcus-red" /> : <ToggleLeft className="w-10 h-10 text-slate-300" />}
+                           {!localSettings.isPractice ? <ToggleRight className="w-10 h-10 text-arcus-red" /> : <ToggleLeft className="w-10 h-10 text-slate-600" />}
                         </button>
                       </div>
                     </div>
@@ -627,10 +627,10 @@ const AdminPanel: React.FC<Props> = ({
                 {!isPractice && (
                   <div className="space-y-6">
                     <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-200 space-y-4">
-                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Fitur Pendaftaran</p>
+                       <p className="text-[10px] font-black text-slate-700 uppercase tracking-[0.2em]">Fitur Pendaftaran</p>
                        <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                             <div className={`p-2 rounded-lg ${localSettings.enableGateway ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-400'}`}>
+                             <div className={`p-2 rounded-lg ${localSettings.enableGateway ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-700'}`}>
                                 <Zap className="w-5 h-5" />
                              </div>
                              <div>
@@ -643,17 +643,17 @@ const AdminPanel: React.FC<Props> = ({
                             onClick={() => updateSettings({ enableGateway: !localSettings.enableGateway })}
                             className="transition-all active:scale-90"
                           >
-                             {localSettings.enableGateway ? <ToggleRight className="w-10 h-10 text-blue-600" /> : <ToggleLeft className="w-10 h-10 text-slate-300" />}
+                             {localSettings.enableGateway ? <ToggleRight className="w-10 h-10 text-blue-600" /> : <ToggleLeft className="w-10 h-10 text-slate-600" />}
                           </button>
                        </div>
                        <div className="pt-4 border-t border-slate-200">
                          <label className="block space-y-2">
                             <div className="flex items-center gap-2">
-                               <UsersIcon className="w-4 h-4 text-slate-400" />
+                               <UsersIcon className="w-4 h-4 text-slate-700" />
                                <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Biaya Registrasi Official (Pusat)</span>
                             </div>
                             <div className="relative">
-                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400 italic">Rp</span>
+                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-black text-slate-700 italic">Rp</span>
                               <input 
                                 type="number" 
                                 value={localSettings.officialFee || 0} 
@@ -704,7 +704,7 @@ const AdminPanel: React.FC<Props> = ({
                    <label className="block group">
                       <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1">Link Gambar Pamflet / Poster (URL / Google Drive)</span>
                       <div className="relative mt-2">
-                        <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                        <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
                         <input 
                           type="url" 
                           placeholder="Salin link Google Drive Anda di sini..."
@@ -718,7 +718,7 @@ const AdminPanel: React.FC<Props> = ({
                    <label className="block group">
                       <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1">Link Technical Hand Book (THB / PDF URL)</span>
                       <div className="relative mt-2">
-                        <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                        <FileText className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
                         <input 
                           type="url" 
                           placeholder="https://drive.google.com/your-pdf"
@@ -739,7 +739,7 @@ const AdminPanel: React.FC<Props> = ({
                           className="absolute inset-0 w-full h-full object-cover blur-2xl opacity-30 scale-110"
                         />
                         <div className="relative z-10 p-6 flex flex-col items-center gap-4">
-                           <p className="text-[9px] font-black text-white/50 uppercase tracking-[0.3em]">Live Preview</p>
+                           <p className="text-[9px] font-black text-white/90 uppercase tracking-[0.3em]">Live Preview</p>
                            <img 
                             src={resolveGoogleDriveUrl(localSettings.pamphletUrl)} 
                             alt="Preview" 
@@ -866,7 +866,7 @@ const AdminPanel: React.FC<Props> = ({
                         <label className="block space-y-1">
                           <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1 flex items-center justify-between">
                             <span>Kuota</span>
-                            <span className="text-[8px] font-normal text-slate-400 lowercase italic">kosong = unlimit</span>
+                            <span className="text-[8px] font-normal text-slate-700 lowercase italic">kosong = unlimit</span>
                           </span>
                           <input 
                             type="number" 
@@ -886,7 +886,7 @@ const AdminPanel: React.FC<Props> = ({
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <label className="block space-y-2">
-                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Aduan (H2H) Dimulai Dari:</span>
+                            <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest px-1">Aduan (H2H) Dimulai Dari:</span>
                             <select 
                               value={localSettings.categoryConfigs?.[cat]?.h2hStartSize || 0} 
                               onChange={e => updateCategoryConfig(cat, 'h2hStartSize', parseInt(e.target.value))} 
@@ -898,11 +898,11 @@ const AdminPanel: React.FC<Props> = ({
                               <option value="8">8 BESAR (ADUAN)</option>
                               <option value="4">FINAL 4 (ADUAN)</option>
                             </select>
-                            <p className="text-[9px] font-bold text-slate-400 italic">Pilih kapan babak Head-to-Head (bracket) dimulai.</p>
+                            <p className="text-[9px] font-bold text-slate-700 italic">Pilih kapan babak Head-to-Head (bracket) dimulai.</p>
                           </label>
 
                           <div className="space-y-2">
-                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Babak Penyaringan Skor (Eliminasi):</span>
+                            <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest px-1">Babak Penyaringan Skor (Eliminasi):</span>
                             <div className="flex flex-wrap gap-2">
                               {[32, 16, 8, 4].map(size => {
                                 const stages = localSettings.categoryConfigs?.[cat]?.eliminationStages || [];
@@ -930,7 +930,7 @@ const AdminPanel: React.FC<Props> = ({
                                         ? 'bg-slate-900 border-slate-900 text-white' 
                                         : isDisabled 
                                           ? 'bg-slate-50 border-slate-100 text-slate-200 cursor-not-allowed'
-                                          : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                                          : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                                     }`}
                                   >
                                     TOP {size}
@@ -938,7 +938,7 @@ const AdminPanel: React.FC<Props> = ({
                                 );
                               })}
                             </div>
-                            <p className="text-[9px] font-bold text-slate-400 italic">Klik untuk menambah babak penyaringan skor sebelum masuk babak aduan.</p>
+                            <p className="text-[9px] font-bold text-slate-700 italic">Klik untuk menambah babak penyaringan skor sebelum masuk babak aduan.</p>
                           </div>
                         </div>
                         
@@ -976,7 +976,7 @@ const AdminPanel: React.FC<Props> = ({
                 ))
               ) : (
                 <div className="col-span-full p-12 text-center bg-slate-50 border border-dashed border-slate-200">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Belum Ada Kategori.</p>
+                  <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Belum Ada Kategori.</p>
                 </div>
               )}
             </div>
@@ -1043,7 +1043,7 @@ const AdminPanel: React.FC<Props> = ({
                   <h3 className="text-2xl md:text-4xl font-black font-oswald uppercase italic leading-none tracking-tight">
                     Pusat Penilaian &amp; Rekapitulasi Skor
                   </h3>
-                  <p className="text-slate-300 text-xs md:text-sm font-medium leading-relaxed italic">
+                  <p className="text-slate-600 text-xs md:text-sm font-medium leading-relaxed italic">
                     Kelola seluruh pencatatan nilai sesi kualifikasi turnamen Anda dari satu tempat. Gunakan metode input cepat grid untuk rekap massal, atau konsol koreksi jika terdapat kesalahan atau komplain atlet.
                   </p>
                 </div>
@@ -1060,7 +1060,7 @@ const AdminPanel: React.FC<Props> = ({
                       <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">
                         1. Quick Scoring Grid
                       </h4>
-                      <p className="text-slate-500 text-xs font-semibold leading-relaxed">
+                      <p className="text-slate-800 text-xs font-semibold leading-relaxed">
                         Input skor super cepat berbasis nomor bantalan kualifikasi. Ideal untuk memasukkan rekap fisik lembar skor secara masif.
                       </p>
                     </div>
@@ -1086,7 +1086,7 @@ const AdminPanel: React.FC<Props> = ({
                       <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">
                         2. Operator &amp; Audit Desk
                       </h4>
-                      <p className="text-slate-500 text-xs font-semibold leading-relaxed">
+                      <p className="text-slate-800 text-xs font-semibold leading-relaxed">
                         Koreksi &amp; audit skor manual resmi. Dilengkapi audit logs (mencatat alasan perubahan) sesuai standar regulasi judge panitia.
                       </p>
                     </div>
@@ -1112,7 +1112,7 @@ const AdminPanel: React.FC<Props> = ({
                       <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">
                         3. Field Scorer Panel
                       </h4>
-                      <p className="text-slate-500 text-xs font-semibold leading-relaxed">
+                      <p className="text-slate-800 text-xs font-semibold leading-relaxed">
                         Tampilan persis dengan gadget yang digunakan oleh Tim Scorer di lapangan atau Atlet di bantalan untuk mencatat skor anak panah (arrow-by-arrow).
                       </p>
                     </div>
@@ -1138,7 +1138,7 @@ const AdminPanel: React.FC<Props> = ({
                       <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">
                         4. Timer &amp; Shooting Clock
                       </h4>
-                      <p className="text-slate-500 text-xs font-semibold leading-relaxed">
+                      <p className="text-slate-800 text-xs font-semibold leading-relaxed">
                         Akses stopwatch terintegrasi &amp; timer official turnamen untuk menghitung durasi tembak atlet (240s / 120s) secara sinkron.
                       </p>
                     </div>
@@ -1187,15 +1187,15 @@ const AdminPanel: React.FC<Props> = ({
                     <button type="button" onClick={() => removePaymentMethod(pm.id)} className="absolute top-6 right-6 p-2 text-slate-300 hover:text-red-500 rounded-xl transition-all"><X className="w-5 h-5" /></button>
                     <div className="grid grid-cols-1 gap-4">
                       <div className="space-y-1">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Nama Bank / Provider</span>
+                        <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest px-1">Nama Bank / Provider</span>
                         <input type="text" placeholder="Contoh: BCA, Mandiri, Dana" value={pm.provider} onChange={e => updatePaymentMethod(pm.id, 'provider', e.target.value)} className="w-full rounded-xl border-slate-100 bg-slate-50 p-4 border text-sm font-bold" />
                       </div>
                       <div className="space-y-1">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Nomor Rekening</span>
+                        <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest px-1">Nomor Rekening</span>
                         <input type="text" placeholder="Masukkan nomor rekening..." value={pm.accountNumber} onChange={e => updatePaymentMethod(pm.id, 'accountNumber', e.target.value)} className="w-full rounded-xl border-slate-100 bg-slate-50 p-4 border text-sm font-black tracking-widest" />
                       </div>
                       <div className="space-y-1">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Nama Pemilik Akun</span>
+                        <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest px-1">Nama Pemilik Akun</span>
                         <input type="text" placeholder="Nama lengkap pemilik rekening..." value={pm.accountName} onChange={e => updatePaymentMethod(pm.id, 'accountName', e.target.value)} className="w-full rounded-xl border-slate-100 bg-slate-50 p-4 border text-sm font-bold" />
                       </div>
                     </div>
@@ -1207,8 +1207,8 @@ const AdminPanel: React.FC<Props> = ({
                       <Landmark className="w-10 h-10 text-slate-200" />
                     </div>
                     <div className="space-y-2">
-                       <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Belum Ada Rekening Transfer</p>
-                       <p className="text-[10px] text-slate-400 font-medium italic max-w-sm mx-auto">
+                       <p className="text-xs font-black text-slate-700 uppercase tracking-widest">Belum Ada Rekening Transfer</p>
+                       <p className="text-[10px] text-slate-700 font-medium italic max-w-sm mx-auto">
                          Jika tidak ada rekening yang ditambahkan, sistem akan menggunakan setelan default pusat (jika tersedia).
                        </p>
                     </div>
@@ -1232,7 +1232,7 @@ const AdminPanel: React.FC<Props> = ({
                       </div>
                       <div>
                         <h3 className="text-2xl font-black font-oswald uppercase text-slate-800 italic">Tim Lapangan (Scorer)</h3>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Atur kode akses & batasan bantalan per petugas agar tidak tabrakan input</p>
+                        <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest mt-0.5">Atur kode akses & batasan bantalan per petugas agar tidak tabrakan input</p>
                       </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-3">
@@ -1263,7 +1263,7 @@ const AdminPanel: React.FC<Props> = ({
                         <button type="button" onClick={() => removeScorer(scorer.id)} className="absolute top-6 right-6 p-2 text-slate-300 hover:text-red-500 rounded-xl transition-all"><X className="w-5 h-5" /></button>
                         
                         <div className="space-y-1">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Nama Petugas</span>
+                          <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest px-1">Nama Petugas</span>
                           <input 
                             type="text" 
                             value={scorer.name} 
@@ -1275,7 +1275,7 @@ const AdminPanel: React.FC<Props> = ({
 
                         <div className="flex items-center justify-between bg-slate-900 p-6 rounded-2xl">
                           <div>
-                            <span className="text-[9px] font-black text-white/50 uppercase tracking-widest block">Kode Akses</span>
+                            <span className="text-[9px] font-black text-white/90 uppercase tracking-widest block">Kode Akses</span>
                             <span className="text-2xl font-black font-mono tracking-[0.3em] text-arcus-red">{scorer.accessCode}</span>
                           </div>
                           <button 
@@ -1294,7 +1294,7 @@ const AdminPanel: React.FC<Props> = ({
                             <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest flex items-center gap-1.5">
                               <TargetIcon className="w-3.5 h-3.5 text-purple-600" /> Alokasi Bantalan Target
                             </span>
-                            <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Total: {totalTargets} Bantalan</span>
+                            <span className="text-[8px] font-bold text-slate-700 uppercase tracking-widest">Total: {totalTargets} Bantalan</span>
                           </div>
 
                           {/* Mode Tabs */}
@@ -1305,7 +1305,7 @@ const AdminPanel: React.FC<Props> = ({
                                 updateScorer(scorer.id, 'assignmentMode', 'ALL');
                                 updateScorer(scorer.id, 'assignedTargets', []);
                               }}
-                              className={`py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mode === 'ALL' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                              className={`py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mode === 'ALL' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-800 hover:text-slate-800'}`}
                             >
                               Semua
                             </button>
@@ -1325,7 +1325,7 @@ const AdminPanel: React.FC<Props> = ({
                                 } : s));
                                 setIsDirty(true);
                               }}
-                              className={`py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mode === 'RANGE' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                              className={`py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mode === 'RANGE' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-800 hover:text-slate-800'}`}
                             >
                               Rentang
                             </button>
@@ -1334,7 +1334,7 @@ const AdminPanel: React.FC<Props> = ({
                               onClick={() => {
                                 updateScorer(scorer.id, 'assignmentMode', 'CUSTOM');
                               }}
-                              className={`py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mode === 'CUSTOM' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                              className={`py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${mode === 'CUSTOM' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-800 hover:text-slate-800'}`}
                             >
                               Pilih Manual
                             </button>
@@ -1351,7 +1351,7 @@ const AdminPanel: React.FC<Props> = ({
                             <div className="space-y-2">
                               <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">Dari Bantalan</span>
+                                  <span className="text-[8px] font-black text-slate-700 uppercase tracking-widest block mb-1">Dari Bantalan</span>
                                   <input 
                                     type="number" 
                                     min={1} 
@@ -1374,7 +1374,7 @@ const AdminPanel: React.FC<Props> = ({
                                   />
                                 </div>
                                 <div>
-                                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">Sampai Bantalan</span>
+                                  <span className="text-[8px] font-black text-slate-700 uppercase tracking-widest block mb-1">Sampai Bantalan</span>
                                   <input 
                                     type="number" 
                                     min={scorer.targetRangeStart || 1} 
@@ -1406,7 +1406,7 @@ const AdminPanel: React.FC<Props> = ({
 
                           {mode === 'CUSTOM' && (
                             <div className="space-y-2">
-                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">Klik untuk memilih bantalan:</span>
+                              <span className="text-[8px] font-black text-slate-700 uppercase tracking-widest block">Klik untuk memilih bantalan:</span>
                               <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto no-scrollbar p-1">
                                 {Array.from({ length: totalTargets }, (_, i) => i + 1).map(targetNum => {
                                   const isSelected = (scorer.assignedTargets || []).includes(targetNum);
@@ -1437,7 +1437,7 @@ const AdminPanel: React.FC<Props> = ({
                         </div>
 
                         <div className="space-y-2">
-                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block px-1">Izin Akses</span>
+                           <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest block px-1">Izin Akses</span>
                            <div className="flex flex-wrap gap-2">
                               {['INPUT_SCORE', 'EDIT_ARCHER', 'MANAGE_MATCHES'].map(perm => (
                                 <button
@@ -1450,7 +1450,7 @@ const AdminPanel: React.FC<Props> = ({
                                       : [...current, perm as any];
                                     updateScorer(scorer.id, 'permissions', next);
                                   }}
-                                  className={`px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all ${(scorer.permissions || []).includes(perm as any) ? 'bg-purple-600 border-purple-600 text-white' : 'bg-white border-slate-200 text-slate-400'}`}
+                                  className={`px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all ${(scorer.permissions || []).includes(perm as any) ? 'bg-purple-600 border-purple-600 text-white' : 'bg-white border-slate-200 text-slate-700'}`}
                                 >
                                   {perm.replace('_', ' ')}
                                 </button>
@@ -1462,8 +1462,8 @@ const AdminPanel: React.FC<Props> = ({
                   })}
                   {localScorers.length === 0 && (
                     <div className="md:col-span-2 py-20 text-center space-y-4 bg-slate-50 rounded-[3rem] border-2 border-dashed border-slate-200">
-                      <UsersIcon className="w-12 h-12 mx-auto text-slate-300" />
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Belum ada tim lapangan yang ditambahkan</p>
+                      <UsersIcon className="w-12 h-12 mx-auto text-slate-600" />
+                      <p className="text-xs font-bold text-slate-700 uppercase tracking-widest">Belum ada tim lapangan yang ditambahkan</p>
                     </div>
                   )}
                 </div>
@@ -1493,7 +1493,7 @@ const AdminPanel: React.FC<Props> = ({
                       
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         <div className="space-y-1">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Tipe / Judul Sponsor</span>
+                          <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest px-1">Tipe / Judul Sponsor</span>
                           <input 
                             type="text" 
                             value={sponsor.title} 
@@ -1503,7 +1503,7 @@ const AdminPanel: React.FC<Props> = ({
                           />
                         </div>
                         <div className="space-y-1">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Nama Sponsor</span>
+                          <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest px-1">Nama Sponsor</span>
                           <input 
                             type="text" 
                             value={sponsor.name} 
@@ -1515,7 +1515,7 @@ const AdminPanel: React.FC<Props> = ({
                       </div>
 
                       <div className="space-y-1">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1 flex items-center gap-2">
+                        <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest px-1 flex items-center gap-2">
                            <Youtube className="w-3.5 h-3.5 text-red-600" /> Link Video Sponsor (Youtube URL)
                         </span>
                         <input 
@@ -1525,11 +1525,11 @@ const AdminPanel: React.FC<Props> = ({
                           className="w-full rounded-xl border-slate-100 bg-slate-50 p-4 border text-sm font-bold" 
                           placeholder="https://www.youtube.com/watch?v=..."
                         />
-                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-2 italic">* Video ini akan ditampilkan pada mode TV/LCD.</p>
+                        <p className="text-[8px] font-bold text-slate-700 uppercase tracking-widest mt-2 italic">* Video ini akan ditampilkan pada mode TV/LCD.</p>
                       </div>
 
                       <div className="space-y-1">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1 flex items-center gap-2">
+                        <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest px-1 flex items-center gap-2">
                            <ImageIcon className="w-3.5 h-3.5 text-blue-600" /> Link Logo Sponsor (URL / Google Drive)
                         </span>
                         <input 
@@ -1544,10 +1544,10 @@ const AdminPanel: React.FC<Props> = ({
                   ))}
                   {(localSettings.sponsorships || []).length === 0 && (
                     <div className="md:col-span-2 py-20 text-center space-y-4 bg-slate-50 rounded-[3rem] border-2 border-dashed border-slate-200">
-                      <Heart className="w-12 h-12 mx-auto text-slate-300 opacity-30" />
+                      <Heart className="w-12 h-12 mx-auto text-slate-600 opacity-30" />
                       <div>
-                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Belum ada sponsor yang ditambahkan</p>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase mt-2 italic">Tambahkan sponsor untuk ditampilkan di slideshow livescore & mode TV.</p>
+                        <p className="text-xs font-black text-slate-700 uppercase tracking-widest">Belum ada sponsor yang ditambahkan</p>
+                        <p className="text-[9px] font-bold text-slate-700 uppercase mt-2 italic">Tambahkan sponsor untuk ditampilkan di slideshow livescore & mode TV.</p>
                       </div>
                       <button type="button" onClick={addSponsorship} className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest mt-4">
                         Tambah Sponsor Pertama
@@ -1583,7 +1583,7 @@ const AdminPanel: React.FC<Props> = ({
                       
                       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                         <div className="space-y-1">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Kegiatan / Aktivitas</span>
+                          <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest px-1">Kegiatan / Aktivitas</span>
                           <input 
                             type="text" 
                             value={item.activity} 
@@ -1594,7 +1594,7 @@ const AdminPanel: React.FC<Props> = ({
                           />
                         </div>
                         <div className="space-y-1">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Kategori / Sesi</span>
+                          <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest px-1">Kategori / Sesi</span>
                           <select 
                             value={item.category} 
                             onChange={e => updateRundownItem(item.id, { category: e.target.value })} 
@@ -1611,7 +1611,7 @@ const AdminPanel: React.FC<Props> = ({
                         </div>
                         <div className="grid grid-cols-2 gap-3 md:col-span-1">
                           <div className="space-y-1">
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Mulai</span>
+                            <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest px-1">Mulai</span>
                             <input 
                               type="time" 
                               value={item.startTime} 
@@ -1620,7 +1620,7 @@ const AdminPanel: React.FC<Props> = ({
                             />
                           </div>
                           <div className="space-y-1">
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Selesai</span>
+                            <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest px-1">Selesai</span>
                             <input 
                               type="time" 
                               value={item.endTime} 
@@ -1630,9 +1630,9 @@ const AdminPanel: React.FC<Props> = ({
                           </div>
                         </div>
                         <div className="space-y-1">
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1 flex items-center justify-between">
+                          <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest px-1 flex items-center justify-between">
                             <span>Hari / Tanggal</span>
-                            <span className="text-[7px] text-slate-400 lowercase">Opsional</span>
+                            <span className="text-[7px] text-slate-700 lowercase">Opsional</span>
                           </span>
                           <input 
                             type="text" 
@@ -1644,7 +1644,7 @@ const AdminPanel: React.FC<Props> = ({
                         </div>
                       </div>
                       <div className="space-y-1">
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Keterangan Tambahan / Catatan</span>
+                        <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest px-1">Keterangan Tambahan / Catatan</span>
                         <input 
                           type="text" 
                           value={item.notes || ''} 
@@ -1657,10 +1657,10 @@ const AdminPanel: React.FC<Props> = ({
                   ))}
                   {(localSettings.rundown || []).length === 0 && (
                     <div className="py-20 text-center space-y-4 bg-slate-50 rounded-[3rem] border-2 border-dashed border-slate-200">
-                      <Clock className="w-12 h-12 mx-auto text-slate-300 opacity-30" />
+                      <Clock className="w-12 h-12 mx-auto text-slate-600 opacity-30" />
                       <div>
-                        <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Belum ada rundown yang dibuat</p>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase mt-2 italic">Buat jadwal rundown agar peserta mengetahui jam tanding untuk tiap kategori lomba.</p>
+                        <p className="text-xs font-black text-slate-700 uppercase tracking-widest">Belum ada rundown yang dibuat</p>
+                        <p className="text-[9px] font-bold text-slate-700 uppercase mt-2 italic">Buat jadwal rundown agar peserta mengetahui jam tanding untuk tiap kategori lomba.</p>
                       </div>
                       <button type="button" onClick={addRundownItem} className="px-6 py-2.5 bg-slate-900 text-white rounded-xl text-[9px] font-black uppercase tracking-widest mt-4">
                         Buat Rundown Pertama
@@ -1716,12 +1716,12 @@ const AdminPanel: React.FC<Props> = ({
             </div>
             <div className="space-y-3">
               <h3 className="text-2xl font-black font-oswald uppercase italic tracking-tight text-slate-900">Pengaturan Belum Lengkap</h3>
-              <p className="text-slate-500 font-medium leading-relaxed">
+              <p className="text-slate-800 font-medium leading-relaxed">
                 Beberapa informasi penting belum diisi. Tetap simpan sebagai draft?
               </p>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <button onClick={() => setShowDraftConfirm(false)} className="py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px]">Lengkapi</button>
+              <button onClick={() => setShowDraftConfirm(false)} className="py-4 bg-slate-100 text-slate-800 rounded-2xl font-black uppercase text-[10px]">Lengkapi</button>
               <button onClick={executeFinalSave} className="py-4 bg-arcus-dark text-white rounded-2xl font-black uppercase text-[10px] shadow-xl">Ya, Simpan Draft</button>
             </div>
           </div>
@@ -1736,7 +1736,7 @@ const AdminPanel: React.FC<Props> = ({
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-bold text-slate-900">Ubah Mode?</h3>
-              <p className="text-slate-500 text-sm">{showModeConfirm.msg}</p>
+              <p className="text-slate-800 text-sm">{showModeConfirm.msg}</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <button onClick={() => setShowModeConfirm({ ...showModeConfirm, isOpen: false })} className="py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-xs">Batal</button>
@@ -1762,7 +1762,7 @@ const AdminPanel: React.FC<Props> = ({
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-bold text-slate-900">Belum Disimpan</h3>
-              <p className="text-slate-500 text-sm">
+              <p className="text-slate-800 text-sm">
                 Perubahan yang Anda buat belum disimpan. Tetap kembali ke dashboard?
               </p>
             </div>
@@ -1782,7 +1782,7 @@ const AdminPanel: React.FC<Props> = ({
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-bold text-slate-900">Simpan Perubahan?</h3>
-              <p className="text-slate-500 text-sm">Data konfigurasi akan segera diterapkan.</p>
+              <p className="text-slate-800 text-sm">Data konfigurasi akan segera diterapkan.</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <button onClick={() => setShowConfirmModal(false)} className="py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-xs">Batal</button>
@@ -1800,7 +1800,7 @@ const AdminPanel: React.FC<Props> = ({
             </div>
             <div className="space-y-2">
               <h3 className="text-xl font-bold text-slate-900">Hapus {isPractice ? 'Latihan' : 'Turnamen'}?</h3>
-              <p className="text-slate-500 text-sm">
+              <p className="text-slate-800 text-sm">
                 Tindakan ini permanen. Semua data peserta, skor, dan pengaturan akan dihapus selamanya.
               </p>
             </div>
@@ -1838,7 +1838,7 @@ const AdminPanel: React.FC<Props> = ({
                 </a>
                 <button 
                   onClick={() => setShowTimerModal(false)} 
-                  className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-all border border-slate-800"
+                  className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-700 hover:text-white transition-all border border-slate-800"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1846,7 +1846,7 @@ const AdminPanel: React.FC<Props> = ({
             </div>
 
             {/* Content Display / Launch Dashboard instead of blocked iframe */}
-            <div className="flex-1 bg-slate-950 overflow-y-auto p-8 md:p-12 text-slate-300">
+            <div className="flex-1 bg-slate-950 overflow-y-auto p-8 md:p-12 text-slate-600">
               <div className="max-w-3xl mx-auto space-y-10 text-center">
                 {/* Visual Timer Mockup */}
                 <div className="bg-slate-900 border border-slate-800 rounded-[2rem] p-8 relative overflow-hidden shadow-inner flex flex-col md:flex-row items-center justify-between gap-8">
@@ -1863,7 +1863,7 @@ const AdminPanel: React.FC<Props> = ({
                     <div className="font-mono text-7xl font-bold text-teal-400 tracking-tighter drop-shadow-[0_0_15px_rgba(45,212,191,0.3)]">
                       120
                     </div>
-                    <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Giliran: AB (Sesi-1)</span>
+                    <span className="text-[10px] uppercase font-black tracking-widest text-slate-800">Giliran: AB (Sesi-1)</span>
                   </div>
 
                   {/* Divider */}
@@ -1876,7 +1876,7 @@ const AdminPanel: React.FC<Props> = ({
                       Ready to Sync
                     </div>
                     <h4 className="text-xl font-bold text-white uppercase italic font-oswald">Integrasi Timer Sukses</h4>
-                    <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
+                    <p className="text-slate-700 text-xs leading-relaxed max-w-sm">
                       Aplikasi Timer &amp; Shooting Clock telah berhasil disinkronkan secara mulus dengan sistem turnamen Arcus.
                     </p>
                   </div>
@@ -1919,7 +1919,7 @@ const AdminPanel: React.FC<Props> = ({
             
             {/* Footer hints */}
             <div className="p-4 bg-slate-900/80 border-t border-slate-800 text-center shrink-0">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-relaxed">
+              <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest leading-relaxed">
                 Tekan tombol &quot;Buka Tab Baru&quot; jika ingin memproyeksikan timer ke layar sekunder (TV Bantalan / Proyektor)
               </p>
             </div>

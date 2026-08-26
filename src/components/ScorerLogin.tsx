@@ -89,7 +89,7 @@ const ScorerLogin: React.FC<ScorerLoginProps> = ({ events, onLogin, onBack }) =>
         </button>
 
         <div className="pt-12 text-center">
-          <div className="inline-flex items-center gap-2 text-slate-300">
+          <div className="inline-flex items-center gap-2 text-slate-600">
             <Target className="w-4 h-4" />
             <span className="text-[9px] font-black uppercase tracking-[0.3em]">ARCUS TOURNAMENT OS</span>
           </div>

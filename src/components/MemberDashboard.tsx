@@ -411,7 +411,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                     <div className={`px-3 py-1 rounded text-[8px] font-black uppercase tracking-[0.2em] border ${
                     userRole === UserRole.MASTER_ADMIN ? 'bg-red-500/20 border-red-500/30 text-red-200' :
                     userRole === UserRole.ORGANIZER ? 'bg-arcus-sun/20 border-arcus-sun/30 text-arcus-sun' :
-                    'bg-white/10 border-white/20 text-slate-300'
+                    'bg-white/10 border-white/20 text-slate-600'
                     }`}>
                     {(userRole || '').replace('_', ' ')}
                     </div>
@@ -434,7 +434,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                 )}
               </div>
             </div>
-            <p className="text-slate-400 mt-2 text-sm sm:text-lg font-medium tracking-tight opacity-70">Dashboard manajemen turnamen ARCUS.</p>
+            <p className="text-slate-700 mt-2 text-sm sm:text-lg font-medium tracking-tight opacity-70">Dashboard manajemen turnamen ARCUS.</p>
           </div>
         </div>
         
@@ -443,12 +443,12 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
           <div className="hidden sm:flex flex-col items-end gap-1 px-4 py-2 bg-white/5 rounded-xl border border-white/5">
              <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${isSyncing ? 'bg-orange-500 animate-pulse' : 'bg-emerald-500'}`} />
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-700">
                   {isSyncing ? 'Syncing...' : 'Cloud Synced'}
                 </span>
              </div>
              {lastSync && (
-               <span className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter">
+               <span className="text-[8px] font-bold text-slate-800 uppercase tracking-tighter">
                  Terakhir: {safeFormatTime(lastSync)}
                </span>
              )}
@@ -459,7 +459,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
             onClick={() => { setShowInbox(true); onMarkNotifRead(); }}
             className={`p-4 rounded-lg border transition-all relative group active:scale-95 ${unreadCount > 0 ? 'bg-arcus-red border-arcus-red shadow-lg shadow-arcus-red/40' : 'bg-white/5 border-white/10 hover:bg-white/10'}`}
           >
-             {unreadCount > 0 ? <BellRing className="w-6 h-6 text-white animate-bounce" /> : <Bell className="w-6 h-6 text-slate-400 group-hover:text-white" />}
+             {unreadCount > 0 ? <BellRing className="w-6 h-6 text-white animate-bounce" /> : <Bell className="w-6 h-6 text-slate-700 group-hover:text-white" />}
              {unreadCount > 0 && (
                <div className="absolute -top-1 -right-1 bg-white text-arcus-red text-[8px] font-black w-6 h-6 rounded-full flex items-center justify-center border border-arcus-red shadow-md">
                  {unreadCount}
@@ -471,7 +471,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
              <button 
                 onClick={onSyncNow}
                 disabled={isSyncing}
-                className={`p-3.5 bg-white/5 border border-white/10 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 ${isSyncing ? 'opacity-50' : ''}`}
+                className={`p-3.5 bg-white/5 border border-white/10 rounded-lg text-slate-700 hover:text-white hover:bg-white/10 transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 ${isSyncing ? 'opacity-50' : ''}`}
                 title="Simpan Ke Cloud"
               >
                 <Database className={`w-5 h-5 ${isSyncing ? 'animate-bounce text-orange-500' : ''}`} />
@@ -480,7 +480,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
              <button 
                 onClick={onRefreshData}
                 disabled={isSyncing}
-                className={`p-3.5 bg-white/5 border border-white/10 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 ${isSyncing ? 'opacity-50' : ''}`}
+                className={`p-3.5 bg-white/5 border border-white/10 rounded-lg text-slate-700 hover:text-white hover:bg-white/10 transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 ${isSyncing ? 'opacity-50' : ''}`}
                 title="Ambil Dari Cloud"
               >
                 <RefreshCw className={`w-5 h-5 ${isSyncing ? 'animate-spin text-arcus-red' : ''}`} />
@@ -516,25 +516,25 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                       <MessageSquare className="w-6 h-6 text-arcus-red" />
                       <h3 className="text-xl font-black font-oswald uppercase italic leading-none">Pusat Komunikasi Master</h3>
                    </div>
-                   <button onClick={() => setShowInbox(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="w-6 h-6 text-slate-400" /></button>
+                   <button onClick={() => setShowInbox(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="w-6 h-6 text-slate-700" /></button>
                 </div>
 
                 <div className="flex bg-white/5 p-1.5 rounded-2xl border border-white/10 self-start">
                    <button 
                     onClick={() => setInboxTab('RECEIVED')}
-                    className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${inboxTab === 'RECEIVED' ? 'bg-arcus-red text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                    className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${inboxTab === 'RECEIVED' ? 'bg-arcus-red text-white shadow-lg' : 'text-slate-700 hover:text-white'}`}
                    >
                      Inbox {unreadCount > 0 && `(${unreadCount})`}
                    </button>
                    <button 
                     onClick={() => setInboxTab('SENT')}
-                    className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${inboxTab === 'SENT' ? 'bg-arcus-red text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                    className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${inboxTab === 'SENT' ? 'bg-arcus-red text-white shadow-lg' : 'text-slate-700 hover:text-white'}`}
                    >
                      Riwayat Pesan
                    </button>
                    <button 
                     onClick={() => setInboxTab('COMPOSE')}
-                    className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${inboxTab === 'COMPOSE' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                    className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${inboxTab === 'COMPOSE' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-700 hover:text-white'}`}
                    >
                      Tulis Pesan Baru
                    </button>
@@ -553,7 +553,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                       <div key={notif.id} className={`p-6 rounded-[2rem] border-2 shadow-sm transition-all ${notif.type === 'WARNING' ? 'bg-red-50 border-red-100' : 'bg-white border-white'}`}>
                          <div className="flex justify-between items-start mb-3">
                             <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${notif.type === 'WARNING' ? 'bg-red-600 text-white' : 'bg-slate-900 text-white'}`}>MASTER ADMIN</span>
-                            <span className="text-[9px] font-black text-slate-300 uppercase">{safeFormatDateTime(notif.timestamp)}</span>
+                            <span className="text-[9px] font-black text-slate-600 uppercase">{safeFormatDateTime(notif.timestamp)}</span>
                          </div>
                          <h4 className="font-black text-slate-900 uppercase font-oswald italic text-lg leading-tight mb-2">{notif.title}</h4>
                          <p className="text-slate-600 text-sm font-medium leading-relaxed italic">"{notif.message}"</p>
@@ -573,10 +573,10 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                       <div key={notif.id} className="p-6 rounded-[2rem] bg-white border-2 border-slate-100 shadow-sm opacity-80">
                          <div className="flex justify-between items-start mb-3">
                             <span className="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-blue-50 text-blue-600 border border-blue-100">Kirim Ke Master</span>
-                            <span className="text-[9px] font-black text-slate-300 uppercase">{safeFormatDateTime(notif.timestamp)}</span>
+                            <span className="text-[9px] font-black text-slate-600 uppercase">{safeFormatDateTime(notif.timestamp)}</span>
                          </div>
                          <h4 className="font-black text-slate-900 uppercase font-oswald italic text-lg leading-tight mb-2">{notif.title}</h4>
-                         <p className="text-slate-500 text-sm font-medium leading-relaxed">"{notif.message}"</p>
+                         <p className="text-slate-800 text-sm font-medium leading-relaxed">"{notif.message}"</p>
                       </div>
                     ))
                    )
@@ -586,7 +586,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                   <div className="space-y-6 animate-in slide-in-from-bottom-4">
                      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
                         <div className="space-y-2">
-                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Subjek Masalah / Aspirasi</label>
+                           <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest px-1">Subjek Masalah / Aspirasi</label>
                            <input 
                             type="text" 
                             placeholder="Contoh: Kendala Penarikan Dana Gateway" 
@@ -596,7 +596,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                            />
                         </div>
                         <div className="space-y-2">
-                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Pesan Detail Untuk Master Admin</label>
+                           <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest px-1">Pesan Detail Untuk Master Admin</label>
                            <textarea 
                             placeholder="Tulis kendala Anda secara lengkap di sini..." 
                             value={msgContent}
@@ -617,7 +617,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
              </div>
              
              <div className="p-6 bg-white border-t text-center">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">Respons Master Admin akan muncul di Tab Inbox.</p>
+                <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest italic">Respons Master Admin akan muncul di Tab Inbox.</p>
              </div>
           </div>
         </div>
@@ -636,7 +636,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
               </div>
               <div className="text-left">
                 <h3 className="text-2xl font-black font-oswald uppercase italic leading-none group-hover:text-arcus-red transition-colors">Buka Master Control</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">Akses penuh manajemen platform & komunikasi pusat</p>
+                <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest mt-2">Akses penuh manajemen platform & komunikasi pusat</p>
               </div>
             </div>
             <ChevronRight className="w-8 h-8 text-slate-700 group-hover:text-white transition-all group-hover:translate-x-2" />
@@ -668,7 +668,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                   <div key={event.id} className="bg-white p-6 rounded-[2rem] border border-orange-200 shadow-sm flex flex-col justify-between gap-4 group hover:border-orange-500 transition-all">
                      <div>
                        <h4 className="font-black text-slate-900 uppercase font-oswald italic truncate leading-none mb-2">{event.settings?.tournamentName || 'Untitled'}</h4>
-                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{participantCount} Pendaftar Terdeteksi</p>
+                       <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{participantCount} Pendaftar Terdeteksi</p>
                      </div>
                      <div className="flex items-center justify-between border-t border-slate-50 pt-4">
                         <div className="text-orange-600 font-black font-oswald text-xl leading-none">Rp {totalFee.toLocaleString()}</div>
@@ -693,13 +693,13 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
       <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 self-start mb-6 md:mb-8">
         <button 
           onClick={() => setActiveTab('DASHBOARD')}
-          className={`px-6 md:px-8 py-2 md:py-2.5 rounded-md md:rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'DASHBOARD' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
+          className={`px-6 md:px-8 py-2 md:py-2.5 rounded-md md:rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'DASHBOARD' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-700 hover:text-slate-600'}`}
         >
           <BarChart2 className="w-3.5 h-3.5" /> Dashboard
         </button>
         <button 
           onClick={() => setActiveTab('EVENTS')}
-          className={`px-6 md:px-8 py-2 md:py-2.5 rounded-md md:rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'EVENTS' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-400 hover:text-slate-600'}`}
+          className={`px-6 md:px-8 py-2 md:py-2.5 rounded-md md:rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'EVENTS' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-700 hover:text-slate-600'}`}
         >
           <Trophy className="w-3.5 h-3.5" /> Daftar Event
         </button>
@@ -710,7 +710,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
         <div className="flex flex-col lg:flex-row gap-4">
           {/* Search Input */}
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700" />
             <input 
               type="text" 
               placeholder="Cari turnamen, latihan, atau lokasi..." 
@@ -724,19 +724,19 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
              <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
                 <button 
                   onClick={() => setTypeFilter('ALL')}
-                  className={`px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${typeFilter === 'ALL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}
+                  className={`px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${typeFilter === 'ALL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700'}`}
                 >
                   Semua Tipe
                 </button>
                 <button 
                   onClick={() => setTypeFilter('TOURNAMENT')}
-                  className={`px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${typeFilter === 'TOURNAMENT' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}
+                  className={`px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${typeFilter === 'TOURNAMENT' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700'}`}
                 >
                   Turnamen
                 </button>
                 <button 
                   onClick={() => setTypeFilter('PRACTICE')}
-                  className={`px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${typeFilter === 'PRACTICE' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}
+                  className={`px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${typeFilter === 'PRACTICE' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700'}`}
                 >
                   Latihan
                 </button>
@@ -755,8 +755,8 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                   <option value="ONGOING">Sedang Jalan</option>
                   <option value="COMPLETED">Selesai</option>
                 </select>
-                <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
-                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-700 pointer-events-none" />
+                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-700">
                   <Layout className="w-3.5 h-3.5" />
                 </div>
              </div>
@@ -771,8 +771,8 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                   <option value="OLDEST">Terlama</option>
                   <option value="NAME_ASC">Nama A-Z</option>
                 </select>
-                <TrendingUp className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
-                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <TrendingUp className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-700 pointer-events-none" />
+                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-700">
                   <Layout className="w-3.5 h-3.5" />
                 </div>
              </div>
@@ -787,8 +787,8 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                   <option value="PAID">Lunas Admin</option>
                   <option value="UNPAID">Pending Admin</option>
                 </select>
-                <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
-                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-700 pointer-events-none" />
+                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-700">
                   <Layout className="w-3.5 h-3.5" />
                 </div>
              </div>
@@ -798,7 +798,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
         {/* Quick Filter Indicators */}
         {(eventSearch || statusFilter !== 'ALL' || typeFilter !== 'ALL') && (
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-50">
-            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mr-2">Filter Aktif:</span>
+            <span className="text-[8px] font-black text-slate-700 uppercase tracking-widest mr-2">Filter Aktif:</span>
             {eventSearch && (
               <span className="bg-slate-900 text-white px-3 py-1 rounded-full text-[8px] font-black flex items-center gap-2">
                 "{eventSearch}" <X className="w-2.5 h-2.5 cursor-pointer" onClick={() => setEventSearch('')} />
@@ -843,7 +843,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
               <ShieldCheck className="w-5 h-5 text-emerald-500" /> Event & Sesi Aktif
             </h3>
             <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700" />
               <input 
                 type="text" 
                 placeholder="Cari event..." 
@@ -856,7 +856,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
           
           <div className="grid grid-cols-1 divide-y divide-slate-100 bg-white border-y border-slate-100">
             {filteredEvents.length === 0 ? (
-              <div className="py-12 bg-white rounded-2xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-slate-300 gap-3">
+              <div className="py-12 bg-white rounded-2xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-slate-600 gap-3">
                 <Layout className="w-12 h-12 opacity-10" />
                 <p className="font-medium italic text-xs">
                   {eventSearch ? 'Tidak ada event yang cocok' : 'Anda belum memiliki event yang dikelola.'}
@@ -868,7 +868,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                 return (
                   <div key={event.id} className={`p-4 md:px-8 md:py-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 md:gap-8 hover:bg-slate-50 transition-all group relative overflow-hidden ${deletingId === event.id ? 'opacity-50 grayscale pointer-events-none' : ''}`}>
                     <div className="flex items-center gap-4 md:gap-8 relative z-10 min-w-0">
-                      <div className={`w-10 h-10 md:w-14 md:h-14 shrink-0 rounded-lg flex items-center justify-center font-black font-oswald text-base md:text-xl transition-all duration-500 ${event.settings?.isPractice ? 'bg-teal-50 text-teal-600' : 'bg-slate-50 text-slate-300 group-hover:bg-red-50 group-hover:text-arcus-red'}`}>
+                      <div className={`w-10 h-10 md:w-14 md:h-14 shrink-0 rounded-lg flex items-center justify-center font-black font-oswald text-base md:text-xl transition-all duration-500 ${event.settings?.isPractice ? 'bg-teal-50 text-teal-600' : 'bg-slate-50 text-slate-600 group-hover:bg-red-50 group-hover:text-arcus-red'}`}>
                         {event.settings?.isPractice ? <Target className="w-5 h-5 md:w-7 md:h-7" /> : (event.settings?.tournamentName?.charAt(0) || '?')}
                       </div>
                       <div className="min-w-0 flex-1 space-y-1 md:space-y-2">
@@ -888,7 +888,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                                <span className="bg-orange-50 text-orange-700 text-[7px] font-black px-2 py-0.5 rounded uppercase tracking-widest border border-orange-100 italic animate-pulse">ON GOING</span>
                              )}
                              {event.status === 'COMPLETED' && (
-                               <span className="bg-slate-100 text-slate-500 text-[7px] font-black px-2 py-0.5 rounded uppercase tracking-widest border border-slate-200">SELESAI</span>
+                               <span className="bg-slate-100 text-slate-800 text-[7px] font-black px-2 py-0.5 rounded uppercase tracking-widest border border-slate-200">SELESAI</span>
                              )}
                              {event.status === 'ACTIVE' && (
                                <span className="bg-arcus-red text-white text-[7px] font-black px-2 py-0.5 rounded uppercase tracking-widest italic animate-pulse">REGISTRASI BUKA</span>
@@ -896,18 +896,18 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                           </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-                      <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                      <div className="flex items-center gap-2 text-[10px] font-black text-slate-700 uppercase tracking-wider">
                         <Users className={`w-4 h-4 ${event.settings?.isPractice ? 'text-teal-500' : 'text-arcus-red'}`} />
                         {(event as any).registrationCount || (event.archers || []).length || 0} Archer <span className="hidden sm:inline">Terdaftar</span>
                       </div>
                           {event.settings?.location && (
-                            <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                            <div className="flex items-center gap-2 text-[10px] font-black text-slate-700 uppercase tracking-wider">
                               <MapPin className="w-4 h-4 text-blue-500" />
                               <span className="truncate max-w-[120px]">{event.settings?.location}</span>
                             </div>
                           )}
                           {event.settings?.eventDate && (
-                            <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                            <div className="flex items-center gap-2 text-[10px] font-black text-slate-700 uppercase tracking-wider">
                               <Calendar className="w-4 h-4 text-emerald-500" />
                               <span>{safeFormatDate(event.settings?.eventDate, { day: 'numeric', month: 'short' })}</span>
                             </div>
@@ -941,14 +941,14 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                         )}
                         <button 
                           onClick={() => onShare(event.id, event.settings?.tournamentName || 'Untitled')} 
-                          className="flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-all font-black text-[10px] uppercase tracking-widest active:scale-95"
+                          className="flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-slate-50 text-slate-700 hover:text-blue-600 hover:bg-blue-50 transition-all font-black text-[10px] uppercase tracking-widest active:scale-95"
                           title="Share"
                         >
                           <Share2 className="w-5 h-5" />
                           <span className="sm:hidden lg:inline">Share</span>
                         </button>
                         <button onClick={() => onViewLive(event.id)} className="flex items-center justify-center gap-3 px-6 py-4 bg-slate-50 hover:bg-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 transition-all active:scale-95">
-                          <Monitor className="w-5 h-5 text-slate-400" />
+                          <Monitor className="w-5 h-5 text-slate-700" />
                           <span className="sm:hidden lg:inline">Live Board</span>
                         </button>
                         {event.status === 'DRAFT' ? (
@@ -985,7 +985,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
               </div>
               <div className="space-y-3">
                 <h3 className="text-3xl font-black font-oswald uppercase italic text-slate-900 leading-none">Hapus Permanen?</h3>
-                <p className="text-slate-500 font-medium italic text-sm leading-relaxed">
+                <p className="text-slate-800 font-medium italic text-sm leading-relaxed">
                   Anda akan menghapus {confirmDelete.isPractice ? 'latihan' : 'turnamen'} <br/>
                   <strong className="text-slate-900 not-italic">"{confirmDelete.name}"</strong> <br/>
                   Seluruh data peserta & skor akan hilang selamanya.
@@ -994,7 +994,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
               <div className="flex gap-4 pt-4">
                 <button 
                   onClick={() => setConfirmDelete(null)} 
-                  className="flex-1 py-5 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-200 transition-all"
+                  className="flex-1 py-5 bg-slate-100 text-slate-800 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-slate-200 transition-all"
                 >
                   Batal
                 </button>
@@ -1020,7 +1020,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                 </div>
                 <div className="text-center space-y-2">
                   <h3 className="text-3xl font-black font-oswald uppercase italic">Kebijakan Platform</h3>
-                  <p className="text-slate-400 font-medium italic">Harap baca ketentuan biaya sistem ARCUS</p>
+                  <p className="text-slate-700 font-medium italic">Harap baca ketentuan biaya sistem ARCUS</p>
                 </div>
                 <div className="bg-slate-50 p-6 rounded-3xl space-y-4 border border-slate-100">
                   <div className="flex items-start gap-4">
@@ -1033,7 +1033,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                   </div>
                 </div>
                 <div className="flex gap-4">
-                  <button onClick={handleCancel} className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px]">Batal</button>
+                  <button onClick={handleCancel} className="flex-1 py-4 bg-slate-100 text-slate-800 rounded-2xl font-black uppercase text-[10px]">Batal</button>
                   <button onClick={() => setStep('NAME_INPUT')} className="flex-[2] py-4 bg-arcus-red text-white rounded-2xl font-black uppercase text-[10px] shadow-xl active:scale-95 transition-all">SETUJU</button>
                 </div>
               </div>
@@ -1044,11 +1044,11 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
               <div className="p-10 space-y-8">
                 <div className="text-center space-y-2">
                   <h3 className="text-3xl font-black font-oswald uppercase italic">Nama Turnamen</h3>
-                  <p className="text-slate-400 font-medium italic">Berikan nama resmi untuk event Anda</p>
+                  <p className="text-slate-700 font-medium italic">Berikan nama resmi untuk event Anda</p>
                 </div>
                 <div className="space-y-6">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">Nama Event</label>
+                    <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest px-4">Nama Event</label>
                     <input 
                       autoFocus
                       type="text" 
@@ -1060,7 +1060,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                   </div>
 
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">Keterangan Singkat</label>
+                    <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest px-4">Keterangan Singkat</label>
                     <textarea 
                       placeholder="Tulis deskripsi singkat tentang turnamen ini..." 
                       value={description}
@@ -1072,8 +1072,8 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                   <div className="space-y-4 pt-4 border-t border-slate-100">
                     <div className="flex items-center justify-between px-4">
                       <div className="flex items-center gap-2">
-                        <Zap className={`w-4 h-4 ${isFree ? 'text-emerald-500' : 'text-slate-300'}`} />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Event Internal / Free</span>
+                        <Zap className={`w-4 h-4 ${isFree ? 'text-emerald-500' : 'text-slate-600'}`} />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-800">Event Internal / Free</span>
                       </div>
                       {isSuperAdmin && (
                         <button 
@@ -1087,7 +1087,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
 
                     {!isFree && (
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">Kode Promo (Opsional)</label>
+                        <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest px-4">Kode Promo (Opsional)</label>
                         <div className="relative">
                           <input 
                             type="text" 
@@ -1125,7 +1125,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                   </div>
                 </div>
                 <div className="flex gap-4">
-                  <button onClick={() => setStep('AGREEMENT')} className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px]">Kembali</button>
+                  <button onClick={() => setStep('AGREEMENT')} className="flex-1 py-4 bg-slate-100 text-slate-800 rounded-2xl font-black uppercase text-[10px]">Kembali</button>
                   <button 
                     disabled={!name.trim()}
                     onClick={() => setStep('FINAL_CONFIRM')} 
@@ -1145,10 +1145,10 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                 </div>
                 <div className="text-center space-y-2">
                   <h3 className="text-3xl font-black font-oswald uppercase italic">Siap Meluncur?</h3>
-                  <p className="text-slate-400 font-medium px-4">Event <strong>"{name}"</strong> akan segera dibuat. Anda dapat mengatur kategori dan bantalan setelah ini.</p>
+                  <p className="text-slate-700 font-medium px-4">Event <strong>"{name}"</strong> akan segera dibuat. Anda dapat mengatur kategori dan bantalan setelah ini.</p>
                 </div>
                 <div className="flex gap-4">
-                  <button onClick={() => setStep('NAME_INPUT')} className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px]">Cek Lagi</button>
+                  <button onClick={() => setStep('NAME_INPUT')} className="flex-1 py-4 bg-slate-100 text-slate-800 rounded-2xl font-black uppercase text-[10px]">Cek Lagi</button>
                   <button onClick={handleFinalize} className="flex-[2] py-4 bg-arcus-dark text-white rounded-2xl font-black uppercase text-[10px] shadow-2xl active:scale-95 transition-all">Buat Turnamen Sekarang!</button>
                 </div>
               </div>
@@ -1162,7 +1162,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                 </div>
                 <div className="text-center space-y-2">
                   <h3 className="text-3xl font-black font-oswald uppercase italic text-teal-900 leading-none">Latihan Baru</h3>
-                  <p className="text-slate-400 font-medium italic">Scoring cepat tanpa pendaftaran</p>
+                  <p className="text-slate-700 font-medium italic">Scoring cepat tanpa pendaftaran</p>
                 </div>
                 <div className="space-y-6">
                    <input 
@@ -1177,8 +1177,8 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                   <div className="space-y-4 pt-4 border-t border-slate-100">
                     <div className="flex items-center justify-between px-4">
                       <div className="flex items-center gap-2">
-                        <Zap className={`w-4 h-4 ${isFree ? 'text-emerald-500' : 'text-slate-300'}`} />
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Free Platform Fee</span>
+                        <Zap className={`w-4 h-4 ${isFree ? 'text-emerald-500' : 'text-slate-600'}`} />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-800">Free Platform Fee</span>
                       </div>
                       {isSuperAdmin && (
                         <button 
@@ -1192,7 +1192,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
 
                     {!isFree && (
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4">Kode Promo (Opsional)</label>
+                        <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest px-4">Kode Promo (Opsional)</label>
                         <input 
                           type="text" 
                           placeholder="Masukkan kode..." 
@@ -1218,7 +1218,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                   </div>
                 </div>
                 <div className="flex gap-4">
-                  <button onClick={handleCancel} className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px]">Batal</button>
+                  <button onClick={handleCancel} className="flex-1 py-4 bg-slate-100 text-slate-800 rounded-2xl font-black uppercase text-[10px]">Batal</button>
                   <button 
                     disabled={!name.trim()}
                     onClick={handleFinalizePractice} 
@@ -1242,19 +1242,19 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                  <div className="flex justify-between items-start">
                     <div>
                       <h3 className="text-3xl font-black font-oswald uppercase italic leading-none">Invoice Platform</h3>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">ARCUS BILLING SYSTEM</p>
+                      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest mt-1">ARCUS BILLING SYSTEM</p>
                     </div>
-                    <button onClick={resetBilling} className="p-2 hover:bg-slate-100 rounded-full"><X className="w-6 h-6 text-slate-300" /></button>
+                    <button onClick={resetBilling} className="p-2 hover:bg-slate-100 rounded-full"><X className="w-6 h-6 text-slate-600" /></button>
                  </div>
                  
                  <div className="bg-slate-50 p-6 rounded-[2rem] border space-y-4">
-                    <div className="flex justify-between items-center text-xs font-bold uppercase text-slate-500">
+                    <div className="flex justify-between items-center text-xs font-bold uppercase text-slate-800">
                        <span>Total Archer</span>
                        <span className="text-slate-900">{selectedInvoiceEvent?.archers.length || 0} Peserta</span>
                     </div>
                     <div className="border-t border-slate-200 pt-4 space-y-2">
                        <div className="flex justify-between items-center">
-                          <span className="text-[10px] font-black uppercase text-slate-400">Total Platform Fee</span>
+                          <span className="text-[10px] font-black uppercase text-slate-700">Total Platform Fee</span>
                           <span className="font-black text-slate-900">Rp {(selectedInvoiceEvent ? calculateEventFees(selectedInvoiceEvent) : 0).toLocaleString()}</span>
                        </div>
                     </div>
@@ -1280,7 +1280,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
             {billingStep === 'PAYMENT_SELECTION' && (
               <div className="p-10 space-y-8">
                  <div className="flex items-center gap-4">
-                    <button onClick={() => setBillingStep('INVOICE')} className="p-2 bg-slate-50 rounded-xl"><X className="w-5 h-5 rotate-90 text-slate-400" /></button>
+                    <button onClick={() => setBillingStep('INVOICE')} className="p-2 bg-slate-50 rounded-xl"><X className="w-5 h-5 rotate-90 text-slate-700" /></button>
                     <h3 className="text-2xl font-black font-oswald uppercase italic">Metode Pembayaran</h3>
                  </div>
                  
@@ -1293,10 +1293,10 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                           <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600"><Zap className="w-6 h-6" /></div>
                           <div>
                              <p className="font-black text-sm uppercase">Instant QRIS / VA</p>
-                             <p className="text-[10px] font-bold text-slate-400 uppercase">Otomatis Terverifikasi</p>
+                             <p className="text-[10px] font-bold text-slate-700 uppercase">Otomatis Terverifikasi</p>
                           </div>
                        </div>
-                       <ChevronRight className="w-5 h-5 text-slate-300" />
+                       <ChevronRight className="w-5 h-5 text-slate-600" />
                     </button>
                     
                     <button 
@@ -1304,13 +1304,13 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                       className="p-6 bg-white border-2 border-slate-100 rounded-3xl flex items-center justify-between hover:border-slate-900 transition-all text-left"
                     >
                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400"><Landmark className="w-6 h-6" /></div>
+                          <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-700"><Landmark className="w-6 h-6" /></div>
                           <div>
                              <p className="font-black text-sm uppercase">Transfer Manual</p>
-                             <p className="text-[10px] font-bold text-slate-400 uppercase">WA Support: {globalSettings.contactSupport}</p>
+                             <p className="text-[10px] font-bold text-slate-700 uppercase">WA Support: {globalSettings.contactSupport}</p>
                           </div>
                        </div>
-                       <ChevronRight className="w-5 h-5 text-slate-300" />
+                       <ChevronRight className="w-5 h-5 text-slate-600" />
                     </button>
                  </div>
               </div>
@@ -1337,7 +1337,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                 </div>
                 <div className="text-center space-y-2">
                   <h3 className="text-2xl font-black font-oswald uppercase italic">Menghubungkan Gateway</h3>
-                  <p className="text-slate-400 font-medium italic text-sm">Mohon tunggu, sedang memproses pembayaran aman...</p>
+                  <p className="text-slate-700 font-medium italic text-sm">Mohon tunggu, sedang memproses pembayaran aman...</p>
                 </div>
 
                 {/* Total amount to pay */}
@@ -1348,14 +1348,14 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                   </p>
                 </div>
                 <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 space-y-4">
-                   <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-400">
+                   <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-700">
                       <span>Status</span>
                       <span className="text-blue-600">Enkripsi SSL Aktif</span>
                    </div>
                    <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
                       <div className="h-full bg-blue-600 transition-all duration-300" style={{ width: `${simulationProgress}%` }}></div>
                    </div>
-                   <div className="flex items-center gap-3 justify-center text-[10px] font-bold text-slate-500">
+                   <div className="flex items-center gap-3 justify-center text-[10px] font-bold text-slate-800">
                       <Shield className="w-3 h-3" /> Terproteksi oleh Arcus Secure Gateway
                    </div>
                 </div>
@@ -1414,7 +1414,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                  </div>
                  <div className="space-y-2">
                     <h3 className="text-4xl font-black font-oswald uppercase italic leading-none">LUNAS!</h3>
-                    <p className="text-slate-400 text-sm font-medium italic">Tagihan platform Anda telah diverifikasi otomatis.</p>
+                    <p className="text-slate-700 text-sm font-medium italic">Tagihan platform Anda telah diverifikasi otomatis.</p>
                  </div>
                  <button onClick={resetBilling} className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl">Kembali ke Dashboard</button>
               </div>

@@ -68,11 +68,11 @@ export default function ResetPasswordPanel({ onSuccess, onBack }: Props) {
             </div>
           </div>
           <h2 className="text-2xl font-black font-oswald uppercase italic text-slate-900">Password Diperbarui!</h2>
-          <p className="text-sm font-bold text-slate-500 leading-relaxed">
+          <p className="text-sm font-bold text-slate-800 leading-relaxed">
             Password Anda telah berhasil diperbarui. Anda akan diarahkan ke halaman utama sebentar lagi.
           </p>
           <div className="pt-4">
-            <Loader2 className="w-6 h-6 animate-spin text-slate-400 mx-auto" />
+            <Loader2 className="w-6 h-6 animate-spin text-slate-700 mx-auto" />
           </div>
         </div>
       </div>
@@ -89,26 +89,26 @@ export default function ResetPasswordPanel({ onSuccess, onBack }: Props) {
               <ArcusLogo className="w-12 h-12" />
               <div>
                 <h2 className="text-xl font-black font-oswald uppercase italic text-slate-900 leading-none">Reset Password</h2>
-                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">Buat Password Baru Anda</p>
+                <p className="text-[8px] font-bold text-slate-700 uppercase tracking-widest mt-1">Buat Password Baru Anda</p>
               </div>
             </div>
-            <button onClick={onBack} className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-900 hover:text-white transition-all">
+            <button onClick={onBack} className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-700 hover:bg-slate-900 hover:text-white transition-all">
               <ArrowLeft className="w-5 h-5" />
             </button>
           </div>
 
           <form className="space-y-5" onSubmit={handleSubmit}>
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password Baru</label>
+              <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest ml-1">Password Baru</label>
               <div className="relative">
-                <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600" />
                 <input 
                   type={showPassword ? "text" : "password"}
                   required
                   value={password}
                   minLength={6}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full pl-14 pr-14 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-slate-900 focus:bg-white transition-all text-sm font-bold text-slate-900 placeholder:text-slate-300"
+                  className="w-full pl-14 pr-14 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-slate-900 focus:bg-white transition-all text-sm font-bold text-slate-900 placeholder:text-slate-600"
                   placeholder="Minimal 6 karakter"
                 />
                 <button 
@@ -122,16 +122,16 @@ export default function ResetPasswordPanel({ onSuccess, onBack }: Props) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Konfirmasi Password Baru</label>
+              <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest ml-1">Konfirmasi Password Baru</label>
               <div className="relative">
-                <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600" />
                 <input 
                   type={showPassword ? "text" : "password"}
                   required
                   value={confirmPassword}
                   minLength={6}
                   onChange={e => setConfirmPassword(e.target.value)}
-                  className="w-full pl-14 pr-14 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-slate-900 focus:bg-white transition-all text-sm font-bold text-slate-900 placeholder:text-slate-300"
+                  className="w-full pl-14 pr-14 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-slate-900 focus:bg-white transition-all text-sm font-bold text-slate-900 placeholder:text-slate-600"
                   placeholder="Ulangi password baru"
                 />
               </div>

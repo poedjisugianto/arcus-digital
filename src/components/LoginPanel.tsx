@@ -234,10 +234,10 @@ export default function LoginPanel({ users, onLogin, onRegister, onUpdateUser, o
                 <h2 className="text-xl font-black font-oswald uppercase italic text-slate-900 leading-none">
                   {mode === 'LOGIN' ? 'Admin Login' : 'Daftar Akun'}
                 </h2>
-                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-1">Tournament OS v1.2.0</p>
+                <p className="text-[8px] font-bold text-slate-700 uppercase tracking-widest mt-1">Tournament OS v1.2.0</p>
               </div>
             </div>
-            <button onClick={onBack} className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-900 hover:text-white transition-all">
+            <button onClick={onBack} className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-700 hover:bg-slate-900 hover:text-white transition-all">
               <ArrowLeft className="w-5 h-5" />
             </button>
           </div>
@@ -246,29 +246,29 @@ export default function LoginPanel({ users, onLogin, onRegister, onUpdateUser, o
             {mode === 'REGISTER' && (
               <>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nama Lengkap / Organisasi</label>
+                  <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest ml-1">Nama Lengkap / Organisasi</label>
                   <div className="relative">
-                    <UserIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                    <UserIcon className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600" />
                     <input 
                       type="text"
                       required
                       value={name}
                       onChange={e => setName(e.target.value)}
-                      className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-slate-900 focus:bg-white transition-all text-sm font-bold text-slate-900 placeholder:text-slate-300"
+                      className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-slate-900 focus:bg-white transition-all text-sm font-bold text-slate-900 placeholder:text-slate-600"
                       placeholder="Contoh: Arcus Archery Club"
                     />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nomor WhatsApp</label>
+                  <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest ml-1">Nomor WhatsApp</label>
                   <div className="relative">
-                    <Zap className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                    <Zap className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600" />
                     <input 
                       type="tel"
                       required
                       value={phone}
                       onChange={e => setPhone(e.target.value)}
-                      className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-slate-900 focus:bg-white transition-all text-sm font-bold text-slate-900 placeholder:text-slate-300"
+                      className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-slate-900 focus:bg-white transition-all text-sm font-bold text-slate-900 placeholder:text-slate-600"
                       placeholder="08XXXXXXXXXX"
                     />
                   </div>
@@ -276,41 +276,41 @@ export default function LoginPanel({ users, onLogin, onRegister, onUpdateUser, o
               </>
             )}
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
+              <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest ml-1">Email Address</label>
               <div className="relative">
-                <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600" />
                 <input 
                   type="email"
                   required
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-slate-900 focus:bg-white transition-all text-sm font-bold text-slate-900 placeholder:text-slate-300"
+                  className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-slate-900 focus:bg-white transition-all text-sm font-bold text-slate-900 placeholder:text-slate-600"
                   placeholder="admin@arcus.id"
                 />
               </div>
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between ml-1">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Password</label>
+                <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Password</label>
                 {mode === 'LOGIN' && (
                   <button 
                     type="button"
                     onClick={handleResetPassword}
-                    className="text-[10px] font-bold text-slate-400 underline hover:text-arcus-red transition-colors"
+                    className="text-[10px] font-bold text-slate-700 underline hover:text-arcus-red transition-colors"
                   >
                     Lupa Password?
                   </button>
                 )}
               </div>
               <div className="relative">
-                <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600" />
                 <input 
                   type={showPassword ? "text" : "password"}
                   required
                   value={password}
                   minLength={6}
                   onChange={e => setPassword(e.target.value)}
-                  className="w-full pl-14 pr-14 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-slate-900 focus:bg-white transition-all text-sm font-bold text-slate-900 placeholder:text-slate-300"
+                  className="w-full pl-14 pr-14 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-slate-900 focus:bg-white transition-all text-sm font-bold text-slate-900 placeholder:text-slate-600"
                   placeholder="Minimal 6 karakter"
                 />
                 <button 
@@ -325,16 +325,16 @@ export default function LoginPanel({ users, onLogin, onRegister, onUpdateUser, o
 
             {mode === 'REGISTER' && (
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Konfirmasi Password</label>
+                <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest ml-1">Konfirmasi Password</label>
                 <div className="relative">
-                  <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300" />
+                  <Lock className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-600" />
                   <input 
                     type={showPassword ? "text" : "password"}
                     required
                     value={confirmPassword}
                     minLength={6}
                     onChange={e => setConfirmPassword(e.target.value)}
-                    className="w-full pl-14 pr-14 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-slate-900 focus:bg-white transition-all text-sm font-bold text-slate-900 placeholder:text-slate-300"
+                    className="w-full pl-14 pr-14 py-4 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-slate-900 focus:bg-white transition-all text-sm font-bold text-slate-900 placeholder:text-slate-600"
                     placeholder="Minimal 6 karakter"
                   />
                 </div>
@@ -368,7 +368,7 @@ export default function LoginPanel({ users, onLogin, onRegister, onUpdateUser, o
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-slate-100"></div>
                   </div>
-                  <span className="relative bg-white px-4 text-[9px] font-black text-slate-300 uppercase tracking-widest">Atau</span>
+                  <span className="relative bg-white px-4 text-[9px] font-black text-slate-600 uppercase tracking-widest">Atau</span>
                 </div>
 
                 <button 
@@ -390,7 +390,7 @@ export default function LoginPanel({ users, onLogin, onRegister, onUpdateUser, o
                 setMode(mode === 'LOGIN' ? 'REGISTER' : 'LOGIN');
                 setError('');
               }}
-              className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-arcus-red transition-colors"
+              className="text-[10px] font-black text-slate-700 uppercase tracking-widest hover:text-arcus-red transition-colors"
             >
               {mode === 'LOGIN' ? 'Belum punya akun? Daftar gratis' : 'Sudah punya akun? Silahkan Login'}
             </button>
@@ -403,7 +403,7 @@ export default function LoginPanel({ users, onLogin, onRegister, onUpdateUser, o
                 Lupa Password?
               </button>
             )}
-            <p className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">ARCUS DIGITAL TOURNAMENT OS</p>
+            <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">ARCUS DIGITAL TOURNAMENT OS</p>
           </div>
         </div>
       </div>

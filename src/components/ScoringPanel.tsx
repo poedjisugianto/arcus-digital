@@ -359,7 +359,7 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
                   </span>
                 )}
               </div>
-              <p className="text-[9px] font-bold uppercase mt-1 tracking-widest text-slate-500">
+              <p className="text-[9px] font-bold uppercase mt-1 tracking-widest text-slate-800">
                 {currentScorer ? `Petugas: ${currentScorer.name}` : 'Field Score Terminal'}
               </p>
             </div>
@@ -432,7 +432,7 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
           {!selectedArcher ? (
             <div className="flex-1 flex flex-col items-center justify-center text-slate-200 gap-6">
               <User className="w-24 h-24" />
-              <p className="text-xs font-black uppercase tracking-[0.4em] italic text-slate-400">Silakan Pilih Pemanah</p>
+              <p className="text-xs font-black uppercase tracking-[0.4em] italic text-slate-700">Silakan Pilih Pemanah</p>
             </div>
           ) : (
             <>
@@ -445,7 +445,7 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
                         <button 
                           key={i} 
                           onClick={() => setCurrentEnd(i)} 
-                          className={`min-w-10 h-10 rounded-lg text-xs font-black border transition-all flex flex-col items-center justify-center ${currentEnd === i ? 'bg-slate-900 border-slate-900 text-white shadow-sm' : scoreForEnd ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-white border-slate-100 text-slate-300'}`}
+                          className={`min-w-10 h-10 rounded-lg text-xs font-black border transition-all flex flex-col items-center justify-center ${currentEnd === i ? 'bg-slate-900 border-slate-900 text-white shadow-sm' : scoreForEnd ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-white border-slate-100 text-slate-600'}`}
                         >
                           <span className="text-[9px]">R{i + 1}</span>
                           {scoreForEnd && <span className="text-[8px] opacity-70">{scoreForEnd.total}</span>}

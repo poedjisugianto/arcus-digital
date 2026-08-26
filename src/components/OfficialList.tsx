@@ -74,7 +74,7 @@ const OfficialList: React.FC<Props> = ({ officials, onUpdate, onRemove, onGoToId
     <div className="space-y-6">
       <div className="bg-[#FBFBFD] p-4 flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-2.5 bg-white rounded-lg border border-slate-100 shadow-sm"><ArrowLeft className="w-5 h-5 text-slate-500" /></button>
+          <button onClick={onBack} className="p-2.5 bg-white rounded-lg border border-slate-100 shadow-sm"><ArrowLeft className="w-5 h-5 text-slate-800" /></button>
           <div className="flex flex-col">
              <h2 className="text-xl font-black font-oswald uppercase italic tracking-tighter text-slate-900">Manajemen Official</h2>
              <span className="text-[8px] font-black text-blue-600 uppercase tracking-widest leading-none">Database Tim Pendukung</span>
@@ -108,7 +108,7 @@ const OfficialList: React.FC<Props> = ({ officials, onUpdate, onRemove, onGoToId
       <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="p-4 md:p-6 border-b border-slate-50 flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
             <input 
               type="text" 
               placeholder="Cari nama atau klub official..." 
@@ -141,10 +141,10 @@ const OfficialList: React.FC<Props> = ({ officials, onUpdate, onRemove, onGoToId
                       <span className="text-xs font-black text-slate-900 uppercase italic font-oswald">{o.name || 'TANPA NAMA'}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">{o.club}</td>
+                  <td className="px-6 py-4 text-xs font-bold text-slate-800 uppercase">{o.club}</td>
                   <td className="px-6 py-4">
                     <p className="text-[10px] font-black text-slate-600">{o.phone || '-'}</p>
-                    <p className="text-[8px] font-bold text-slate-400">{o.email}</p>
+                    <p className="text-[8px] font-bold text-slate-700">{o.email}</p>
                   </td>
                   <td className="px-6 py-4">
                     <select

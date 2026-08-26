@@ -160,27 +160,27 @@ export default function LandingPage({
             </div>
             
             <div className="hidden md:flex items-center gap-8">
-              <a href="#events" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-slate-900 transition-colors">Event</a>
-              <a href="#install-app" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-arcus-red transition-colors flex items-center gap-1.5">
+              <a href="#events" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-700 hover:text-slate-900 transition-colors">Event</a>
+              <a href="#install-app" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-700 hover:text-arcus-red transition-colors flex items-center gap-1.5">
                 <Download className="w-3.5 h-3.5 text-arcus-red" />
                 Instal App
               </a>
-              <a href="#features" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-slate-900 transition-colors">Fitur</a>
+              <a href="#features" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-700 hover:text-slate-900 transition-colors">Fitur</a>
               
               <a 
                 href="https://ais-pre-ihwvpfbazwbyenzfsn3unw-238734823836.asia-southeast1.run.app/" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-teal-600 transition-colors group"
+                className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-700 hover:text-teal-600 transition-colors group"
               >
-                <Clock className="w-3.5 h-3.5 text-slate-400 group-hover:text-teal-500 transition-colors" /> Timer Turnamen
+                <Clock className="w-3.5 h-3.5 text-slate-700 group-hover:text-teal-500 transition-colors" /> Timer Turnamen
               </a>
               
               <div className="h-4 w-px bg-slate-200" />
 
               <button 
                 onClick={onScorerLogin}
-                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-arcus-red transition-all group"
+                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-700 hover:text-arcus-red transition-all group"
               >
                 <div className="p-1 px-2 border-2 border-slate-100 rounded-lg group-hover:border-arcus-red transition-all">
                   <ShieldCheck className="w-3.5 h-3.5" />
@@ -245,7 +245,7 @@ export default function LandingPage({
             <div className="pt-6 border-t border-slate-50 flex flex-col gap-4">
               <button 
                 onClick={() => { onScorerLogin(); setIsMenuOpen(false); }}
-                className="w-full py-4 bg-slate-50 border border-slate-100 rounded-lg text-xs font-black uppercase tracking-widest text-slate-400 hover:text-arcus-red transition-all flex items-center justify-center gap-2"
+                className="w-full py-4 bg-slate-50 border border-slate-100 rounded-lg text-xs font-black uppercase tracking-widest text-slate-700 hover:text-arcus-red transition-all flex items-center justify-center gap-2"
               >
                 <ShieldCheck className="w-4 h-4" />
                 AKSES SCORER
@@ -254,7 +254,7 @@ export default function LandingPage({
                 <>
                   <button onClick={onCreateEvent} className="w-full py-4 bg-slate-900 text-white rounded-lg text-xs font-black uppercase tracking-widest">Dashboard Saya</button>
                   {onLogout && (
-                    <button onClick={onLogout} className="w-full py-4 bg-slate-50 rounded-lg text-xs font-black uppercase tracking-widest text-slate-400">Logout</button>
+                    <button onClick={onLogout} className="w-full py-4 bg-slate-50 rounded-lg text-xs font-black uppercase tracking-widest text-slate-700">Logout</button>
                   )}
                 </>
               ) : (
@@ -277,7 +277,7 @@ export default function LandingPage({
           >
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-xl bg-white border border-slate-100 shadow-sm">
               <span className="w-1.5 h-1.5 rounded-full bg-arcus-red animate-pulse" />
-              <span className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">DIGITAL ARCHERY SCORING SYSTEM</span>
+              <span className="text-[8px] md:text-[9px] font-black uppercase tracking-[0.2em] text-slate-800">DIGITAL ARCHERY SCORING SYSTEM</span>
             </div>
 
             <h1 className="text-4xl md:text-7xl font-black font-oswald text-slate-900 leading-[1] md:leading-[0.95] tracking-tighter uppercase italic">
@@ -285,7 +285,7 @@ export default function LandingPage({
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-arcus-red to-orange-500">SCORING PANAHAN</span>
             </h1>
 
-            <p className="max-w-xl text-sm md:text-base font-medium text-slate-500 leading-relaxed px-4">
+            <p className="max-w-xl text-sm md:text-base font-medium text-slate-800 leading-relaxed px-4">
               Platform manajemen turnamen panahan modern. Scoring real-time, manajemen peserta, dan publikasi hasil dalam satu jangkauan.
             </p>
 
@@ -341,13 +341,13 @@ export default function LandingPage({
                     <button 
                       onClick={onRefresh}
                       disabled={isSyncing}
-                      className={`p-2 rounded-lg border border-slate-100 hover:border-arcus-red hover:text-arcus-red transition-all ${isSyncing ? 'animate-spin text-arcus-red' : 'text-slate-400'}`}
+                      className={`p-2 rounded-lg border border-slate-100 hover:border-arcus-red hover:text-arcus-red transition-all ${isSyncing ? 'animate-spin text-arcus-red' : 'text-slate-700'}`}
                     >
                       <Activity className="w-5 h-5" />
                     </button>
                     {syncStatus && (
                       <div className="flex flex-col">
-                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">
+                        <span className="text-[8px] font-bold text-slate-700 uppercase tracking-tighter mt-1">
                           DATA DIPERBARUI: {syncStatus.time}
                         </span>
                       </div>
@@ -362,7 +362,7 @@ export default function LandingPage({
                 <button 
                   onClick={() => onRefresh && onRefresh()}
                   disabled={isSyncing}
-                  className="flex items-center gap-2.5 px-5 py-2.5 bg-white border border-slate-100 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-arcus-red hover:border-arcus-red transition-all active:scale-95 shadow-sm group"
+                  className="flex items-center gap-2.5 px-5 py-2.5 bg-white border border-slate-100 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-700 hover:text-arcus-red hover:border-arcus-red transition-all active:scale-95 shadow-sm group"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-arcus-red' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
                   {isSyncing ? 'Memperbarui...' : 'Segarkan Data'}
@@ -370,21 +370,21 @@ export default function LandingPage({
                 <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
                     <button 
                       onClick={() => setViewMode('GRID')}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === 'GRID' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-900 hover:bg-white'}`}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === 'GRID' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-700 hover:text-slate-900 hover:bg-white'}`}
                     >
                       <LayoutGrid className="w-3.5 h-3.5" />
                       Grid
                     </button>
                     <button 
                       onClick={() => setViewMode('CALENDAR')}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === 'CALENDAR' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:text-slate-900 hover:bg-white'}`}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === 'CALENDAR' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-700 hover:text-slate-900 hover:bg-white'}`}
                     >
                       <CalendarDays className="w-3.5 h-3.5" />
                       Calendar
                     </button>
                 </div>
               </div>
-              <p className="max-w-xs text-[9px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest leading-loose md:text-right">
+              <p className="max-w-xs text-[9px] md:text-[10px] font-black text-slate-700 uppercase tracking-widest leading-loose md:text-right">
                 Menampilkan turnamen terbaru yang diaktivasi oleh penyelenggara.
               </p>
             </div>
@@ -429,7 +429,7 @@ export default function LandingPage({
                              event.status === 'ONGOING' ? 'LIVE NOW' :
                              event.status}
                           </span>
-                          <div className="mt-2 flex items-center gap-1 text-[8px] font-black text-slate-400 uppercase tracking-tighter">
+                          <div className="mt-2 flex items-center gap-1 text-[8px] font-black text-slate-700 uppercase tracking-tighter">
                             ID: {event.id.slice(-6).toUpperCase()}
                           </div>
                         </div>
@@ -439,7 +439,7 @@ export default function LandingPage({
                         {event.settings?.tournamentName || 'Untitled Event'}
                       </h3>
                       
-                      <p className="text-slate-500 text-xs font-medium mb-8 line-clamp-2 italic leading-relaxed opacity-70">
+                      <p className="text-slate-800 text-xs font-medium mb-8 line-clamp-2 italic leading-relaxed opacity-70">
                         {event.settings?.description || ''}
                       </p>
 
@@ -454,13 +454,13 @@ export default function LandingPage({
                                  {event.isRegistrationClosed ? 'Pendaftaran Ditutup' : 'Pendaftaran Dibuka'}
                               </span>
                               {event.settings?.registrationDeadline && !event.isRegistrationClosed && (
-                                <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest">Hingga: {event.settings.registrationDeadline}</span>
+                                <span className="text-[7px] font-bold text-slate-700 uppercase tracking-widest">Hingga: {event.settings.registrationDeadline}</span>
                               )}
                            </div>
                         </div>
 
                         <div className="flex items-center gap-4 text-slate-600">
-                          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
+                          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-700">
                             <Users className="w-4 h-4" />
                           </div>
                           <span className="text-[10px] font-black uppercase tracking-widest truncate">
@@ -468,19 +468,19 @@ export default function LandingPage({
                           </span>
                         </div>
                         <div className="flex items-center gap-4 text-slate-600">
-                          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
+                          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-700">
                             <MapPin className="w-4 h-4" />
                           </div>
                           <span className="text-[10px] font-black uppercase tracking-widest truncate">{event.settings?.location || 'Lokasi Menunggu Update'}</span>
                         </div>
                         <div className="flex items-center gap-4 text-slate-600">
-                          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400">
+                          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-700">
                             <Clock className="w-4 h-4" />
                           </div>
                           <div className="flex flex-col">
                             <span className="text-[10px] font-black uppercase tracking-widest">{event.settings?.eventDate || 'Tanggal Pending'}</span>
                             {event.settings?.executionTime && (
-                              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{event.settings.executionTime}</span>
+                              <span className="text-[8px] font-bold text-slate-700 uppercase tracking-widest">{event.settings.executionTime}</span>
                             )}
                           </div>
                         </div>
@@ -495,7 +495,7 @@ export default function LandingPage({
                         disabled={event.isRegistrationClosed}
                         className={`w-full py-4 flex items-center justify-center gap-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 mb-3 ${
                           event.isRegistrationClosed 
-                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200 shadow-none' 
+                            ? 'bg-slate-100 text-slate-700 cursor-not-allowed border border-slate-200 shadow-none' 
                             : 'bg-arcus-red text-white hover:bg-red-600 shadow-red-200'
                         }`}
                       >
@@ -514,7 +514,7 @@ export default function LandingPage({
                       <div className="grid grid-cols-2 gap-2 mt-3">
                         <button 
                           onClick={() => onViewInfo(event.id)}
-                          className="py-2.5 bg-slate-50 text-slate-500 border border-slate-100 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-slate-100 hover:text-slate-900 transition-all active:scale-95"
+                          className="py-2.5 bg-slate-50 text-slate-800 border border-slate-100 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-slate-100 hover:text-slate-900 transition-all active:scale-95"
                         >
                           SELENGKAPNYA
                         </button>
@@ -526,7 +526,7 @@ export default function LandingPage({
                         </button>
                         <button 
                           onClick={() => onShare(event.id)}
-                          className="col-span-2 py-2 bg-slate-50 text-slate-400 border border-dashed border-slate-200 rounded-lg text-[8px] font-black uppercase tracking-widest hover:border-arcus-red hover:text-arcus-red transition-all flex items-center justify-center gap-2"
+                          className="col-span-2 py-2 bg-slate-50 text-slate-700 border border-dashed border-slate-200 rounded-lg text-[8px] font-black uppercase tracking-widest hover:border-arcus-red hover:text-arcus-red transition-all flex items-center justify-center gap-2"
                         >
                           <Share2 className="w-3 h-3" />
                           BAGIKAN TURNAMEN
@@ -554,7 +554,7 @@ export default function LandingPage({
                   <h3 className="text-3xl font-black font-oswald uppercase italic text-slate-900 tracking-tighter mb-4">
                     Tidak ada Turnamen Publik
                   </h3>
-                  <p className="max-w-xl mx-auto text-sm text-slate-500 font-medium leading-relaxed mb-10">
+                  <p className="max-w-xl mx-auto text-sm text-slate-800 font-medium leading-relaxed mb-10">
                     Saat ini belum ada turnamen aktif yang tersedia untuk publik. 
                     Turnamen baru akan muncul di sini setelah diaktivasi oleh penyelenggara melalui Dashboard.
                   </p>
@@ -579,10 +579,10 @@ export default function LandingPage({
                   {!currentUser && (
                     <div className="mt-12 p-6 bg-slate-50 rounded-2xl border border-slate-100 max-w-lg mx-auto">
                        <div className="flex items-center gap-3 justify-center mb-2">
-                          <Monitor className="w-4 h-4 text-slate-400" />
-                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Catatan Data</span>
+                          <Monitor className="w-4 h-4 text-slate-700" />
+                          <span className="text-[10px] font-black uppercase tracking-widest text-slate-800">Catatan Data</span>
                        </div>
-                       <p className="text-[11px] text-slate-400 font-medium italic">
+                       <p className="text-[11px] text-slate-700 font-medium italic">
                          Jika Anda penyelenggara dan tidak melihat turnamen Anda di sini, pastikan Anda sudah <span className="text-arcus-red font-bold">Login</span> dan melakukan Sinkronisasi Cloud. Data lokal hanya tersimpan di perangkat ini.
                        </p>
                     </div>
@@ -611,7 +611,7 @@ export default function LandingPage({
         <div className="absolute top-0 left-0 w-full h-px bg-white/10" />
         <div className="max-w-[1400px] mx-auto">
           <div className="flex flex-col mb-16 md:mb-20 items-center text-center space-y-2">
-            <div className="tech-label text-white/30">CORE CAPABILITIES</div>
+            <div className="tech-label text-white/70">CORE CAPABILITIES</div>
             <h2 className="text-4xl md:text-5xl font-black font-oswald uppercase italic text-white tracking-tighter">FITUR UNGGULAN</h2>
           </div>
 
@@ -630,7 +630,7 @@ export default function LandingPage({
                 </div>
                 <div className="space-y-1">
                   <h3 className="text-lg font-black font-oswald uppercase italic text-white tracking-tight leading-none">{f.title}</h3>
-                  <p className="text-[10px] md:text-xs text-white/40 leading-relaxed font-medium">
+                  <p className="text-[10px] md:text-xs text-white/80 leading-relaxed font-medium">
                     {f.desc}
                   </p>
                 </div>
@@ -651,7 +651,7 @@ export default function LandingPage({
             ].map((s, i) => (
               <div key={i} className="text-center space-y-1">
                 <div className="text-3xl md:text-4xl font-black font-oswald italic text-slate-900 tracking-tighter">{s.value}</div>
-                <div className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{s.label}</div>
+                <div className="text-[8px] font-black text-slate-700 uppercase tracking-widest">{s.label}</div>
               </div>
             ))}
         </div>
@@ -670,7 +670,7 @@ export default function LandingPage({
                 MULAI <span className="text-arcus-red">LEVELING</span> <br />
                 TURNAMEN ANDA
               </h2>
-              <p className="text-white/40 font-medium max-w-sm mx-auto uppercase tracking-widest text-[9px] leading-relaxed">
+              <p className="text-white/80 font-medium max-w-sm mx-auto uppercase tracking-widest text-[9px] leading-relaxed">
                 Bergabunglah dengan ratusan klub panahan yang telah menggunakan Arcus Digital.
               </p>
               <button 
@@ -705,7 +705,7 @@ export default function LandingPage({
                     <li>
                       <button 
                         onClick={() => handleOpenInstallModal('desktop')}
-                        className="text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-arcus-red transition-all flex items-center gap-1.5"
+                        className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-arcus-red transition-all flex items-center gap-1.5"
                       >
                         <Laptop className="w-3.5 h-3.5" />
                         Instal di PC / Laptop
@@ -714,21 +714,21 @@ export default function LandingPage({
                     <li>
                       <button 
                         onClick={() => handleOpenInstallModal('mobile')}
-                        className="text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-arcus-red transition-all flex items-center gap-1.5"
+                        className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-arcus-red transition-all flex items-center gap-1.5"
                       >
                         <Smartphone className="w-3.5 h-3.5" />
                         Instal di HP (Android/iOS)
                       </button>
                     </li>
-                    <li><button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-arcus-red transition-all">Kembali ke Atas</button></li>
+                    <li><button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-arcus-red transition-all">Kembali ke Atas</button></li>
                   </ul>
                 </div>
                 <div className="space-y-6">
                   <div className="tech-label opacity-40">PERUSAHAAN</div>
                   <ul className="space-y-4">
-                    <li><button className="text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-arcus-red transition-all">Tentang Kami</button></li>
-                    <li><button className="text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-arcus-red transition-all">Kebijakan Privasi</button></li>
-                    <li><button className="text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-arcus-red transition-all">Syarat & Ketentuan</button></li>
+                    <li><button className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-arcus-red transition-all">Tentang Kami</button></li>
+                    <li><button className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-arcus-red transition-all">Kebijakan Privasi</button></li>
+                    <li><button className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-arcus-red transition-all">Syarat & Ketentuan</button></li>
                   </ul>
                 </div>
               </div>
@@ -739,7 +739,7 @@ export default function LandingPage({
                 <div className="tech-label opacity-40">KONTAK SUPPORT</div>
                 <div className="flex flex-col md:items-end">
                   <span className="text-3xl md:text-4xl font-black font-oswald uppercase italic tracking-wider text-slate-900">0878-3419-3339</span>
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-2">Jam Operasional: 09:00 - 17:00 WIB</span>
+                  <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest mt-2">Jam Operasional: 09:00 - 17:00 WIB</span>
                 </div>
               </div>
 
@@ -749,12 +749,12 @@ export default function LandingPage({
                   <span className="text-sm font-black text-slate-900 leading-relaxed uppercase">
                     Jl. Bengawan No. 45 Kutosari, Kebumen, Kebumen - Jawa Tengah 54317
                   </span>
-                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-2">Indonesia</span>
+                  <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest mt-2">Indonesia</span>
                 </div>
               </div>
 
               <div className="pt-12 border-t border-slate-50 w-full flex flex-col md:items-end">
-                <p className="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em] leading-relaxed">
+                <p className="text-[10px] font-black text-slate-600 uppercase tracking-[0.4em] leading-relaxed">
                   Powered by Arcus Archery Core &copy; 2026. <br className="md:hidden" /> All Rights Reserved.
                 </p>
               </div>

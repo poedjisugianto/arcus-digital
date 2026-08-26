@@ -100,7 +100,7 @@ const QRScanner: React.FC<Props> = ({ onScan, onClose }) => {
             </div>
             <div>
               <h3 className="text-xl font-black uppercase font-oswald italic tracking-tight">QR SCANNER</h3>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-[0.2em]">Pilih & Gunakan Webcam PC</p>
+              <p className="text-[10px] text-slate-700 font-bold uppercase tracking-[0.2em]">Pilih & Gunakan Webcam PC</p>
             </div>
           </div>
           <button 
@@ -119,7 +119,7 @@ const QRScanner: React.FC<Props> = ({ onScan, onClose }) => {
               className="overflow-hidden rounded-[2rem] border-4 border-slate-50 bg-slate-100 aspect-square flex items-center justify-center relative"
             >
               {!isScanning && !error && (
-                <div className="flex flex-col items-center gap-4 text-slate-400">
+                <div className="flex flex-col items-center gap-4 text-slate-700">
                   <RefreshCw className="w-12 h-12 animate-spin" />
                   <p className="text-[10px] font-black uppercase tracking-widest">Menyiapkan Kamera...</p>
                 </div>
@@ -157,7 +157,7 @@ const QRScanner: React.FC<Props> = ({ onScan, onClose }) => {
           {/* Camera Selection Dropdown */}
           {cameras.length > 1 && (
             <div className="mt-8 relative">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 px-4 italic">
+              <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest block mb-2 px-4 italic">
                 Sumber Video (Webcam / Mirror)
               </label>
               <button 
@@ -172,7 +172,7 @@ const QRScanner: React.FC<Props> = ({ onScan, onClose }) => {
                     {cameras.find(c => c.id === selectedCamera)?.label || "Pilih Webcam..."}
                   </span>
                 </div>
-                <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform ${showCameraList ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-5 h-5 text-slate-700 transition-transform ${showCameraList ? 'rotate-180' : ''}`} />
               </button>
 
               {showCameraList && (
@@ -200,7 +200,7 @@ const QRScanner: React.FC<Props> = ({ onScan, onClose }) => {
 
         {/* Footer Info */}
         <div className="p-8 bg-slate-50 text-center border-t border-slate-100">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed italic max-w-xs mx-auto">
+          <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest leading-relaxed italic max-w-xs mx-auto">
             Arahkan QR Code ke area pemindaian. Pastikan cahaya cukup dan gambar tidak buring.
           </p>
         </div>

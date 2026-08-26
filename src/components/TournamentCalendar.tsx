@@ -62,18 +62,18 @@ export default function TournamentCalendar({ events = [], onViewInfo }: Props) {
           </div>
           <div>
             <h3 className="text-xl font-black font-oswald uppercase italic tracking-tighter text-slate-900 leading-none">Jadwal Turnamen</h3>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">{monthNames[month]} {year}</p>
+            <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest mt-1">{monthNames[month]} {year}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-xl border border-slate-100">
-          <button onClick={prevMonth} className="p-2 hover:bg-white hover:text-arcus-red rounded-lg transition-all text-slate-400">
+          <button onClick={prevMonth} className="p-2 hover:bg-white hover:text-arcus-red rounded-lg transition-all text-slate-700">
             <ChevronLeft className="w-5 h-5" />
           </button>
           <div className="px-4 text-[11px] font-black uppercase tracking-widest text-slate-900 min-w-[120px] text-center">
             {monthNames[month]} {year}
           </div>
-          <button onClick={nextMonth} className="p-2 hover:bg-white hover:text-arcus-red rounded-lg transition-all text-slate-400">
+          <button onClick={nextMonth} className="p-2 hover:bg-white hover:text-arcus-red rounded-lg transition-all text-slate-700">
             <ChevronRight className="w-5 h-5" />
           </button>
         </div>
@@ -81,7 +81,7 @@ export default function TournamentCalendar({ events = [], onViewInfo }: Props) {
 
       <div className="grid grid-cols-7 border-b border-slate-50">
         {days.map(day => (
-          <div key={day} className="py-4 text-center text-[10px] font-black uppercase tracking-widest text-slate-400">
+          <div key={day} className="py-4 text-center text-[10px] font-black uppercase tracking-widest text-slate-700">
             {day}
           </div>
         ))}
@@ -120,7 +120,7 @@ export default function TournamentCalendar({ events = [], onViewInfo }: Props) {
 
       {/* legend & quick list */}
       <div className="p-8 bg-slate-50/50">
-        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-6 boder-l-2 border-arcus-red pl-3">Turnamen Bulan Ini</h4>
+        <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-700 mb-6 boder-l-2 border-arcus-red pl-3">Turnamen Bulan Ini</h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {monthlyEvents.length > 0 ? (
             monthlyEvents.map(event => (
@@ -133,11 +133,11 @@ export default function TournamentCalendar({ events = [], onViewInfo }: Props) {
                     {event.settings?.tournamentName}
                   </h5>
                   <div className="flex items-center gap-3 mt-1.5">
-                    <div className="flex items-center gap-1 text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                    <div className="flex items-center gap-1 text-[8px] font-black text-slate-700 uppercase tracking-widest">
                        <Clock className="w-3 h-3" />
                        {event.settings?.eventDate}
                     </div>
-                    <div className="flex items-center gap-1 text-[8px] font-black text-slate-400 uppercase tracking-widest truncate">
+                    <div className="flex items-center gap-1 text-[8px] font-black text-slate-700 uppercase tracking-widest truncate">
                        <MapPin className="w-3 h-3" />
                        {event.settings?.location}
                     </div>
@@ -159,7 +159,7 @@ export default function TournamentCalendar({ events = [], onViewInfo }: Props) {
                       })}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-4 py-1.5 bg-white border border-slate-100 text-slate-400 rounded-lg text-[8px] font-black uppercase tracking-widest hover:border-arcus-red hover:text-arcus-red transition-all flex items-center gap-1"
+                      className="px-4 py-1.5 bg-white border border-slate-100 text-slate-700 rounded-lg text-[8px] font-black uppercase tracking-widest hover:border-arcus-red hover:text-arcus-red transition-all flex items-center gap-1"
                     >
                       Google Calendar
                     </a>
@@ -170,7 +170,7 @@ export default function TournamentCalendar({ events = [], onViewInfo }: Props) {
                         location: event.settings?.location || '',
                         startDate: event.settings?.eventDate || ''
                       })}
-                      className="px-4 py-1.5 bg-white border border-slate-100 text-slate-400 rounded-lg text-[8px] font-black uppercase tracking-widest hover:border-arcus-red hover:text-arcus-red transition-all flex items-center gap-1"
+                      className="px-4 py-1.5 bg-white border border-slate-100 text-slate-700 rounded-lg text-[8px] font-black uppercase tracking-widest hover:border-arcus-red hover:text-arcus-red transition-all flex items-center gap-1"
                     >
                       iCal
                     </button>
@@ -181,7 +181,7 @@ export default function TournamentCalendar({ events = [], onViewInfo }: Props) {
           ) : (
             <div className="col-span-2 py-10 bg-white rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-center px-4">
                 <CalendarIcon className="w-12 h-12 text-slate-200 mb-4" />
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Tidak Ada Turnamen di Bulan Ini</p>
+                <p className="text-[10px] font-black text-slate-700 uppercase tracking-[0.2em]">Tidak Ada Turnamen di Bulan Ini</p>
             </div>
           )}
         </div>

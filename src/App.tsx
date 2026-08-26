@@ -532,7 +532,7 @@ export default function App() {
           }
         }
       } catch (err) {
-        console.error("Failed to fetch event details via API:", err);
+        console.warn(`[API-LOAD] Event details pre-fetch via API bypassed for event ${eventId}, using real-time client state.`);
       }
     };
 
@@ -2260,7 +2260,7 @@ export default function App() {
         {isSyncing && (
           <div className="bg-white/80 backdrop-blur-md border px-4 py-2 rounded-full shadow-lg flex items-center gap-2 animate-in slide-in-from-left">
             <RefreshCw className="w-3 h-3 animate-spin text-arcus-red" />
-            <span className="text-[10px] font-bold uppercase text-slate-500">Syncing...</span>
+            <span className="text-[10px] font-bold uppercase text-slate-800">Syncing...</span>
           </div>
         )}
         {hasPendingChanges && !isSyncing && (
@@ -2280,7 +2280,7 @@ export default function App() {
               n.type === 'ERROR' ? 'bg-white border-red-500' : 'bg-white border-blue-500'
             }`}>
               <div className="flex-1">
-                <p className="text-[10px] font-black uppercase text-slate-400 mb-1">{n.title}</p>
+                <p className="text-[10px] font-black uppercase text-slate-700 mb-1">{n.title}</p>
                 <p className="text-sm font-medium text-slate-600">{n.message}</p>
               </div>
               <button onClick={() => setNotifications(prev => prev.filter(nn => nn.id !== n.id))} className="text-slate-300 hover:text-slate-600">

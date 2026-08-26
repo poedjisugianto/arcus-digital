@@ -386,14 +386,14 @@ const ArcherList: React.FC<Props> = ({
             onClick={onBack}
             className="p-2.5 bg-white rounded-lg border border-slate-100 shadow-sm"
           >
-            <ArrowLeft className="w-5 h-5 text-slate-500" />
+            <ArrowLeft className="w-5 h-5 text-slate-800" />
           </button>
           <div className="flex flex-col">
             <h2 className="text-xl font-black font-oswald uppercase italic tracking-tighter text-slate-900">
               Manajemen Peserta
             </h2>
             <div className="flex items-center gap-2">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
                 Total: {archers.length} Archer
               </p>
               {searchTerm && (
@@ -460,7 +460,7 @@ const ArcherList: React.FC<Props> = ({
                 ></div>
                 <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 py-3 px-4 z-50 animate-in fade-in slide-in-from-top-2 space-y-3 font-sans">
                   <div className="space-y-1">
-                    <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider">Ukuran & Format Cetak</span>
+                    <span className="text-[8px] font-black uppercase text-slate-700 tracking-wider">Ukuran & Format Cetak</span>
                     <div className="grid grid-cols-2 gap-1.5">
                       <button
                         type="button"
@@ -602,7 +602,7 @@ const ArcherList: React.FC<Props> = ({
                 <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                   <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-2">Pasfoto Peserta (ID Card)</span>
                   <div className="flex items-center gap-4">
-                    <div className="relative w-16 h-16 rounded-2xl bg-slate-200 border-2 border-white overflow-hidden shadow-md flex items-center justify-center text-slate-400 shrink-0">
+                    <div className="relative w-16 h-16 rounded-2xl bg-slate-200 border-2 border-white overflow-hidden shadow-md flex items-center justify-center text-slate-700 shrink-0">
                       {newArcher.photoUrl ? (
                         <img src={newArcher.photoUrl} alt="Preview" className="w-full h-full object-cover" />
                       ) : (
@@ -619,7 +619,7 @@ const ArcherList: React.FC<Props> = ({
                         {newArcher.photoUrl ? "Ganti Foto" : "Unggah Foto"}
                         <input type="file" accept="image/*" onChange={handleManualPhotoChange} className="hidden" />
                       </label>
-                      <p className="text-[7.5px] font-bold text-slate-400 mt-1 uppercase">Opsional. Membantu pembuatan kartu tanda pengenal.</p>
+                      <p className="text-[7.5px] font-bold text-slate-700 mt-1 uppercase">Opsional. Membantu pembuatan kartu tanda pengenal.</p>
                     </div>
                   </div>
                 </div>
@@ -634,7 +634,7 @@ const ArcherList: React.FC<Props> = ({
                     onChange={(e) =>
                       setNewArcher({ ...newArcher, email: e.target.value })
                     }
-                    className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none focus:ring-4 ring-red-500/10 transition-all text-slate-900 placeholder:text-slate-400"
+                    className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none focus:ring-4 ring-red-500/10 transition-all text-slate-900 placeholder:text-slate-700"
                     placeholder="email@archer.com"
                   />
                 </label>
@@ -865,7 +865,7 @@ const ArcherList: React.FC<Props> = ({
                           <td className="border border-black py-1 px-1 text-center text-[10px] font-bold">
                             {a.wave}
                           </td>
-                          <td className="border border-black py-1 px-2 text-center text-[9px] text-slate-300 italic min-h-[30px]">
+                          <td className="border border-black py-1 px-2 text-center text-[9px] text-slate-600 italic min-h-[30px]">
                             ....................
                           </td>
                         </tr>
@@ -952,7 +952,7 @@ const ArcherList: React.FC<Props> = ({
                       <td className="border border-black py-1 px-1 text-center text-[10px] font-bold">
                         {a.wave}
                       </td>
-                      <td className="border border-black py-1 px-2 text-center text-[9px] text-slate-300 italic min-h-[30px]">
+                      <td className="border border-black py-1 px-2 text-center text-[9px] text-slate-600 italic min-h-[30px]">
                         ....................
                       </td>
                     </tr>
@@ -1057,8 +1057,8 @@ const ArcherList: React.FC<Props> = ({
                           const wave = firstArcher?.wave || '?';
                           return (
                             <div key={`empty-${idx}`} className="border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center p-8 bg-slate-50">
-                              <p className="text-[12px] font-black text-slate-400 font-sans uppercase tracking-widest">Bantalan {targetNo}{posLabel}</p>
-                              <p className="text-[10px] font-bold text-slate-300 font-sans uppercase mt-0.5">Sesi {wave} - Kosong</p>
+                              <p className="text-[12px] font-black text-slate-700 font-sans uppercase tracking-widest">Bantalan {targetNo}{posLabel}</p>
+                              <p className="text-[10px] font-bold text-slate-600 font-sans uppercase mt-0.5">Sesi {wave} - Kosong</p>
                             </div>
                           );
                         }
@@ -1096,7 +1096,7 @@ const ArcherList: React.FC<Props> = ({
       <div className="bg-white border-y border-slate-100 overflow-hidden print:hidden">
         <div className="p-4 bg-[#FBFBFD] flex flex-col md:flex-row md:items-center gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700" />
             <input
               type="text"
               placeholder="Cari nama, ID barcode, No. Registrasi, klub, atau bantalan..."
@@ -1155,7 +1155,7 @@ const ArcherList: React.FC<Props> = ({
         <div className="overflow-x-auto min-h-[300px] flex flex-col">
           <table className="w-full text-left text-xs flex-grow">
             <thead>
-              <tr className="bg-white border-b text-slate-400 font-black uppercase">
+              <tr className="bg-white border-b text-slate-700 font-black uppercase">
                 <th className="p-4 w-12">No.</th>
                 <th className="p-4">Bantalan</th>
                 <th className="p-4">Nama Pemanah</th>
@@ -1170,7 +1170,7 @@ const ArcherList: React.FC<Props> = ({
             <tbody>
               {filtered.map((a: Archer, idx: number) => (
                 <tr key={a.id} className={`border-b transition-colors ${a.checkedIn ? 'bg-emerald-50/20 hover:bg-emerald-50/40' : 'hover:bg-slate-50'}`}>
-                  <td className="p-4 font-black text-slate-300">{idx + 1}</td>
+                  <td className="p-4 font-black text-slate-600">{idx + 1}</td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
                       <span className="font-black text-arcus-red text-lg">
@@ -1189,7 +1189,7 @@ const ArcherList: React.FC<Props> = ({
                       <span className="font-bold uppercase text-slate-900 leading-tight">
                         {a.name}
                       </span>
-                      <span className="text-[8px] font-mono text-slate-400 mt-0.5">
+                      <span className="text-[8px] font-mono text-slate-700 mt-0.5">
                         ID: {a.id.substring(0, 10)}
                       </span>
                     </div>
@@ -1240,13 +1240,13 @@ const ArcherList: React.FC<Props> = ({
                       <span className="text-[10px] font-black text-slate-700 leading-none">
                         {a.phone || "-"}
                       </span>
-                      <span className="text-[8px] font-bold text-slate-400 mt-1 leading-none">
+                      <span className="text-[8px] font-bold text-slate-700 mt-1 leading-none">
                         {a.email || "-"}
                       </span>
                     </div>
                   </td>
-                  <td className="p-4 text-slate-500 font-medium">{a.club}</td>
-                  <td className="p-4 text-slate-400 uppercase font-black tracking-tighter">
+                  <td className="p-4 text-slate-800 font-medium">{a.club}</td>
+                  <td className="p-4 text-slate-700 uppercase font-black tracking-tighter">
                     {CATEGORY_LABELS[a.category as CategoryType] || (a.category || "").replace("ADULT_", "")}
                   </td>
                   <td className="p-4 px-2">
@@ -1277,7 +1277,7 @@ const ArcherList: React.FC<Props> = ({
                           setInitialScanQuery(a.id);
                           setShowScannerModal(true);
                         }}
-                        className="p-2 text-slate-400 hover:text-emerald-600 transition-colors"
+                        className="p-2 text-slate-700 hover:text-emerald-600 transition-colors"
                         title="Scan / Detail Registrasi Barcode"
                       >
                         <BarcodeIcon className="w-4 h-4" />
@@ -1311,7 +1311,7 @@ const ArcherList: React.FC<Props> = ({
                 <p className="text-sm font-black text-slate-900 uppercase italic">
                   {archers.length > 0 ? "Hasil Filter Kosong" : "Belum Ada Peserta"}
                 </p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest italic">
+                <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest italic">
                   {archers.length > 0 
                     ? "Coba ubah kata kunci pencarian atau kategori filter." 
                     : "Belum ada peserta yang terdaftar atau data cloud belum terunduh."}

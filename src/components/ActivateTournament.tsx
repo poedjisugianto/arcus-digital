@@ -78,7 +78,7 @@ const ActivateTournament: React.FC<ActivateTournamentProps> = ({
         <h2 className="text-2xl font-bold text-slate-900 text-center mb-2">
           Aktivasi Turnamen
         </h2>
-        <p className="text-slate-500 text-center mb-8">
+        <p className="text-slate-800 text-center mb-8">
           Masukkan kode aktivasi yang telah dikirim ke <span className="font-semibold text-slate-700">{userEmail}</span> untuk mengaktifkan turnamen <span className="font-semibold text-slate-700">"{event.settings?.tournamentName}"</span>.
         </p>
 
@@ -119,7 +119,7 @@ const ActivateTournament: React.FC<ActivateTournamentProps> = ({
               <button
                 onClick={handleResend}
                 disabled={resendTimer > 0 || isSending}
-                className="flex items-center justify-center gap-2 text-sm font-black uppercase tracking-widest text-emerald-600 hover:text-emerald-700 transition-colors disabled:opacity-50 disabled:text-slate-400"
+                className="flex items-center justify-center gap-2 text-sm font-black uppercase tracking-widest text-emerald-600 hover:text-emerald-700 transition-colors disabled:opacity-50 disabled:text-slate-700"
               >
                 <RefreshCw className={`w-4 h-4 ${(resendTimer > 0 || isSending) ? 'animate-spin' : ''}`} />
                 {isSending ? 'Sedang Mengirim...' : (resendTimer > 0 ? `Kirim Ulang dalam ${resendTimer}s` : 'Kirim Ulang Kode (Email/WA)')}
@@ -136,9 +136,9 @@ const ActivateTournament: React.FC<ActivateTournamentProps> = ({
             </div>
           ) : (
             <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Nomor WhatsApp (62xxx)</label>
+               <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">Nomor WhatsApp (62xxx)</label>
                <div className="relative">
-                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700" />
                  <input 
                    type="text" 
                    value={phone} 
@@ -165,14 +165,14 @@ const ActivateTournament: React.FC<ActivateTournamentProps> = ({
             </div>
           )}
           
-          <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 text-[10px] text-slate-500 text-center space-y-1">
+          <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 text-[10px] text-slate-800 text-center space-y-1">
              <p className="font-bold flex items-center justify-center gap-1"><Info className="w-3 h-3" /> Tidak menerima kode?</p>
              <p>Coba gunakan tombol WhatsApp di atas jika email terkendala.</p>
           </div>
 
           <button
             onClick={onBack}
-            className="flex items-center justify-center gap-2 text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors"
+            className="flex items-center justify-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-600 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             Kembali ke Dashboard

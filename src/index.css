@@ -63,7 +63,7 @@
   }
 
   .tech-label {
-    @apply text-[9px] font-black uppercase tracking-[0.2em] text-slate-400;
+    @apply text-[9px] font-black uppercase tracking-[0.2em] text-slate-700;
   }
 
   .custom-scrollbar::-webkit-scrollbar {

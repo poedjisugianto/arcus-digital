@@ -14,7 +14,7 @@ export default function LegalDoc({ type, onBack }: Props) {
       color: 'text-emerald-600',
       bg: 'bg-emerald-50',
       text: (
-        <div className="space-y-6 text-slate-500 font-medium italic">
+        <div className="space-y-6 text-slate-800 font-medium italic">
           <p>ARCUS DIGITAL berkomitmen untuk melindungi privasi Anda. Halaman ini menjelaskan bagaimana kami mengumpulkan dan menggunakan data Anda.</p>
           <div className="space-y-4">
             <h4 className="text-slate-900 font-black uppercase text-sm tracking-widest">1. Data yang Dikumpulkan</h4>
@@ -35,7 +35,7 @@ export default function LegalDoc({ type, onBack }: Props) {
       color: 'text-blue-600',
       bg: 'bg-blue-50',
       text: (
-        <div className="space-y-6 text-slate-500 font-medium italic">
+        <div className="space-y-6 text-slate-800 font-medium italic">
           <p>Harap baca Syarat dan Ketentuan berikut sebelum menggunakan layanan ARCUS DIGITAL.</p>
           <div className="space-y-4">
             <h4 className="text-slate-900 font-black uppercase text-sm tracking-widest">1. Pendaftaran & Pembayaran</h4>
@@ -59,7 +59,7 @@ export default function LegalDoc({ type, onBack }: Props) {
       color: 'text-purple-600',
       bg: 'bg-purple-50',
       text: (
-        <div className="space-y-6 text-slate-500 font-medium italic">
+        <div className="space-y-6 text-slate-800 font-medium italic">
           <p>ARCUS DIGITAL Tournament OS adalah solusi manajemen data digital untuk olahraga Panahan.</p>
           <div className="space-y-4">
             <h4 className="text-slate-900 font-black uppercase text-sm tracking-widest">Fitur Utama:</h4>
@@ -84,13 +84,13 @@ export default function LegalDoc({ type, onBack }: Props) {
           <div className="flex items-center gap-6">
             <button 
               onClick={onBack}
-              className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 hover:bg-slate-900 hover:text-white transition-all shadow-sm"
+              className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-700 hover:bg-slate-900 hover:text-white transition-all shadow-sm"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="flex flex-col">
               <h2 className="text-xl font-black font-oswald uppercase italic text-slate-900 leading-none tracking-tight">{doc.title}</h2>
-              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">Tournament OS v1.2.0</span>
+              <span className="text-[8px] font-bold text-slate-700 uppercase tracking-[0.2em] mt-1">Tournament OS v1.2.0</span>
             </div>
           </div>
         </div>
@@ -103,7 +103,7 @@ export default function LegalDoc({ type, onBack }: Props) {
           </div>
           <div className="prose prose-slate max-w-none">
             <h3 className="text-4xl font-black font-oswald uppercase italic text-slate-900 tracking-tight mb-8">{doc.title}</h3>
-            <div className="text-slate-500 text-lg leading-relaxed font-medium">
+            <div className="text-slate-800 text-lg leading-relaxed font-medium">
               {doc.text}
             </div>
           </div>

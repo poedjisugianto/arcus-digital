@@ -193,7 +193,7 @@ export const InstallAppSection: React.FC<Props> = ({
             </div>
             <div>
               <h4 className="text-xs font-black uppercase tracking-wide text-white">0 Detik Waktu Muat</h4>
-              <p className="text-[11px] text-white/50 font-medium">Buka seketika tanpa jeda browser.</p>
+              <p className="text-[11px] text-white/90 font-medium">Buka seketika tanpa jeda browser.</p>
             </div>
           </div>
 
@@ -203,7 +203,7 @@ export const InstallAppSection: React.FC<Props> = ({
             </div>
             <div>
               <h4 className="text-xs font-black uppercase tracking-wide text-white">Hemat Kuota Internet</h4>
-              <p className="text-[11px] text-white/50 font-medium">Data tersimpan di cache lokal perangkat.</p>
+              <p className="text-[11px] text-white/90 font-medium">Data tersimpan di cache lokal perangkat.</p>
             </div>
           </div>
 
@@ -213,7 +213,7 @@ export const InstallAppSection: React.FC<Props> = ({
             </div>
             <div>
               <h4 className="text-xs font-black uppercase tracking-wide text-white">Aman & Terverifikasi</h4>
-              <p className="text-[11px] text-white/50 font-medium">Enkripsi standar PWA modern.</p>
+              <p className="text-[11px] text-white/90 font-medium">Enkripsi standar PWA modern.</p>
             </div>
           </div>
         </div>

@@ -201,17 +201,17 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
       {/* Simple Header */}
       <div className="bg-white p-8 rounded-[2.5rem] border shadow-sm flex flex-col md:flex-row justify-between items-center gap-6">
         <div className="flex items-center gap-4">
-          <button onClick={onBack} className="p-3 bg-slate-50 border rounded-2xl text-slate-400 hover:text-slate-900"><ArrowLeft className="w-6 h-6" /></button>
+          <button onClick={onBack} className="p-3 bg-slate-50 border rounded-2xl text-slate-700 hover:text-slate-900"><ArrowLeft className="w-6 h-6" /></button>
           <div>
             <h2 className="text-2xl font-black font-oswald uppercase italic">Master Control Center</h2>
             <p className="text-[10px] font-black text-arcus-red uppercase tracking-widest">Manajemen Infrastruktur Sistem</p>
           </div>
         </div>
         <div className="flex gap-2 bg-slate-100 p-1.5 rounded-2xl border">
-          <button onClick={() => setActiveTab('OVERVIEW')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === 'OVERVIEW' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}>Stats</button>
-          <button onClick={() => setActiveTab('EVENTS')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === 'EVENTS' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}>Events</button>
-          <button onClick={() => setActiveTab('USERS')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === 'USERS' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}>Users</button>
-          <button onClick={() => setActiveTab('SETTINGS')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === 'SETTINGS' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}>Settings</button>
+          <button onClick={() => setActiveTab('OVERVIEW')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === 'OVERVIEW' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700'}`}>Stats</button>
+          <button onClick={() => setActiveTab('EVENTS')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === 'EVENTS' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700'}`}>Events</button>
+          <button onClick={() => setActiveTab('USERS')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === 'USERS' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700'}`}>Users</button>
+          <button onClick={() => setActiveTab('SETTINGS')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === 'SETTINGS' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700'}`}>Settings</button>
         </div>
       </div>
 
@@ -234,7 +234,7 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="bg-white border-b text-slate-400 font-black uppercase">
+                <tr className="bg-white border-b text-slate-700 font-black uppercase">
                     <th className="p-6">Tournament & Lokasi</th>
                     <th className="p-6">Penyelenggara</th>
                     <th className="p-6">Kategori</th>
@@ -253,29 +253,29 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                       <tr key={event.id} className="hover:bg-slate-50 transition-colors">
                         <td className="p-6">
                           <p className="font-black uppercase text-slate-900">{event.settings?.tournamentName || 'Untitled'}</p>
-                          <p className="text-[10px] text-slate-500 font-bold uppercase flex items-center gap-1 mt-1">
+                          <p className="text-[10px] text-slate-800 font-bold uppercase flex items-center gap-1 mt-1">
                             <Calendar className="w-3 h-3" /> {event.settings?.eventDate || 'TBA'}
                           </p>
-                          <p className="text-[10px] text-slate-400 font-medium uppercase flex items-center gap-1 mt-0.5">
+                          <p className="text-[10px] text-slate-700 font-medium uppercase flex items-center gap-1 mt-0.5">
                             <Landmark className="w-3 h-3" /> {event.settings?.location || 'No Location'}
                           </p>
                         </td>
                         <td className="p-6">
                           <p className="font-black uppercase text-xs text-slate-700">{organizer?.name || 'Unknown'}</p>
-                          <p className="text-[10px] text-slate-500 font-bold">{organizer?.email || '-'}</p>
-                          <p className="text-[10px] text-slate-500 font-bold">{organizer?.phone || '-'}</p>
+                          <p className="text-[10px] text-slate-800 font-bold">{organizer?.email || '-'}</p>
+                          <p className="text-[10px] text-slate-800 font-bold">{organizer?.phone || '-'}</p>
                         </td>
                         <td className="p-6">
                           <div className="flex flex-wrap gap-1 max-w-[200px]">
                             {activeCategories.map((cat, i) => (
-                              <span key={i} className="text-[8px] font-black bg-slate-100 px-1.5 py-0.5 rounded uppercase text-slate-500">{cat}</span>
+                              <span key={i} className="text-[8px] font-black bg-slate-100 px-1.5 py-0.5 rounded uppercase text-slate-800">{cat}</span>
                             ))}
                           </div>
                         </td>
                         <td className="p-6 text-center">
                           <div className="flex flex-col items-center">
                             <span className="font-black text-lg text-slate-900">{event.archers.length}</span>
-                            <span className="text-[8px] font-black uppercase text-slate-400">Archers</span>
+                            <span className="text-[8px] font-black uppercase text-slate-700">Archers</span>
                           </div>
                         </td>
                         <td className="p-6 text-center">
@@ -345,7 +345,7 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
              <h3 className="font-black text-xs uppercase">Manajemen Pengguna Arcus</h3>
              <div className="flex gap-4">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700" />
                   <input 
                     type="text" 
                     placeholder="Cari user..." 
@@ -358,7 +358,7 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="bg-white border-b text-slate-400 font-black uppercase">
+                <tr className="bg-white border-b text-slate-700 font-black uppercase">
                   <th className="p-6">User Info</th>
                   <th className="p-6">Email / WhatsApp</th>
                   <th className="p-6 text-center">Role</th>
@@ -379,13 +379,13 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                         </div>
                         <div>
                           <p className="font-black uppercase text-slate-900">{user.name}</p>
-                          <p className="text-[9px] text-slate-400 font-bold uppercase">ID: {user.id}</p>
+                          <p className="text-[9px] text-slate-700 font-bold uppercase">ID: {user.id}</p>
                         </div>
                       </div>
                     </td>
                     <td className="p-6">
                       <p className="font-bold text-slate-600">{user.email || '-'}</p>
-                      <p className="text-slate-400">{user.phone || '-'}</p>
+                      <p className="text-slate-700">{user.phone || '-'}</p>
                     </td>
                     <td className="p-6 text-center">
                       <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${user.isSuperAdmin ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -416,14 +416,14 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             <div className="space-y-6">
                <div className="flex items-center justify-between border-b pb-2">
-                  <h4 className="font-black text-xs uppercase text-slate-400">Biaya Layanan Platform</h4>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase">Tarif per archer</span>
+                  <h4 className="font-black text-xs uppercase text-slate-700">Biaya Layanan Platform</h4>
+                  <span className="text-[9px] font-bold text-slate-700 uppercase">Tarif per archer</span>
                </div>
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5 bg-slate-50/70 p-4 rounded-2xl border border-slate-100">
-                     <label className="text-[9px] font-black uppercase text-slate-500">Fee Dewasa (Umum/Senior)</label>
+                     <label className="text-[9px] font-black uppercase text-slate-800">Fee Dewasa (Umum/Senior)</label>
                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">Rp</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-slate-700">Rp</span>
                         <input 
                           type="number" 
                           min="0"
@@ -434,14 +434,14 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                           className="w-full pl-10 pr-3 py-3 bg-white border border-slate-200 rounded-xl font-black text-sm outline-none focus:ring-2 ring-arcus-red/20" 
                         />
                      </div>
-                     <p className="text-[10px] font-bold text-slate-400">
+                     <p className="text-[10px] font-bold text-slate-700">
                        {localSettings.feeAdult > 0 ? `Rp ${localSettings.feeAdult.toLocaleString('id-ID')} / archer` : 'Gratis (Rp 0)'}
                      </p>
                   </div>
                   <div className="space-y-1.5 bg-slate-50/70 p-4 rounded-2xl border border-slate-100">
-                     <label className="text-[9px] font-black uppercase text-slate-500">Fee Anak (U9, U12, U18)</label>
+                     <label className="text-[9px] font-black uppercase text-slate-800">Fee Anak (U9, U12, U18)</label>
                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-slate-400">Rp</span>
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-black text-slate-700">Rp</span>
                         <input 
                           type="number" 
                           min="0"
@@ -452,13 +452,13 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                           className="w-full pl-10 pr-3 py-3 bg-white border border-slate-200 rounded-xl font-black text-sm outline-none focus:ring-2 ring-arcus-red/20" 
                         />
                      </div>
-                     <p className="text-[10px] font-bold text-slate-400">
+                     <p className="text-[10px] font-bold text-slate-700">
                        {localSettings.feeKids > 0 ? `Rp ${localSettings.feeKids.toLocaleString('id-ID')} / archer` : 'Gratis (Rp 0)'}
                      </p>
                   </div>
                </div>
                <div className="space-y-1.5">
-                  <label className="text-[9px] font-black uppercase text-slate-400">Production URL (Link Berbagi)</label>
+                  <label className="text-[9px] font-black uppercase text-slate-700">Production URL (Link Berbagi)</label>
                   <input 
                     type="url" 
                     placeholder="Contoh: https://arcus-archery.id" 
@@ -466,13 +466,13 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                     onChange={e => updateSettingField('productionUrl', e.target.value)} 
                     className="w-full p-4 bg-slate-50 border rounded-2xl font-bold text-sm" 
                   />
-                  <p className="text-[8px] font-bold text-slate-400 uppercase leading-relaxed">
+                  <p className="text-[8px] font-bold text-slate-700 uppercase leading-relaxed">
                     URL ini akan digunakan sebagai dasar link pendaftaran dan info turnamen saat dibagikan. Jika kosong, sistem akan menggunakan domain saat ini.
                   </p>
                </div>
             </div>
             <div className="space-y-6">
-               <h4 className="font-black text-xs uppercase text-slate-400 border-b pb-2">Rekening Settlement Pusat</h4>
+               <h4 className="font-black text-xs uppercase text-slate-700 border-b pb-2">Rekening Settlement Pusat</h4>
                <div className="space-y-4">
                   <input type="text" placeholder="No. Rekening" value={localSettings.bankAccountNumber} onChange={e => setLocalSettings({...localSettings, bankAccountNumber: e.target.value})} className="w-full p-4 bg-slate-50 border rounded-2xl font-black text-xs" />
                   <input type="text" placeholder="Nama Pemilik" value={localSettings.bankAccountName} onChange={e => setLocalSettings({...localSettings, bankAccountName: e.target.value})} className="w-full p-4 bg-slate-50 border rounded-2xl font-black text-xs" />
@@ -481,9 +481,9 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
           </div>
 
           <div className="space-y-6 border-t pt-10">
-             <h4 className="font-black text-xs uppercase text-slate-400">Kontak Support WhatsApp</h4>
+             <h4 className="font-black text-xs uppercase text-slate-700">Kontak Support WhatsApp</h4>
               <div className="max-w-md space-y-1.5">
-                 <label className="text-[9px] font-black uppercase text-slate-400">Nomor WA Support</label>
+                 <label className="text-[9px] font-black uppercase text-slate-700">Nomor WA Support</label>
                  <input 
                    type="text" 
                    placeholder="Contoh: 0812XXXXXXXX" 
@@ -491,13 +491,13 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                    onChange={e => setLocalSettings({...localSettings, contactSupport: e.target.value})} 
                    className="w-full p-4 bg-slate-50 border rounded-2xl font-black text-xs" 
                  />
-                 <p className="text-[8px] font-medium text-slate-400 italic leading-snug mt-1 uppercase">Nomor ini akan tampil di footer aplikasi dan panel bantuan untuk memudahkan pengguna menghubungi Anda.</p>
+                 <p className="text-[8px] font-medium text-slate-700 italic leading-snug mt-1 uppercase">Nomor ini akan tampil di footer aplikasi dan panel bantuan untuk memudahkan pengguna menghubungi Anda.</p>
               </div>
            </div>
 
           <div className="space-y-6 border-t pt-10">
              <div className="flex items-center justify-between">
-                <h4 className="font-black text-xs uppercase text-slate-400">Konfigurasi Payment Gateway</h4>
+                <h4 className="font-black text-xs uppercase text-slate-700">Konfigurasi Payment Gateway</h4>
                 <div className="flex items-center gap-2">
                    <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-md ${localSettings.paymentGatewayIsProduction ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
                       {localSettings.paymentGatewayIsProduction ? 'Production Mode' : 'Sandbox Mode'}
@@ -507,7 +507,7 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
              
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-1.5">
-                   <label className="text-[9px] font-black uppercase text-slate-400">Provider</label>
+                   <label className="text-[9px] font-black uppercase text-slate-700">Provider</label>
                    <select 
                      value={localSettings.paymentGatewayProvider} 
                      onChange={e => updateSettingField('paymentGatewayProvider', e.target.value as any)}
@@ -520,7 +520,7 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                    </select>
                 </div>
                 <div className="space-y-1.5">
-                   <label className="text-[9px] font-black uppercase text-slate-400">Server Key / Secret (Wajib)</label>
+                   <label className="text-[9px] font-black uppercase text-slate-700">Server Key / Secret (Wajib)</label>
                    <input 
                      type="text" 
                      placeholder="Mid-server-..." 
@@ -528,10 +528,10 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                      onChange={e => updateSettingField('paymentGatewayServerKey', e.target.value.trim())}
                      className="w-full p-4 bg-slate-50 border rounded-2xl font-black text-xs font-mono outline-none focus:ring-2 ring-arcus-red/20" 
                    />
-                   <p className="text-[8px] font-bold text-slate-400">Dari: Midtrans Dashboard &gt; Settings &gt; Access Keys</p>
+                   <p className="text-[8px] font-bold text-slate-700">Dari: Midtrans Dashboard &gt; Settings &gt; Access Keys</p>
                 </div>
                 <div className="space-y-1.5">
-                   <label className="text-[9px] font-black uppercase text-slate-400">Client Key / Public (Wajib)</label>
+                   <label className="text-[9px] font-black uppercase text-slate-700">Client Key / Public (Wajib)</label>
                    <input 
                      type="text" 
                      placeholder="Mid-client-..." 
@@ -539,7 +539,7 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                      onChange={e => updateSettingField('paymentGatewayClientKey', e.target.value.trim())}
                      className="w-full p-4 bg-slate-50 border rounded-2xl font-black text-xs font-mono outline-none focus:ring-2 ring-arcus-red/20" 
                    />
-                   <p className="text-[8px] font-bold text-slate-400">Dari: Midtrans Dashboard &gt; Settings &gt; Access Keys</p>
+                   <p className="text-[8px] font-bold text-slate-700">Dari: Midtrans Dashboard &gt; Settings &gt; Access Keys</p>
                 </div>
              </div>
 
@@ -547,7 +547,7 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
                 <div className="space-y-1">
                    <h5 className="font-black text-xs text-slate-700">Uji Validitas Server Key Midtrans</h5>
-                   <p className="text-[10px] text-slate-500 font-medium">Tes apakah Server Key Anda dapat berkomunikasi dengan API Midtrans ({localSettings.paymentGatewayIsProduction ? 'Production' : 'Sandbox'}).</p>
+                   <p className="text-[10px] text-slate-800 font-medium">Tes apakah Server Key Anda dapat berkomunikasi dengan API Midtrans ({localSettings.paymentGatewayIsProduction ? 'Production' : 'Sandbox'}).</p>
                 </div>
                 <button
                   type="button"
@@ -595,7 +595,7 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                   </p>
                 </div>
                 <div className="ml-auto flex items-center gap-2 shrink-0">
-                   <span className="text-[9px] font-black uppercase text-slate-400">Production?</span>
+                   <span className="text-[9px] font-black uppercase text-slate-700">Production?</span>
                    <button 
                      type="button"
                      onClick={() => updateSettingField('paymentGatewayIsProduction', !localSettings.paymentGatewayIsProduction)}
@@ -609,10 +609,10 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
 
           <div className="space-y-6 border-t pt-10">
              <div className="flex items-center justify-between">
-                <h4 className="font-black text-xs uppercase text-slate-400">Uji Coba Pengiriman Email (SMTP)</h4>
+                <h4 className="font-black text-xs uppercase text-slate-700">Uji Coba Pengiriman Email (SMTP)</h4>
                 {smtpStatus && (
                   <div className="flex items-center gap-2">
-                    <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-md ${smtpStatus.host === 'NOT SET' ? 'bg-slate-100 text-slate-400' : 'bg-emerald-100 text-emerald-600'}`}>
+                    <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-md ${smtpStatus.host === 'NOT SET' ? 'bg-slate-100 text-slate-700' : 'bg-emerald-100 text-emerald-600'}`}>
                        {smtpStatus.host}
                     </span>
                     {smtpStatus.isGmail && (
@@ -625,9 +625,9 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
              </div>
              <div className="flex flex-col md:flex-row gap-4 items-end">
                 <div className="flex-1 space-y-1.5">
-                   <label className="text-[9px] font-black uppercase text-slate-400">Email Tujuan</label>
+                   <label className="text-[9px] font-black uppercase text-slate-700">Email Tujuan</label>
                    <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700" />
                       <input 
                         type="email" 
                         placeholder="Masukkan email untuk testing..." 
@@ -723,13 +723,13 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
             </div>
             <div className="space-y-3">
               <h3 className="text-2xl font-black font-oswald uppercase italic tracking-tight text-slate-900">Hapus Event?</h3>
-              <p className="text-slate-500 font-medium leading-relaxed">
+              <p className="text-slate-800 font-medium leading-relaxed">
                 Hapus permanen event <strong>"{confirmDeleteEvent.name}"</strong>? Semua data pendaftaran dan skor akan hilang selamanya.
               </p>
             </div>
 
             <div className="space-y-2 text-left">
-              <label className="text-[10px] font-black uppercase text-slate-400 ml-2">Alasan Penghapusan</label>
+              <label className="text-[10px] font-black uppercase text-slate-700 ml-2">Alasan Penghapusan</label>
               <textarea 
                 value={deleteReason}
                 onChange={e => setDeleteReason(e.target.value)}
@@ -739,7 +739,7 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <button onClick={() => { setConfirmDeleteEvent(null); setDeleteReason(''); }} className="py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px]">Batal</button>
+              <button onClick={() => { setConfirmDeleteEvent(null); setDeleteReason(''); }} className="py-4 bg-slate-100 text-slate-800 rounded-2xl font-black uppercase text-[10px]">Batal</button>
               <button 
                 onClick={() => {
                   onDeleteEvent(confirmDeleteEvent.id, deleteReason);
@@ -764,12 +764,12 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
             </div>
             <div className="space-y-3">
               <h3 className="text-2xl font-black font-oswald uppercase italic tracking-tight text-slate-900">Hapus Pengguna?</h3>
-              <p className="text-slate-500 font-medium leading-relaxed">
+              <p className="text-slate-800 font-medium leading-relaxed">
                 Hapus akun <strong>"{confirmDeleteUser.name}"</strong> secara permanen? User ini tidak akan bisa login lagi.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <button onClick={() => setConfirmDeleteUser(null)} className="py-4 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase text-[10px]">Batal</button>
+              <button onClick={() => setConfirmDeleteUser(null)} className="py-4 bg-slate-100 text-slate-800 rounded-2xl font-black uppercase text-[10px]">Batal</button>
               <button 
                 onClick={() => {
                   onDeleteUser(confirmDeleteUser.id);
@@ -791,7 +791,7 @@ const StatCard: React.FC<{ title: string; value: string | number; icon: React.Re
   <div className="bg-white p-6 rounded-[2rem] border shadow-sm flex items-center gap-4">
     <div className="p-4 bg-slate-50 rounded-2xl">{icon}</div>
     <div>
-      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{title}</p>
+      <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest">{title}</p>
       <p className="text-xl font-black font-oswald text-slate-900">{value}</p>
     </div>
   </div>

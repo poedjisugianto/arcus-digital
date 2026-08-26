@@ -38,11 +38,11 @@ const ProfilePanel: React.FC<Props> = ({ user, eventsManaged, onUpdate, onBack, 
 
       <div className="flex items-center gap-4">
         <button onClick={onBack} className="p-3 bg-white rounded-2xl shadow-sm border border-slate-200 hover:bg-slate-50 transition-all">
-          <ArrowLeft className="w-5 h-5 text-slate-500" />
+          <ArrowLeft className="w-5 h-5 text-slate-800" />
         </button>
         <div>
           <h2 className="text-2xl font-black font-oswald uppercase italic leading-none">Pengaturan Profil</h2>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Kelola informasi akun Anda</p>
+          <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest mt-1">Kelola informasi akun Anda</p>
         </div>
       </div>
 
@@ -61,7 +61,7 @@ const ProfilePanel: React.FC<Props> = ({ user, eventsManaged, onUpdate, onBack, 
 
             <div>
               <h3 className="text-2xl font-black font-oswald uppercase italic text-slate-900">{formData.name}</h3>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{formData.isSuperAdmin ? 'Master Platform' : 'Tournament Organizer'}</p>
+              <p className="text-xs font-bold text-slate-700 uppercase tracking-widest mt-1">{formData.isSuperAdmin ? 'Master Platform' : 'Tournament Organizer'}</p>
             </div>
 
             <div className="flex justify-center gap-3">
@@ -75,11 +75,11 @@ const ProfilePanel: React.FC<Props> = ({ user, eventsManaged, onUpdate, onBack, 
             <div className="grid grid-cols-2 gap-4 pt-6 border-t border-slate-100">
               <div className="text-center">
                 <p className="text-2xl font-black font-oswald text-slate-900">{eventsManaged}</p>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Events</p>
+                <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Events</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-black font-oswald text-slate-900">100%</p>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Reliability</p>
+                <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest">Reliability</p>
               </div>
             </div>
           </div>
@@ -88,7 +88,7 @@ const ProfilePanel: React.FC<Props> = ({ user, eventsManaged, onUpdate, onBack, 
             <h4 className="text-xs font-black uppercase tracking-widest opacity-40">Informasi Keamanan</h4>
             <div className="flex items-center gap-3">
               <Lock className="w-5 h-5 text-arcus-red" />
-              <p className="text-[10px] font-bold uppercase leading-relaxed text-slate-400">
+              <p className="text-[10px] font-bold uppercase leading-relaxed text-slate-700">
                 Password Anda dienkripsi dan hanya Anda yang memiliki akses penuh ke akun ini.
               </p>
             </div>
@@ -100,7 +100,7 @@ const ProfilePanel: React.FC<Props> = ({ user, eventsManaged, onUpdate, onBack, 
         <div className="lg:col-span-8">
           <div className="bg-white rounded-[3rem] border border-slate-200 shadow-sm overflow-hidden">
             <div className="px-10 py-6 bg-slate-50 border-b flex justify-between items-center">
-              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
+              <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-700 flex items-center gap-2">
                 <User className="w-4 h-4" /> Personal Information
               </h3>
               <button 
@@ -114,59 +114,59 @@ const ProfilePanel: React.FC<Props> = ({ user, eventsManaged, onUpdate, onBack, 
             <form onSubmit={handleSave} className="p-10 space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Nama Lengkap</label>
+                  <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest px-1">Nama Lengkap</label>
                   <div className="relative group">
-                    <User className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-arcus-red transition-colors" />
+                    <User className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-arcus-red transition-colors" />
                     <input 
                       disabled={!isEditing}
                       type="text" 
                       value={formData.name} 
                       onChange={e => setFormData({...formData, name: e.target.value})} 
-                      className={`w-full pl-12 pr-5 py-4 rounded-2xl font-bold text-sm outline-none transition-all border ${isEditing ? 'bg-white border-slate-200 focus:border-arcus-red ring-4 ring-arcus-red/5' : 'bg-slate-50 border-transparent text-slate-500'}`}
+                      className={`w-full pl-12 pr-5 py-4 rounded-2xl font-bold text-sm outline-none transition-all border ${isEditing ? 'bg-white border-slate-200 focus:border-arcus-red ring-4 ring-arcus-red/5' : 'bg-slate-50 border-transparent text-slate-800'}`}
                       placeholder="Nama Lengkap"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Email Institusi (Readonly)</label>
+                  <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest px-1">Email Institusi (Readonly)</label>
                   <div className="relative group">
-                    <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                    <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
                     <input 
                       disabled={true}
                       type="email" 
                       value={formData.email} 
-                      className="w-full pl-12 pr-5 py-4 rounded-2xl font-bold text-sm bg-slate-50 border-transparent text-slate-400"
+                      className="w-full pl-12 pr-5 py-4 rounded-2xl font-bold text-sm bg-slate-50 border-transparent text-slate-700"
                       placeholder="Email"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Nomor WhatsApp</label>
+                  <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest px-1">Nomor WhatsApp</label>
                   <div className="relative group">
-                    <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-arcus-red transition-colors" />
+                    <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-arcus-red transition-colors" />
                     <input 
                       disabled={!isEditing}
                       type="tel" 
                       value={formData.phone || ''} 
                       onChange={e => setFormData({...formData, phone: e.target.value})} 
-                      className={`w-full pl-12 pr-5 py-4 rounded-2xl font-bold text-sm outline-none transition-all border ${isEditing ? 'bg-white border-slate-200 focus:border-arcus-red ring-4 ring-arcus-red/5' : 'bg-slate-50 border-transparent text-slate-500'}`}
+                      className={`w-full pl-12 pr-5 py-4 rounded-2xl font-bold text-sm outline-none transition-all border ${isEditing ? 'bg-white border-slate-200 focus:border-arcus-red ring-4 ring-arcus-red/5' : 'bg-slate-50 border-transparent text-slate-800'}`}
                       placeholder="0812..."
                     />
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Nama Klub / Organisasi</label>
+                  <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest px-1">Nama Klub / Organisasi</label>
                   <div className="relative group">
-                    <Landmark className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-arcus-red transition-colors" />
+                    <Landmark className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-arcus-red transition-colors" />
                     <input 
                       disabled={!isEditing}
                       type="text" 
                       value={formData.club || ''} 
                       onChange={e => setFormData({...formData, club: e.target.value})} 
-                      className={`w-full pl-12 pr-5 py-4 rounded-2xl font-bold text-sm outline-none transition-all border ${isEditing ? 'bg-white border-slate-200 focus:border-arcus-red ring-4 ring-arcus-red/5' : 'bg-slate-50 border-transparent text-slate-500'}`}
+                      className={`w-full pl-12 pr-5 py-4 rounded-2xl font-bold text-sm outline-none transition-all border ${isEditing ? 'bg-white border-slate-200 focus:border-arcus-red ring-4 ring-arcus-red/5' : 'bg-slate-50 border-transparent text-slate-800'}`}
                       placeholder="Klub Panahan"
                     />
                   </div>
@@ -201,10 +201,10 @@ const ProfilePanel: React.FC<Props> = ({ user, eventsManaged, onUpdate, onBack, 
                       <Phone className="w-5 h-5 text-arcus-red" />
                     </div>
                     <div className="space-y-1">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Informasi Pengembang</p>
+                      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Informasi Pengembang</p>
                       <p className="text-[11px] font-black text-slate-900 uppercase italic font-oswald tracking-tight">ARCUS ARCHERY ID</p>
-                      <p className="text-[10px] text-slate-500 font-bold">WA: {contactSupport}</p>
-                      <p className="text-[10px] text-slate-400 italic">Jl. Bengawan No. 45 Kutosari, Kebumen, Kebumen - Jawa Tengah 54317</p>
+                      <p className="text-[10px] text-slate-800 font-bold">WA: {contactSupport}</p>
+                      <p className="text-[10px] text-slate-700 italic">Jl. Bengawan No. 45 Kutosari, Kebumen, Kebumen - Jawa Tengah 54317</p>
                     </div>
                   </div>
                 </div>

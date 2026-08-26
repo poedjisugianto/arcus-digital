@@ -359,15 +359,15 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
         <div className="flex flex-wrap justify-center gap-6">
           <div className="flex items-center gap-2">
             <kbd className="bg-white/10 px-2 py-0.5 rounded text-[10px] font-mono border border-white/20">Enter</kbd>
-            <span className="text-[9px] font-bold text-slate-400">Next Field</span>
+            <span className="text-[9px] font-bold text-slate-700">Next Field</span>
           </div>
           <div className="flex items-center gap-2">
             <kbd className="bg-white/10 px-2 py-0.5 rounded text-[10px] font-mono border border-white/20">Ctrl+S</kbd>
-            <span className="text-[9px] font-bold text-slate-400">Quick Save</span>
+            <span className="text-[9px] font-bold text-slate-700">Quick Save</span>
           </div>
           <div className="flex items-center gap-2">
             <kbd className="bg-white/10 px-2 py-0.5 rounded text-[10px] font-mono border border-white/20">← / →</kbd>
-            <span className="text-[9px] font-bold text-slate-400">Navigation</span>
+            <span className="text-[9px] font-bold text-slate-700">Navigation</span>
           </div>
         </div>
       </div>
@@ -405,13 +405,13 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
            <div className="flex bg-slate-100 p-1 rounded-xl">
               <button 
                 onClick={() => setMode('TARGET')}
-                className={`px-5 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${mode === 'TARGET' ? 'bg-white text-slate-900' : 'text-slate-400'}`}
+                className={`px-5 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${mode === 'TARGET' ? 'bg-white text-slate-900' : 'text-slate-700'}`}
               >
                 Per Bantalan
               </button>
               <button 
                 onClick={() => setMode('CATEGORY')}
-                className={`px-5 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${mode === 'CATEGORY' ? 'bg-white text-slate-900' : 'text-slate-400'}`}
+                className={`px-5 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${mode === 'CATEGORY' ? 'bg-white text-slate-900' : 'text-slate-700'}`}
               >
                 Per Kategori
               </button>
@@ -473,7 +473,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
       {/* Quick Search Toolbar */}
       <div className="px-4 md:px-0">
         <div className="relative group max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-arcus-red transition-colors" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700 group-focus-within:text-arcus-red transition-colors" />
           <input 
             type="text" 
             placeholder="Cari nama, klub, atau bantalan (ex: 1A)..." 
@@ -484,7 +484,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
           {searchTerm && (
             <button 
               onClick={() => setSearchTerm('')}
-              className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded-full text-slate-400"
+              className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-slate-100 rounded-full text-slate-700"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -528,13 +528,13 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
                   </div>
                   <div className="min-w-0">
                     <h4 className="text-lg font-black font-oswald uppercase italic truncate leading-none text-slate-900">{a.name}</h4>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 truncate">{a.club}</p>
+                    <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest mt-1 truncate">{a.club}</p>
                   </div>
                </div>
 
                <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-6 w-full">
                   <div className="space-y-2">
-                     <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
+                     <label className="text-[9px] font-black uppercase text-slate-700 tracking-widest flex items-center gap-2">
                         <Target className="w-3 h-3" /> Total Skor
                      </label>
                      <input 
@@ -555,7 +555,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
                      />
                   </div>
                   <div className="space-y-2">
-                     <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
+                     <label className="text-[9px] font-black uppercase text-slate-700 tracking-widest flex items-center gap-2">
                         <Zap className="w-3 h-3" /> {isPuta ? 'Jumlah 2' : 'Jumlah X/10'}
                      </label>
                      <div className="flex items-center gap-2">
@@ -578,7 +578,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
                      </div>
                   </div>
                   <div className="space-y-2">
-                     <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
+                     <label className="text-[9px] font-black uppercase text-slate-700 tracking-widest flex items-center gap-2">
                         <Zap className="w-3 h-3" /> {isPuta ? 'Jumlah 1' : 'Jumlah 9'}
                      </label>
                      <div className="flex items-center gap-2">
@@ -617,7 +617,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
         {archersToDisplay.length === 0 && (
           <div className="bg-white py-16 px-8 rounded-lg border border-dashed border-slate-200 text-center space-y-4">
              <User className="w-12 h-12 text-slate-200 mx-auto" />
-             <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Tidak ada pemanah di {mode === 'TARGET' ? 'bantalan' : 'kategori'} ini</p>
+             <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest">Tidak ada pemanah di {mode === 'TARGET' ? 'bantalan' : 'kategori'} ini</p>
           </div>
         )}
       </div>

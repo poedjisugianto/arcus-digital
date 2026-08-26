@@ -48,7 +48,7 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
           <div className="flex items-center gap-1.5 md:gap-6">
             <button 
               onClick={onBack}
-              className="p-1.5 md:p-3 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded-lg md:rounded-2xl transition-all"
+              className="p-1.5 md:p-3 text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-lg md:rounded-2xl transition-all"
             >
               <ArrowLeft className="w-4 h-4 md:w-6 md:h-6" />
             </button>
@@ -63,7 +63,7 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
           <div className="flex items-center gap-1 md:gap-4">
             <button 
               onClick={onShare}
-              className="p-1.5 md:p-3 text-slate-400 hover:text-arcus-red hover:bg-slate-50 rounded-lg md:rounded-2xl transition-all"
+              className="p-1.5 md:p-3 text-slate-700 hover:text-arcus-red hover:bg-slate-50 rounded-lg md:rounded-2xl transition-all"
             >
               <Share2 className="w-3.5 h-3.5 md:w-5 md:h-5" />
             </button>
@@ -112,7 +112,7 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
                       <Calendar className="w-5 h-5 text-arcus-red" />
                     </div>
                     <div>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Tanggal</p>
+                      <p className="text-[9px] font-bold text-slate-700 uppercase tracking-widest mb-0.5">Tanggal</p>
                       <p className="text-sm font-bold text-slate-900 uppercase tracking-wide">{event.settings?.eventDate || 'Belum Ditentukan'}</p>
                     </div>
                   </div>
@@ -121,7 +121,7 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
                       <Clock className="w-5 h-5 text-arcus-red" />
                     </div>
                     <div>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Waktu</p>
+                      <p className="text-[9px] font-bold text-slate-700 uppercase tracking-widest mb-0.5">Waktu</p>
                       <p className="text-sm font-bold text-slate-900 uppercase tracking-wide">{event.settings?.executionTime || '08:00 - Selesai'}</p>
                     </div>
                   </div>
@@ -130,7 +130,7 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
                       <MapPin className="w-5 h-5 text-arcus-red" />
                     </div>
                     <div>
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">Lokasi</p>
+                      <p className="text-[9px] font-bold text-slate-700 uppercase tracking-widest mb-0.5">Lokasi</p>
                       <p className="text-sm font-bold text-slate-900 uppercase tracking-wide truncate max-w-[120px]">{event.settings?.location || 'Lokasi Belum Ditentukan'}</p>
                     </div>
                   </div>
@@ -156,12 +156,12 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
                         </div>
                         <span className="text-[7px] md:text-[10px] font-black text-slate-900 uppercase tracking-tight line-clamp-1 md:line-clamp-2 leading-none md:leading-tight">{CATEGORY_LABELS[cat] || cat}</span>
                       </div>
-                      <ChevronRight className="w-2.5 h-2.5 text-slate-300 group-hover:text-arcus-red hidden sm:block" />
+                      <ChevronRight className="w-2.5 h-2.5 text-slate-600 group-hover:text-arcus-red hidden sm:block" />
                     </div>
                   ))
                 ) : (
                   <div className="col-span-full p-8 text-center bg-slate-50 rounded-[2rem] border border-dashed border-slate-200">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Belum Ada Kategori Lomba</p>
+                    <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Belum Ada Kategori Lomba</p>
                   </div>
                 )}
               </div>
@@ -182,7 +182,7 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
                         <div className="flex items-start gap-4 flex-1">
                           <div className="px-3.5 py-2 bg-white rounded-xl shadow-sm text-center border border-slate-100 shrink-0 min-w-[80px]">
                             <p className="text-xs font-black text-slate-800 leading-none">{item.startTime}</p>
-                            <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-wide">s/d {item.endTime}</p>
+                            <p className="text-[9px] font-bold text-slate-700 mt-1 uppercase tracking-wide">s/d {item.endTime}</p>
                           </div>
                           <div className="space-y-1">
                             <h4 className="text-sm md:text-base font-black text-slate-900 uppercase tracking-tight">{item.activity}</h4>
@@ -204,19 +204,19 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
                                   Penyerahan Medali
                                 </span>
                               ) : (
-                                <span className="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                                <span className="px-2 py-0.5 bg-slate-100 border border-slate-200 rounded text-[8px] font-black text-slate-800 uppercase tracking-widest">
                                   Umum / Semua Sesi
                                 </span>
                               )}
                               
                               {item.date && (
-                                <span className="text-[10px] font-bold text-slate-400">
+                                <span className="text-[10px] font-bold text-slate-700">
                                   • {item.date}
                                 </span>
                               )}
                             </div>
                             {item.notes && (
-                              <p className="text-xs font-medium text-slate-500 italic mt-1 font-sans">
+                              <p className="text-xs font-medium text-slate-800 italic mt-1 font-sans">
                                 * {item.notes}
                               </p>
                             )}
@@ -249,7 +249,7 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
                   {verifiedArchers.slice(0, 10).map((archer) => (
                     <div key={archer.id} className={`flex items-center justify-between p-4 bg-slate-50 rounded-2xl border transition-all ${['APPROVED', 'PAID', 'CONFIRMED'].includes((archer.status || 'PENDING').toUpperCase()) ? 'border-slate-100 group hover:border-emerald-500' : 'border-slate-100 group hover:border-amber-500'}`}>
                       <div className="flex items-center gap-4">
-                        <div className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-xs md:text-sm font-black font-oswald italic text-slate-400 transition-all">
+                        <div className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-xs md:text-sm font-black font-oswald italic text-slate-700 transition-all">
                           {['APPROVED', 'PAID', 'CONFIRMED'].includes((archer.status || 'PENDING').toUpperCase()) ? (
                             <CheckCircle2 className="w-4 h-4 md:w-5 md:h-5 text-emerald-500" />
                           ) : (
@@ -258,12 +258,12 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
                         </div>
                         <div>
                           <p className="text-sm md:text-lg font-black font-oswald uppercase italic text-slate-900 leading-none">{archer.name}</p>
-                          <p className="text-[8px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{archer.club}</p>
+                          <p className="text-[8px] md:text-[10px] font-bold text-slate-700 uppercase tracking-widest mt-1">{archer.club}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="hidden md:block">
-                          <span className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                          <span className="px-3 py-1 bg-white border border-slate-200 rounded-lg text-[8px] font-black text-slate-700 uppercase tracking-widest">
                             {CATEGORY_LABELS[archer.category as CategoryType] || archer.category}
                           </span>
                         </div>
@@ -282,7 +282,7 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
                   {verifiedArchers.length > 10 && (
                     <button 
                       onClick={onViewParticipants}
-                      className="w-full py-4 text-center text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors"
+                      className="w-full py-4 text-center text-[10px] font-black uppercase tracking-widest text-slate-700 hover:text-slate-900 transition-colors"
                     >
                       + {verifiedArchers.length - 10} Peserta Lainnya
                     </button>
@@ -290,7 +290,7 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
                 </div>
               ) : (
                 <div className="p-12 text-center bg-slate-50 rounded-[2rem] border border-dashed border-slate-200">
-                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-loose">
+                   <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest leading-loose">
                      Belum ada peserta yang mendaftar.<br/>
                      Daftarkan diri Anda sekarang untuk menjadi yang pertama.
                    </p>
@@ -304,7 +304,7 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
             {/* Action Card */}
             <div className="bg-white rounded-[2.5rem] md:rounded-[3rem] p-6 md:p-10 border border-slate-100 shadow-xl shadow-slate-200">
               <div className="text-center mb-6 md:mb-8">
-                <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-2">Total Peserta</p>
+                <p className="text-[8px] md:text-[10px] font-black text-slate-700 uppercase tracking-[0.3em] mb-2">Total Peserta</p>
                 <p className="text-5xl md:text-6xl font-black font-oswald uppercase italic text-slate-900 leading-none">{totalParticipants}</p>
                 <p className="text-[8px] md:text-[9px] font-bold text-arcus-red uppercase tracking-widest mt-2">Atlet Terdaftar</p>
               </div>
@@ -319,14 +319,14 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
                       Daftar Sekarang
                     </button>
                     {event.settings?.registrationDeadline && (
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">
+                      <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest text-center">
                         Batas Akhir: {safeFormatDateTime(event.settings?.registrationDeadline)}
                       </p>
                     )}
                   </>
                 ) : (
                   <div className="space-y-3">
-                    <div className="w-full py-5 bg-slate-100 text-slate-400 rounded-[2rem] font-black font-oswald uppercase italic text-xl text-center">
+                    <div className="w-full py-5 bg-slate-100 text-slate-700 rounded-[2rem] font-black font-oswald uppercase italic text-xl text-center">
                       Pendaftaran Tutup
                     </div>
                     {isExpired && (
@@ -403,19 +403,19 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
                 <div className="flex items-center gap-4">
                   <ShieldCheck className="w-8 h-8 text-arcus-red" />
                   <div>
-                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Status Event</p>
+                    <p className="text-[10px] font-black text-white/80 uppercase tracking-widest">Status Event</p>
                     <p className="text-xs font-bold uppercase tracking-wider">Terverifikasi Arcus</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
                   <Clock className="w-8 h-8 text-arcus-red" />
                   <div>
-                    <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Live Updates</p>
+                    <p className="text-[10px] font-black text-white/80 uppercase tracking-widest">Live Updates</p>
                     <p className="text-xs font-bold uppercase tracking-wider">Real-time Scoring</p>
                   </div>
                 </div>
                 <div className="pt-4 border-t border-white/10">
-                  <p className="text-[9px] font-bold text-white/30 uppercase leading-relaxed tracking-widest">
+                  <p className="text-[9px] font-bold text-white/70 uppercase leading-relaxed tracking-widest">
                     Event ini menggunakan sistem Arcus Digital Tournament OS untuk akurasi data dan transparansi skor.
                   </p>
                 </div>

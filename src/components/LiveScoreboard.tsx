@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Trophy, Clock, X, Swords, Medal, LayoutList, Target, ChevronRight, Info, Activity, Monitor, Search, Check, Maximize2, Pause, Play, ChevronLeft, Youtube, Heart } from 'lucide-react';
+import { Trophy, Clock, X, Swords, Medal, LayoutList, Target, ChevronRight, Info, Activity, Monitor, Search, Check, Maximize2, Pause, Play, ChevronLeft, Youtube, Heart, AlertTriangle } from 'lucide-react';
 import { ArcheryEvent, CategoryType, Match, TargetType, Sponsorship } from '../types';
 import { CATEGORY_LABELS } from '../constants';
 import ArcusLogo from './ArcusLogo';
@@ -33,7 +33,7 @@ const SponsorMatras = () => {
     <div className={`hidden xl:flex items-center gap-4 ${current.color} rounded-lg px-6 py-2 border border-white/10 shadow-lg animate-in fade-in duration-1000 overflow-hidden relative group shrink-0`}>
        <div className="absolute inset-0 bg-white/5 skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-[2000ms]" />
        <div className="relative z-10 flex flex-col">
-          <p className="text-[8px] font-black text-white/50 uppercase italic tracking-[0.2em]">{current.title}</p>
+          <p className="text-[8px] font-black text-white/90 uppercase italic tracking-[0.2em]">{current.title}</p>
           <p className="text-white text-xs font-black uppercase italic tracking-tighter">{current.desc}</p>
        </div>
     </div>
@@ -80,7 +80,7 @@ const FooterSponsorshipSlider = ({ tournamentName, sponsorships, isTVMode }: { t
              {sponsors[index].icon}
           </div>
           <div className="min-w-0 overflow-hidden">
-            <p className={`text-[7px] sm:text-[9px] font-black uppercase tracking-[0.2em] leading-none mb-0.5 sm:mb-1.5 ${isTVMode ? 'text-white/40' : 'text-slate-400'}`}>
+            <p className={`text-[7px] sm:text-[9px] font-black uppercase tracking-[0.2em] leading-none mb-0.5 sm:mb-1.5 ${isTVMode ? 'text-white/80' : 'text-slate-700'}`}>
               {sponsors[index].title}
             </p>
             <p className={`text-[10px] sm:text-lg font-black font-oswald uppercase italic tracking-wider truncate leading-tight ${isTVMode ? 'text-white' : 'text-slate-900'}`}>
@@ -142,7 +142,7 @@ const TVVideoSponsor = ({ sponsorships }: { sponsorships?: Sponsorship[] }) => {
              <div className="flex items-center gap-4">
                 {current.logoUrl && <img src={resolveGoogleDriveUrl(current.logoUrl)} className="w-12 h-12 rounded-xl object-contain bg-white p-2" alt="" referrerPolicy="no-referrer" />}
                 <div>
-                  <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em]">{current.title}</p>
+                  <p className="text-[10px] font-black text-white/80 uppercase tracking-[0.2em]">{current.title}</p>
                   <p className="text-xl font-black text-white uppercase font-oswald italic tracking-wider">{current.name}</p>
                 </div>
              </div>
@@ -389,7 +389,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
         <div className="flex items-center gap-6">
            {!isTVMode && (
              <button onClick={onBack} className="p-2 hover:bg-slate-50 rounded-xl transition-all">
-               <X className="w-5 h-5 text-slate-400" />
+               <X className="w-5 h-5 text-slate-700" />
              </button>
            )}
            <div className="flex items-center gap-4">
@@ -437,8 +437,8 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
 
         {!isTVMode && (
           <div className="flex items-center gap-1 sm:gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
-             <button onClick={() => setActiveTab('KUALIFIKASI')} className={`px-5 sm:px-8 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === 'KUALIFIKASI' ? 'bg-white shadow-md text-slate-900' : 'text-slate-400'}`}>Kualifikasi</button>
-             <button onClick={() => setActiveTab('ELIMINASI')} className={`px-5 sm:px-8 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === 'ELIMINASI' ? 'bg-white shadow-md text-slate-900' : 'text-slate-400'}`}>Aduan</button>
+             <button onClick={() => setActiveTab('KUALIFIKASI')} className={`px-5 sm:px-8 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === 'KUALIFIKASI' ? 'bg-white shadow-md text-slate-900' : 'text-slate-700'}`}>Kualifikasi</button>
+             <button onClick={() => setActiveTab('ELIMINASI')} className={`px-5 sm:px-8 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === 'ELIMINASI' ? 'bg-white shadow-md text-slate-900' : 'text-slate-700'}`}>Aduan</button>
           </div>
         )}
       </div>
@@ -451,7 +451,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                 <button key={cat} onClick={() => {
                   setFilterCategory(cat);
                   setActiveSession('QUAL');
-                }} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase whitespace-nowrap border-2 transition-all ${filterCategory === cat ? 'bg-arcus-red border-arcus-red text-white shadow-lg shadow-red-200' : 'bg-white border-slate-100 text-slate-400 hover:border-slate-300'}`}>
+                }} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase whitespace-nowrap border-2 transition-all ${filterCategory === cat ? 'bg-arcus-red border-arcus-red text-white shadow-lg shadow-red-200' : 'bg-white border-slate-100 text-slate-700 hover:border-slate-300'}`}>
                   {CATEGORY_LABELS[cat]}
                 </button>
               ))}
@@ -461,13 +461,13 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
           {activeTab === 'KUALIFIKASI' && availableSessions.length > 1 && (
             <div className="bg-white border-b px-10 py-3 flex items-center justify-between shrink-0">
                <div className="flex items-center gap-4">
-                 <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Pilih Babak:</span>
+                 <span className="text-[10px] font-black uppercase text-slate-700 tracking-widest">Pilih Babak:</span>
                  <div className="flex gap-2">
                     {availableSessions.map(sess => (
                       <button 
                        key={sess} 
                        onClick={() => setActiveSession(sess)} 
-                       className={`px-5 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${activeSession === sess ? 'bg-slate-900 border-slate-900 text-white' : 'bg-slate-50 border-slate-100 text-slate-400'}`}
+                       className={`px-5 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${activeSession === sess ? 'bg-slate-900 border-slate-900 text-white' : 'bg-slate-50 border-slate-100 text-slate-700'}`}
                       >
                         {sess === 'QUAL' ? 'KUALIFIKASI' : (sess || '').replace('ELIM_', 'ELIMINASI TOP ')}
                       </button>
@@ -479,7 +479,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
 
           <div className="bg-[#FBFBFD] border-b px-10 py-4 shrink-0">
             <div className="relative w-72">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700" />
               <input 
                 type="text" 
                 placeholder="Cari nama pemanah..." 
@@ -505,7 +505,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
              <div className={`${isTVMode ? 'bg-transparent' : 'bg-white overflow-x-auto sm:overflow-visible'} transition-all duration-700`}>
                 <table className="w-full text-left border-collapse table-fixed sm:table-auto">
                     <thead>
-                     <tr className={`${isTVMode ? 'bg-slate-800/30 text-white/40' : 'bg-slate-50 text-slate-400'} text-[8px] sm:text-[11px] font-black uppercase tracking-[0.1em] sm:tracking-[0.2em] border-b border-white/5`}>
+                     <tr className={`${isTVMode ? 'bg-slate-800/30 text-white/80' : 'bg-slate-50 text-slate-700'} text-[8px] sm:text-[11px] font-black uppercase tracking-[0.1em] sm:tracking-[0.2em] border-b border-white/5`}>
                         <th className={`py-2 sm:py-6 text-center ${isTVMode ? 'px-16 w-48' : 'px-1 sm:px-10 w-8 sm:w-32'}`}>Rank</th>
                         <th className={`py-2 sm:py-6 text-center ${isTVMode ? 'px-6 w-48' : 'px-1 sm:px-6 w-8 sm:w-32'}`}>TGT</th>
                         <th className="px-2 sm:px-6 py-2 sm:py-6 w-[25%] sm:w-auto">Info</th>
@@ -524,7 +524,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                           <React.Fragment key={row.id}>
                             <tr className={`group transition-all duration-500 ${isTVMode ? 'hover:bg-white/5' : 'hover:bg-slate-50 italic'} ${isQualified && !isTVMode ? 'bg-emerald-50/10' : ''}`}>
                               <td className={`${isTVMode ? 'py-12 px-16' : 'py-1.5 sm:py-6 px-0.5 sm:px-10'}`}>
-                                 <div className={`mx-auto rounded-lg sm:rounded-3xl flex items-center justify-center font-black font-oswald shadow-sm sm:shadow-xl transition-all duration-700 ${isTVMode ? 'w-24 h-24 text-6xl shadow-sun-500/20' : 'w-5 h-5 sm:w-12 sm:h-12 text-[8px] sm:text-2xl'} ${idx < 3 ? 'bg-arcus-sun text-black' : isTVMode ? 'bg-white/10 text-white/50' : 'bg-slate-100 text-slate-400'} ${isQualified && idx >= 3 ? 'bg-emerald-500 text-white shadow-emerald-500/20' : ''}`}>
+                                 <div className={`mx-auto rounded-lg sm:rounded-3xl flex items-center justify-center font-black font-oswald shadow-sm sm:shadow-xl transition-all duration-700 ${isTVMode ? 'w-24 h-24 text-6xl shadow-sun-500/20' : 'w-5 h-5 sm:w-12 sm:h-12 text-[8px] sm:text-2xl'} ${idx < 3 ? 'bg-arcus-sun text-black' : isTVMode ? 'bg-white/10 text-white/90' : 'bg-slate-100 text-slate-700'} ${isQualified && idx >= 3 ? 'bg-emerald-500 text-white shadow-emerald-500/20' : ''}`}>
                                    {idx + 1}
                                  </div>
                               </td>
@@ -543,7 +543,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                                         <span className={`bg-emerald-500 font-black text-white rounded-md sm:rounded-xl uppercase tracking-[0.1em] sm:tracking-[0.2em] leading-none shadow-md ${isTVMode ? 'px-6 py-3 text-base' : 'px-1 py-0.5 text-[4px] sm:text-[9px]'}`}>QUAL</span>
                                       )}
                                     </div>
-                                    <p className={`font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] italic truncate ${isTVMode ? 'text-2xl text-white/30 mt-4' : 'text-[5px] sm:text-[10px] text-slate-400 mt-0.5 sm:mt-2'}`}>{row.club}</p>
+                                    <p className={`font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] italic truncate ${isTVMode ? 'text-2xl text-white/70 mt-4' : 'text-[5px] sm:text-[10px] text-slate-700 mt-0.5 sm:mt-2'}`}>{row.club}</p>
                                  </div>
                               </td>
                               {!isTVMode && (
@@ -552,7 +552,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                                       {(row.endScores || []).map((score, sIdx) => (
                                         <div 
                                           key={sIdx} 
-                                          className={`w-3 h-3 sm:w-9 sm:h-9 rounded-sm sm:rounded-xl flex flex-col items-center justify-center border transition-all ${score !== null ? 'bg-slate-900 border-slate-900 text-white shadow-md' : 'bg-slate-50 border-slate-100 text-slate-300'}`}
+                                          className={`w-3 h-3 sm:w-9 sm:h-9 rounded-sm sm:rounded-xl flex flex-col items-center justify-center border transition-all ${score !== null ? 'bg-slate-900 border-slate-900 text-white shadow-md' : 'bg-slate-50 border-slate-100 text-slate-600'}`}
                                         >
                                           <span className="text-[2px] sm:text-[6px] font-bold opacity-50 uppercase">R{sIdx + 1}</span>
                                           <span className="text-[4px] sm:text-xs font-black font-oswald">{score !== null ? score : '-'}</span>
@@ -562,10 +562,10 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                                 </td>
                               )}
                               <td className={`text-center ${isTVMode ? 'py-12 px-4' : 'py-1.5 sm:py-6 px-0.5'}`}>
-                                 <span className={`font-black font-oswald ${isTVMode ? 'text-5xl text-white/20' : 'text-[8px] sm:text-xl text-slate-300'}`}>{row.sixes}</span>
+                                 <span className={`font-black font-oswald ${isTVMode ? 'text-5xl text-white/60' : 'text-[8px] sm:text-xl text-slate-600'}`}>{row.sixes}</span>
                               </td>
                               <td className={`text-center ${isTVMode ? 'py-12 px-4' : 'py-1.5 sm:py-6 px-0.5'}`}>
-                                 <span className={`font-black font-oswald ${isTVMode ? 'text-5xl text-white/20' : 'text-[8px] sm:text-xl text-slate-300'}`}>{row.fives}</span>
+                                 <span className={`font-black font-oswald ${isTVMode ? 'text-5xl text-white/60' : 'text-[8px] sm:text-xl text-slate-600'}`}>{row.fives}</span>
                               </td>
                               <td className={`text-right ${isTVMode ? 'py-12 px-16' : 'py-1.5 sm:py-6 px-1 sm:px-10'}`}>
                                  <span className={`font-black font-oswald tabular-nums tracking-tighter italic ${isTVMode ? 'text-[10rem] text-white animate-pulse' : 'text-[9px] sm:text-5xl text-slate-900'}`}>{row.total}</span>
@@ -594,7 +594,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                 {filteredLeaderBoard.length === 0 && (
                    <div className="py-40 text-center">
                       <div className="w-24 h-24 bg-white/5 rounded-[3rem] flex items-center justify-center mx-auto mb-8 border border-white/5">
-                        <Monitor className="w-12 h-12 text-white/20" />
+                        <Monitor className="w-12 h-12 text-white/60" />
                       </div>
                       <p className={`text-2xl font-black uppercase font-oswald italic tracking-[0.4em] ${isTVMode ? 'text-white/10' : 'text-slate-100'}`}>Menunggu Data Skor</p>
                    </div>
@@ -606,13 +606,13 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-100 gap-4 mb-4">
                     <div className="flex flex-col">
                       <h3 className="text-lg font-black font-oswald uppercase italic text-slate-900 tracking-tight">Format Bagan Aduan</h3>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">Gunakan geser horizontal untuk menjelajahi babak eliminasi</p>
+                      <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest leading-none mt-1">Gunakan geser horizontal untuk menjelajahi babak eliminasi</p>
                     </div>
                     <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-2xl border border-slate-200 shrink-0 self-start sm:self-center">
                       <button 
                         type="button"
                         onClick={() => setElimDisplayMode('BRACKET')} 
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${elimDisplayMode === 'BRACKET' ? 'bg-white shadow-md text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${elimDisplayMode === 'BRACKET' ? 'bg-white shadow-md text-slate-900' : 'text-slate-700 hover:text-slate-600'}`}
                       >
                         <Swords className="w-3.5 h-3.5 text-arcus-red" />
                         Visual Bagan (Bracket)
@@ -620,7 +620,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                       <button 
                         type="button"
                         onClick={() => setElimDisplayMode('CARDS')} 
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${elimDisplayMode === 'CARDS' ? 'bg-white shadow-md text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${elimDisplayMode === 'CARDS' ? 'bg-white shadow-md text-slate-900' : 'text-slate-700 hover:text-slate-600'}`}
                       >
                         <LayoutList className="w-3.5 h-3.5 text-blue-500" />
                         Daftar Match (Grid)
@@ -632,7 +632,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                 {matches.length === 0 ? (
                   <div className="col-span-full py-20 sm:py-40 rounded-[2rem] sm:rounded-[4rem] border-4 border-dashed border-slate-100 text-center flex flex-col items-center justify-center space-y-6">
                      <Swords className="w-12 h-12 sm:w-20 sm:h-20 text-slate-100" />
-                     <p className="text-xl sm:text-2xl font-black uppercase text-slate-300 tracking-[0.3em] font-oswald italic">Bagan aduan belum tersedia</p>
+                     <p className="text-xl sm:text-2xl font-black uppercase text-slate-600 tracking-[0.3em] font-oswald italic">Bagan aduan belum tersedia</p>
                   </div>
                 ) : (elimDisplayMode === 'BRACKET' && !isTVMode) ? (
                   <div className="flex gap-12 overflow-x-auto pb-12 pt-4 px-2 no-scrollbar scroll-smooth">
@@ -648,32 +648,89 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                           {round.matches.map((match) => {
                             const archerA = archersList.find(a => a.id === match.archerAId);
                             const archerB = archersList.find(a => a.id === match.archerBId);
+                            const isTied = match.archerAId && match.archerBId && match.scoreA === match.scoreB && (match.scoreA > 0 || match.scoreB > 0);
+                            const hasShootOffRecord = match.isShootOff || match.shootOffA !== undefined || match.shootOffB !== undefined;
 
                             return (
                               <div key={match.id} className="relative group">
-                                <div className={`bg-white rounded-[2rem] border-2 overflow-hidden shadow-sm hover:shadow-xl transition-all ${match.winnerId ? 'border-purple-200 ring-4 ring-purple-50' : 'border-slate-100'}`}>
+                                <div className={`bg-white rounded-[2rem] border-2 overflow-hidden shadow-sm hover:shadow-xl transition-all ${
+                                  isTied && !match.winnerId 
+                                    ? 'border-amber-500 ring-4 ring-amber-400/40 shadow-amber-500/20 animate-pulse' 
+                                    : match.winnerId 
+                                      ? 'border-purple-200 ring-4 ring-purple-50' 
+                                      : 'border-slate-100'
+                                }`}>
                                   {/* Match ID Header */}
-                                  <div className="bg-slate-50 px-5 py-2.5 border-b border-slate-100 flex justify-between items-center text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                                    <span>Match #{match.matchNo}</span>
-                                    {match.winnerId && <span className="text-emerald-500 flex items-center gap-1"><Medal className="w-3 h-3" /> SELESAI</span>}
+                                  <div className={`px-5 py-2.5 border-b flex justify-between items-center text-[9px] font-black uppercase tracking-widest ${
+                                    isTied && !match.winnerId
+                                      ? 'bg-amber-500 text-slate-950 font-black'
+                                      : hasShootOffRecord
+                                        ? 'bg-purple-900 text-white'
+                                        : 'bg-slate-50 text-slate-700 border-slate-100'
+                                  }`}>
+                                    <div className="flex items-center gap-1.5">
+                                      <span>Match #{match.matchNo}</span>
+                                      {hasShootOffRecord && (
+                                        <span className="px-1.5 py-0.5 bg-yellow-400 text-slate-950 rounded text-[7px] font-black uppercase">
+                                          SHOOT-OFF
+                                        </span>
+                                      )}
+                                    </div>
+                                    {isTied && !match.winnerId ? (
+                                      <span className="flex items-center gap-1 text-slate-950 font-black animate-bounce">
+                                        <AlertTriangle className="w-3 h-3 text-red-600 fill-current" /> SHOOT-OFF!
+                                      </span>
+                                    ) : match.winnerId ? (
+                                      <span className="text-emerald-400 flex items-center gap-1">
+                                        <Medal className="w-3 h-3" /> SELESAI
+                                      </span>
+                                    ) : (
+                                      <span>ROUND {match.round}</span>
+                                    )}
                                   </div>
+
+                                  {/* Display Before & After Shoot-Off in Bracket */}
+                                  {hasShootOffRecord && (
+                                    <div className="bg-amber-50/80 px-4 py-2 border-b border-amber-200/80 flex items-center justify-between text-[8px] font-black uppercase">
+                                      <div className="text-slate-600">
+                                        <span className="opacity-60">Regulasi: </span>
+                                        <span className="font-bold text-slate-900">{match.scoreA} - {match.scoreB}</span>
+                                      </div>
+                                      <div className="text-amber-900 bg-amber-200/90 px-2 py-0.5 rounded font-black">
+                                        S.O: {match.shootOffA ?? '-'}{match.shootOffClosestA ? ' (X)' : ''} vs {match.shootOffB ?? '-'}{match.shootOffClosestB ? ' (X)' : ''}
+                                      </div>
+                                    </div>
+                                  )}
 
                                   {/* Slot A */}
                                   <div className={`p-5 flex items-center justify-between gap-3 border-b ${match.winnerId === match.archerAId ? 'bg-purple-50/30' : ''}`}>
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${match.winnerId === match.archerAId ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-100 text-slate-400'}`}>
+                                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${match.winnerId === match.archerAId ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-100 text-slate-700'}`}>
                                         {match.winnerId === match.archerAId ? <Check className="w-4 h-4" /> : 'A'}
                                       </div>
                                       <div className="min-w-0">
-                                        <span className={`font-black uppercase font-oswald text-xs italic block truncate leading-none ${match.winnerId === match.archerAId ? 'text-purple-700' : 'text-slate-600'}`}>
-                                          {archerA?.name || 'BYE'}
-                                        </span>
-                                        <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest mt-1 block truncate">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className={`font-black uppercase font-oswald text-xs italic block truncate leading-none ${match.winnerId === match.archerAId ? 'text-purple-700' : 'text-slate-600'}`}>
+                                            {archerA?.name || 'BYE'}
+                                          </span>
+                                          {match.shootOffA !== undefined && (
+                                            <span className="px-1.5 py-0.5 bg-amber-100 border border-amber-300 text-amber-900 rounded text-[7px] font-black shrink-0">
+                                              SO: {match.shootOffA}{match.shootOffClosestA ? '★' : ''}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <span className="text-[7px] font-bold text-slate-700 uppercase tracking-widest mt-1 block truncate">
                                           {archerA?.club || '-'} {archerA?.targetNo ? `(Bantalan ${archerA.targetNo}${archerA.position || ''})` : ''}
                                         </span>
                                       </div>
                                     </div>
-                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black font-oswald border shadow-inner ${match.scoreA > match.scoreB ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-white border-slate-100 text-slate-900'}`}>
+                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black font-oswald border shadow-inner ${
+                                      isTied && !match.winnerId 
+                                        ? 'bg-amber-50 border-amber-300 text-amber-800' 
+                                        : match.scoreA > match.scoreB 
+                                          ? 'bg-emerald-50 border-emerald-100 text-emerald-700' 
+                                          : 'bg-white border-slate-100 text-slate-900'
+                                    }`}>
                                       {match.scoreA}
                                     </div>
                                   </div>
@@ -681,19 +738,32 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                                   {/* Slot B */}
                                   <div className={`p-5 flex items-center justify-between gap-3 ${match.winnerId === match.archerBId ? 'bg-purple-50/30' : ''}`}>
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${match.winnerId === match.archerBId ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-100 text-slate-400'}`}>
+                                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${match.winnerId === match.archerBId ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-100 text-slate-700'}`}>
                                         {match.winnerId === match.archerBId ? <Check className="w-4 h-4" /> : 'B'}
                                       </div>
                                       <div className="min-w-0">
-                                        <span className={`font-black uppercase font-oswald text-xs italic block truncate leading-none ${match.winnerId === match.archerBId ? 'text-purple-700' : 'text-slate-600'}`}>
-                                          {archerB?.name || 'BYE'}
-                                        </span>
-                                        <span className="text-[7px] font-bold text-slate-400 uppercase tracking-widest mt-1 block truncate">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className={`font-black uppercase font-oswald text-xs italic block truncate leading-none ${match.winnerId === match.archerBId ? 'text-purple-700' : 'text-slate-600'}`}>
+                                            {archerB?.name || 'BYE'}
+                                          </span>
+                                          {match.shootOffB !== undefined && (
+                                            <span className="px-1.5 py-0.5 bg-amber-100 border border-amber-300 text-amber-900 rounded text-[7px] font-black shrink-0">
+                                              SO: {match.shootOffB}{match.shootOffClosestB ? '★' : ''}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <span className="text-[7px] font-bold text-slate-700 uppercase tracking-widest mt-1 block truncate">
                                           {archerB?.club || '-'} {archerB?.targetNo ? `(Bantalan ${archerB.targetNo}${archerB.position || ''})` : ''}
                                         </span>
                                       </div>
                                     </div>
-                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black font-oswald border shadow-inner ${match.scoreB > match.scoreA ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-white border-slate-100 text-slate-900'}`}>
+                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black font-oswald border shadow-inner ${
+                                      isTied && !match.winnerId 
+                                        ? 'bg-amber-50 border-amber-300 text-amber-800' 
+                                        : match.scoreB > match.scoreA 
+                                          ? 'bg-emerald-50 border-emerald-100 text-emerald-700' 
+                                          : 'bg-white border-slate-100 text-slate-900'
+                                    }`}>
                                       {match.scoreB}
                                     </div>
                                   </div>
@@ -716,15 +786,64 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                     const archerA = archersList.find(a => a.id === match.archerAId);
                     const archerB = archersList.find(a => a.id === match.archerBId);
                     
+                    const isTied = match.archerAId && match.archerBId && match.scoreA === match.scoreB && (match.scoreA > 0 || match.scoreB > 0);
+                    const hasShootOffRecord = match.isShootOff || match.shootOffA !== undefined || match.shootOffB !== undefined;
+                    
                     return (
-                      <div key={match.id} className={`${isTVMode ? 'bg-transparent border-white/5' : 'bg-white border-slate-100 border-2 rounded-2xl sm:rounded-[2.5rem]'} flex flex-col overflow-hidden transition-all duration-700`}>
-                         <div className={`${isTVMode ? 'bg-white/5' : 'bg-slate-900/80'} backdrop-blur-md px-6 sm:px-10 py-3 sm:py-5 flex justify-between items-center`}>
+                      <div key={match.id} className={`${isTVMode ? 'bg-transparent border-white/5' : 'bg-white border-slate-100 border-2 rounded-2xl sm:rounded-[2.5rem]'} flex flex-col overflow-hidden transition-all duration-700 ${
+                        isTied && !match.winnerId ? 'ring-4 ring-amber-400 border-amber-500 shadow-xl shadow-amber-500/20 animate-pulse' : ''
+                      }`}>
+                         <div className={`${
+                           isTied && !match.winnerId 
+                             ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-slate-950 font-black' 
+                             : isTVMode 
+                               ? 'bg-white/5' 
+                               : 'bg-slate-900/80'
+                         } backdrop-blur-md px-6 sm:px-10 py-3 sm:py-5 flex justify-between items-center`}>
                             <div className="flex items-center gap-3 sm:gap-4">
-                                <span className={`bg-arcus-red rounded-full ${isTVMode ? 'w-3 h-3' : 'w-2 h-2'}`} />
-                                <span className={`font-black uppercase tracking-[0.3em] ${isTVMode ? 'text-white/60 text-lg' : 'text-white/50 text-[8px] sm:text-xs'}`}>Match #{match.matchNo}</span>
+                                <span className={`rounded-full ${isTied && !match.winnerId ? 'bg-white w-3 h-3 animate-ping' : 'bg-arcus-red'} ${isTVMode ? 'w-3 h-3' : 'w-2 h-2'}`} />
+                                <span className={`font-black uppercase tracking-[0.3em] ${
+                                  isTied && !match.winnerId ? 'text-slate-950 text-xs sm:text-base font-black' : isTVMode ? 'text-white/60 text-lg' : 'text-white/90 text-[8px] sm:text-xs'
+                                }`}>
+                                  Match #{match.matchNo}
+                                </span>
+                                {hasShootOffRecord && (
+                                  <span className="px-2.5 py-0.5 bg-yellow-400 text-slate-950 rounded-md text-[9px] font-black uppercase tracking-wider">
+                                    SHOOT-OFF
+                                  </span>
+                                )}
                             </div>
-                            <span className={`font-black text-arcus-sun uppercase tracking-[0.3em] font-oswald italic ${isTVMode ? 'text-3xl' : 'text-[8px] sm:text-xs'}`}>TOP {match.round}</span>
+                            <div className="flex items-center gap-2">
+                               {isTied && !match.winnerId && (
+                                 <span className="px-3 py-1 bg-white text-orange-700 rounded-full font-black text-[9px] uppercase animate-pulse">
+                                   ⚠️ SKOR SERI
+                                 </span>
+                               )}
+                               <span className={`font-black uppercase tracking-[0.3em] font-oswald italic ${
+                                 isTied && !match.winnerId ? 'text-slate-950 font-black' : 'text-arcus-sun'
+                               } ${isTVMode ? 'text-3xl' : 'text-[8px] sm:text-xs'}`}>TOP {match.round}</span>
+                            </div>
                          </div>
+
+                         {/* Real-time Shoot-Off Detail Bar (Before vs After) */}
+                         {hasShootOffRecord && (
+                            <div className={`px-6 sm:px-10 py-3 sm:py-4 flex flex-wrap items-center justify-between gap-3 border-b ${
+                              isTVMode ? 'bg-amber-500/20 border-amber-500/30 text-white' : 'bg-amber-50 border-amber-200 text-amber-950'
+                            }`}>
+                               <div className="flex items-center gap-2">
+                                  <AlertTriangle className={`w-4 h-4 ${isTVMode ? 'text-yellow-400' : 'text-amber-600'}`} />
+                                  <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider">
+                                     Skor Regulasi (Sebelum): <span className="font-oswald text-sm sm:text-base text-purple-700">{match.scoreA} - {match.scoreB}</span>
+                                  </span>
+                               </div>
+                               <div className="flex items-center gap-2">
+                                  <span className="text-[10px] sm:text-xs font-bold uppercase">1 Panah Shoot-Off:</span>
+                                  <span className="px-3 py-1 bg-amber-500 text-slate-950 rounded-lg text-xs sm:text-sm font-black font-oswald">
+                                     {archerA?.name?.split(' ')[0]}: {match.shootOffA ?? '-'}{match.shootOffClosestA ? ' (★)' : ''} &nbsp;|&nbsp; {archerB?.name?.split(' ')[0]}: {match.shootOffB ?? '-'}{match.shootOffClosestB ? ' (★)' : ''}
+                                  </span>
+                               </div>
+                            </div>
+                         )}
                          
                          <div className={`${isTVMode ? 'p-0 py-10 space-y-4' : 'p-4 sm:p-10 space-y-3 sm:space-y-8'}`}>
                             {/* Archer A */}
@@ -734,11 +853,18 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                                      {archerA?.targetNo || '-'}{archerA?.position || ''}
                                   </div>
                                   <div>
-                                     <p className={`font-black font-oswald uppercase italic leading-none tracking-tighter ${isTVMode ? 'text-7xl text-white' : 'text-base sm:text-3xl text-slate-900'}`}>{archerA?.name || 'BYE'}</p>
-                                     <p className={`font-black uppercase tracking-[0.3em] ${isTVMode ? 'text-xl text-white/30 mt-4' : 'text-[7px] sm:text-[10px] text-slate-400 mt-1 sm:mt-4'}`}>{archerA?.club || '-'}</p>
+                                     <div className="flex items-center gap-2">
+                                       <p className={`font-black font-oswald uppercase italic leading-none tracking-tighter ${isTVMode ? 'text-7xl text-white' : 'text-base sm:text-3xl text-slate-900'}`}>{archerA?.name || 'BYE'}</p>
+                                       {match.shootOffA !== undefined && (
+                                         <span className="px-2 py-0.5 bg-amber-400 text-slate-950 text-[10px] sm:text-xs font-black rounded uppercase">
+                                           SO: {match.shootOffA}{match.shootOffClosestA ? ' (X)' : ''}
+                                         </span>
+                                       )}
+                                     </div>
+                                     <p className={`font-black uppercase tracking-[0.3em] ${isTVMode ? 'text-xl text-white/70 mt-4' : 'text-[7px] sm:text-[10px] text-slate-700 mt-1 sm:mt-4'}`}>{archerA?.club || '-'}</p>
                                   </div>
                                 </div>
-                                <div className={`font-black font-oswald italic tracking-tighter tabular-nums ${isTVMode ? 'text-[10rem]' : 'text-3xl sm:text-6xl'} ${match.winnerId === match.archerAId ? 'text-emerald-500' : 'text-white/40'}`}>
+                                <div className={`font-black font-oswald italic tracking-tighter tabular-nums ${isTVMode ? 'text-[10rem]' : 'text-3xl sm:text-6xl'} ${match.winnerId === match.archerAId ? 'text-emerald-500' : 'text-white/80'}`}>
                                    {match.scoreA}
                                 </div>
                             </div>
@@ -755,10 +881,10 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                                   </div>
                                   <div>
                                      <p className={`font-black font-oswald uppercase italic leading-none tracking-tighter ${isTVMode ? 'text-7xl text-white' : 'text-base sm:text-3xl text-slate-900'}`}>{archerB?.name || 'BYE'}</p>
-                                     <p className={`font-black uppercase tracking-[0.3em] ${isTVMode ? 'text-xl text-white/30 mt-4' : 'text-[7px] sm:text-[10px] text-slate-400 mt-1 sm:mt-4'}`}>{archerB?.club || '-'}</p>
+                                     <p className={`font-black uppercase tracking-[0.3em] ${isTVMode ? 'text-xl text-white/70 mt-4' : 'text-[7px] sm:text-[10px] text-slate-700 mt-1 sm:mt-4'}`}>{archerB?.club || '-'}</p>
                                   </div>
                                </div>
-                               <div className={`font-black font-oswald italic tracking-tighter tabular-nums ${isTVMode ? 'text-[10rem]' : 'text-3xl sm:text-6xl'} ${match.winnerId === match.archerBId ? 'text-emerald-500' : 'text-white/40'}`}>
+                               <div className={`font-black font-oswald italic tracking-tighter tabular-nums ${isTVMode ? 'text-[10rem]' : 'text-3xl sm:text-6xl'} ${match.winnerId === match.archerBId ? 'text-emerald-500' : 'text-white/80'}`}>
                                   {match.scoreB}
                                </div>
                             </div>
@@ -804,14 +930,14 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                 <div className="hidden sm:flex items-center gap-4">
                     <Activity className="w-6 h-6 text-emerald-500 animate-pulse" />
                     <div>
-                      <p className={`text-[10px] font-black uppercase tracking-[0.3em] leading-none ${isTVMode ? 'text-white/40' : 'text-slate-400'}`}>System Status</p>
+                      <p className={`text-[10px] font-black uppercase tracking-[0.3em] leading-none ${isTVMode ? 'text-white/80' : 'text-slate-700'}`}>System Status</p>
                       <p className={`text-[10px] font-black uppercase tracking-[0.1em] mt-1.5 ${isTVMode ? 'text-white' : 'text-slate-900'}`}>Live Data Feed Optimized</p>
                     </div>
                 </div>
                 <div className={`flex items-center gap-5 sm:border-l sm:pl-12 ${isTVMode ? 'border-white/10' : 'border-slate-200'}`}>
                     <Clock className="w-6 h-6 text-arcus-sun" />
                     <div>
-                      <p className={`text-[10px] font-black uppercase tracking-[0.3em] leading-none ${isTVMode ? 'text-white/40' : 'text-slate-400'}`}>Local Time</p>
+                      <p className={`text-[10px] font-black uppercase tracking-[0.3em] leading-none ${isTVMode ? 'text-white/80' : 'text-slate-700'}`}>Local Time</p>
                       <p className={`text-xl font-black font-oswald uppercase tracking-wider mt-1 tabular-nums ${isTVMode ? 'text-white' : 'text-slate-900'}`}>
                           {new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                       </p>

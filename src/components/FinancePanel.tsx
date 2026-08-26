@@ -115,7 +115,7 @@ const FinancePanel: React.FC<Props> = ({ event, globalSettings, onApproveRegistr
                   <span className="bg-emerald-500 text-white text-[8px] font-black uppercase px-2 py-0.5 rounded-full tracking-tighter">Internal / Free</span>
                 )}
               </div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Sistem: Pembayaran Terpusat (Super Admin)</p>
+              <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest mt-1">Sistem: Pembayaran Terpusat (Super Admin)</p>
            </div>
         </div>
         <div className="flex gap-3">
@@ -126,7 +126,7 @@ const FinancePanel: React.FC<Props> = ({ event, globalSettings, onApproveRegistr
             {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
             {copied ? 'Link Pendaftaran' : 'Link Pendaftaran'}
           </button>
-          <button onClick={onBack} className="p-3 bg-slate-50 text-slate-400 hover:text-arcus-red rounded-2xl border transition-colors">
+          <button onClick={onBack} className="p-3 bg-slate-50 text-slate-700 hover:text-arcus-red rounded-2xl border transition-colors">
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -140,15 +140,15 @@ const FinancePanel: React.FC<Props> = ({ event, globalSettings, onApproveRegistr
                  <div className="w-10 h-10 bg-blue-500/20 text-blue-400 rounded-xl flex items-center justify-center border border-blue-500/30">
                     <TrendingUp className="w-5 h-5" />
                  </div>
-                 <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Total Akumulasi Pendaftaran (Bruto)</h4>
+                 <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-700">Total Akumulasi Pendaftaran (Bruto)</h4>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
                 <div className="space-y-1">
                    <p className="text-6xl font-black font-oswald italic tracking-tighter tabular-nums text-emerald-400">Rp {totalRevenue.toLocaleString()}</p>
-                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest italic">Total uang masuk via Gateway & Manual ke Rekening Pusat</p>
+                   <p className="text-[10px] font-bold text-slate-800 uppercase tracking-widest italic">Total uang masuk via Gateway & Manual ke Rekening Pusat</p>
                 </div>
                 <div className="bg-white/5 p-6 rounded-3xl border border-white/10 space-y-3">
-                   <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-400">
+                   <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest text-slate-700">
                       <span>Total Biaya Platform</span>
                       <span className="text-orange-400">- Rp {totalPlatformFees.toLocaleString()}</span>
                    </div>
@@ -173,11 +173,11 @@ const FinancePanel: React.FC<Props> = ({ event, globalSettings, onApproveRegistr
            <div className="space-y-6">
               <div className="flex items-center justify-between">
                  <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] ${isFeePaid ? 'text-green-600' : 'text-slate-600'}`}>Status Pencairan Dana</h4>
-                 {isFeePaid ? <ShieldCheck className="w-6 h-6 text-green-600" /> : <Clock className="w-6 h-6 text-slate-400" />}
+                 {isFeePaid ? <ShieldCheck className="w-6 h-6 text-green-600" /> : <Clock className="w-6 h-6 text-slate-700" />}
               </div>
               <div>
                  <p className={`text-4xl font-black font-oswald italic leading-none ${isFeePaid ? 'text-green-700' : 'text-slate-700'}`}>Rp {netBalance.toLocaleString()}</p>
-                 <p className={`text-[9px] font-bold uppercase mt-2 ${isFeePaid ? 'text-green-600' : 'text-slate-500'}`}>
+                 <p className={`text-[9px] font-bold uppercase mt-2 ${isFeePaid ? 'text-green-600' : 'text-slate-800'}`}>
                     {isFeePaid ? 'Sudah Dicairkan ke Panitia' : 'Tersedia untuk Dicairkan'}
                  </p>
               </div>
@@ -219,7 +219,7 @@ const FinancePanel: React.FC<Props> = ({ event, globalSettings, onApproveRegistr
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-white text-[9px] font-black uppercase tracking-widest border-b text-slate-400">
+              <tr className="bg-white text-[9px] font-black uppercase tracking-widest border-b text-slate-700">
                 <th className="px-8 py-4">Pemanah & Klub</th>
                 <th className="px-8 py-4">Kontak</th>
                 <th className="px-8 py-4">Metode</th>
@@ -233,15 +233,15 @@ const FinancePanel: React.FC<Props> = ({ event, globalSettings, onApproveRegistr
                 <tr key={reg.id} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="px-8 py-6">
                     <p className="font-bold text-slate-900 uppercase font-oswald italic leading-none">{reg.name}</p>
-                    <p className="text-[9px] text-slate-400 font-black uppercase mt-1">{reg.club}</p>
+                    <p className="text-[9px] text-slate-700 font-black uppercase mt-1">{reg.club}</p>
                   </td>
                   <td className="px-8 py-6">
                     <p className="text-[10px] font-black text-slate-600">{reg.phone || '-'}</p>
-                    <p className="text-[8px] text-slate-400 truncate max-w-[120px]">{reg.email}</p>
+                    <p className="text-[8px] text-slate-700 truncate max-w-[120px]">{reg.email}</p>
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex flex-col gap-1">
-                      <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-md border text-center ${reg.paymentType === 'GATEWAY' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                      <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-md border text-center ${reg.paymentType === 'GATEWAY' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-slate-100 text-slate-800 border-slate-200'}`}>
                         {reg.paymentType}
                       </span>
                       {reg.paymentType === 'GATEWAY' && (
@@ -256,7 +256,7 @@ const FinancePanel: React.FC<Props> = ({ event, globalSettings, onApproveRegistr
                       <button onClick={() => setShowProofOverlay({ url: reg.paymentProofUrl || reg.paymentProof || '', id: reg.id })} className="w-10 h-10 rounded-lg overflow-hidden border-2 border-white shadow-md hover:scale-110 transition-transform">
                         <img src={reg.paymentProofUrl || reg.paymentProof} className="w-full h-full object-cover" alt="Proof" />
                       </button>
-                    ) : <span className="text-[10px] text-slate-300 italic font-bold">Otomatis/Gateway</span>}
+                    ) : <span className="text-[10px] text-slate-600 italic font-bold">Otomatis/Gateway</span>}
                   </td>
                   <td className="px-8 py-6 text-right font-black text-slate-900">
                     Rp {(reg.totalPaid || 0).toLocaleString()}
@@ -275,7 +275,7 @@ const FinancePanel: React.FC<Props> = ({ event, globalSettings, onApproveRegistr
                 <tr>
                   <td colSpan={5} className="py-24 text-center">
                      <Receipt className="w-12 h-12 mx-auto text-slate-100 mb-4" />
-                     <p className="text-slate-300 font-black uppercase tracking-widest text-[10px]">Semua pendaftar telah masuk ke Daftar Peserta</p>
+                     <p className="text-slate-600 font-black uppercase tracking-widest text-[10px]">Semua pendaftar telah masuk ke Daftar Peserta</p>
                   </td>
                 </tr>
               )}

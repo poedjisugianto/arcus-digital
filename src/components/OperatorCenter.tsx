@@ -128,7 +128,7 @@ const OperatorCenter: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
       <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col xl:flex-row items-center justify-between gap-8">
         <div className="flex items-center gap-6">
           <button onClick={onBack} className="p-3.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl transition-all">
-            <ArrowLeft className="w-6 h-6 text-slate-500" />
+            <ArrowLeft className="w-6 h-6 text-slate-800" />
           </button>
           <div>
             <h2 className="text-2xl font-black font-oswald uppercase italic">Operator Data Console</h2>
@@ -176,7 +176,7 @@ const OperatorCenter: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
               <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                 <button 
                   onClick={() => setSelectedCategory('ALL')}
-                  className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 whitespace-nowrap transition-all ${selectedCategory === 'ALL' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white border-slate-100 text-slate-400'}`}
+                  className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 whitespace-nowrap transition-all ${selectedCategory === 'ALL' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white border-slate-100 text-slate-700'}`}
                 >
                   Semua
                 </button>
@@ -184,7 +184,7 @@ const OperatorCenter: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
                   <button 
                     key={cat}
                     onClick={() => setSelectedCategory(cat as CategoryType)}
-                    className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 whitespace-nowrap transition-all ${selectedCategory === cat ? 'bg-slate-900 text-white border-slate-900' : 'bg-white border-slate-100 text-slate-400'}`}
+                    className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 whitespace-nowrap transition-all ${selectedCategory === cat ? 'bg-slate-900 text-white border-slate-900' : 'bg-white border-slate-100 text-slate-700'}`}
                   >
                     {CATEGORY_LABELS[cat]}
                   </button>
@@ -207,7 +207,7 @@ const OperatorCenter: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
 
         <div className="xl:col-span-8">
            {!selectedArcher ? (
-             <div className="h-full flex items-center justify-center text-slate-300 italic uppercase font-black tracking-widest border-2 border-dashed rounded-[3rem]">
+             <div className="h-full flex items-center justify-center text-slate-600 italic uppercase font-black tracking-widest border-2 border-dashed rounded-[3rem]">
                Pilih Pemanah untuk Audit
              </div>
            ) : (
@@ -215,7 +215,7 @@ const OperatorCenter: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
                 <div className="flex justify-between items-center border-b pb-8">
                    <div>
                      <h3 className="text-3xl font-black font-oswald uppercase italic">{selectedArcher.name}</h3>
-                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{selectedArcher.club} • {selectedArcher.category}</p>
+                     <p className="text-xs font-bold text-slate-700 uppercase tracking-widest">{selectedArcher.club} • {selectedArcher.category}</p>
                    </div>
                    <div className="p-4 bg-blue-50 rounded-2xl text-blue-600 font-black font-oswald text-2xl italic">
                      {inputMode} MODE
@@ -226,7 +226,7 @@ const OperatorCenter: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
                   <div className="space-y-8">
                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div className="space-y-3">
-                           <label className="text-[10px] font-black uppercase text-slate-400">Babak Pertandingan</label>
+                           <label className="text-[10px] font-black uppercase text-slate-700">Babak Pertandingan</label>
                            <select 
                             value={activeSession} 
                             onChange={e => setActiveSession(e.target.value)} 
@@ -240,7 +240,7 @@ const OperatorCenter: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
                            </select>
                         </div>
                         <div className="space-y-3">
-                           <label className="text-[10px] font-black uppercase text-slate-400">Pilih Rambahan</label>
+                           <label className="text-[10px] font-black uppercase text-slate-700">Pilih Rambahan</label>
                            <select value={targetEnd} onChange={e => setTargetEnd(Number(e.target.value))} className="w-full p-5 bg-slate-50 border rounded-2xl font-black text-xs font-oswald italic outline-none focus:border-blue-500">
                               {Array.from({ length: config?.ends || 7 }).map((_, i) => {
                                 const scoresList = event.scores || [];
@@ -254,12 +254,12 @@ const OperatorCenter: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
                            </select>
                         </div>
                         <div className="space-y-3">
-                           <label className="text-[10px] font-black uppercase text-slate-400">Total Skor Rambahan</label>
+                           <label className="text-[10px] font-black uppercase text-slate-700">Total Skor Rambahan</label>
                            <input type="number" value={rambahanScore} onChange={e => setRambahanScore(Number(e.target.value))} className="w-full p-5 bg-slate-50 border rounded-2xl font-black text-2xl font-oswald outline-none focus:border-blue-500" />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                            <div className="space-y-3">
-                              <label className="text-[10px] font-black uppercase text-slate-400">
+                              <label className="text-[10px] font-black uppercase text-slate-700">
                                 {selectedArcher && (
                                   (event.settings.categoryConfigs || {})[selectedArcher.category as CategoryType]?.targetType === TargetType.PUTA || 
                                   (event.settings.categoryConfigs || {})[selectedArcher.category as CategoryType]?.targetType === TargetType.TRADITIONAL_PUTA
@@ -272,7 +272,7 @@ const OperatorCenter: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
                               </div>
                            </div>
                            <div className="space-y-3">
-                              <label className="text-[10px] font-black uppercase text-slate-400">
+                              <label className="text-[10px] font-black uppercase text-slate-700">
                                 {selectedArcher && (
                                   (event.settings.categoryConfigs || {})[selectedArcher.category as CategoryType]?.targetType === TargetType.PUTA || 
                                   (event.settings.categoryConfigs || {})[selectedArcher.category as CategoryType]?.targetType === TargetType.TRADITIONAL_PUTA
@@ -288,7 +288,7 @@ const OperatorCenter: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
                      </div>
 
                      <div className="space-y-4">
-                        <label className="text-[10px] font-black uppercase text-slate-400">Alasan Audit / Perubahan</label>
+                        <label className="text-[10px] font-black uppercase text-slate-700">Alasan Audit / Perubahan</label>
                         <textarea value={editReason} onChange={e => setEditReason(e.target.value)} placeholder="Tulis alasan audit..." className="w-full p-6 bg-slate-50 border rounded-3xl font-medium italic resize-none h-32" />
                      </div>
 
@@ -299,7 +299,7 @@ const OperatorCenter: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
                 )}
 
                 {inputMode === 'ARROW' && (
-                  <div className="py-20 text-center text-slate-300 italic font-black uppercase tracking-[0.2em]">
+                  <div className="py-20 text-center text-slate-600 italic font-black uppercase tracking-[0.2em]">
                     Fitur Input Per-Arrow di Operator Center sedang dikembangkan. Gunakan Field Scorer untuk input detail.
                   </div>
                 )}

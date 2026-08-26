@@ -152,7 +152,7 @@ const AdminDashboard: React.FC<Props> = ({ user, events = [], onManageEvent, onC
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-xl font-black font-oswald uppercase italic">Distribusi Archer</h3>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">5 Event Terakhir</p>
+              <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">5 Event Terakhir</p>
             </div>
             <TrendingUp className="w-6 h-6 text-slate-200" />
           </div>
@@ -187,7 +187,7 @@ const AdminDashboard: React.FC<Props> = ({ user, events = [], onManageEvent, onC
         <div className="bg-slate-50/50 p-8 rounded-[2rem] space-y-6">
           <div>
             <h3 className="text-xl font-black font-oswald uppercase italic text-slate-900">Status Event</h3>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Kondisi Turnamen</p>
+            <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Kondisi Turnamen</p>
           </div>
           
           <div className="h-[200px] w-full relative">
@@ -211,7 +211,7 @@ const AdminDashboard: React.FC<Props> = ({ user, events = [], onManageEvent, onC
             </ResponsiveContainer>
             <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none">
               <span className="text-2xl font-black font-oswald italic">{stats.totalEvents}</span>
-              <span className="text-[8px] font-black uppercase text-slate-400">Total</span>
+              <span className="text-[8px] font-black uppercase text-slate-700">Total</span>
             </div>
           </div>
 
@@ -220,7 +220,7 @@ const AdminDashboard: React.FC<Props> = ({ user, events = [], onManageEvent, onC
               <div key={i} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }}></div>
-                  <span className="text-[10px] font-black uppercase text-slate-500">{s.name}</span>
+                  <span className="text-[10px] font-black uppercase text-slate-800">{s.name}</span>
                 </div>
                 <span className="text-[10px] font-black">{s.value}</span>
               </div>
@@ -234,7 +234,7 @@ const AdminDashboard: React.FC<Props> = ({ user, events = [], onManageEvent, onC
         <div className="py-8 flex items-center justify-between">
           <div>
             <h3 className="text-xl font-black font-oswald uppercase italic text-slate-900">Event Saya</h3>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mt-1">Daftar turnamen yang Anda kelola</p>
+            <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest leading-none mt-1">Daftar turnamen yang Anda kelola</p>
           </div>
           <button 
             onClick={onCreateEvent}
@@ -246,7 +246,7 @@ const AdminDashboard: React.FC<Props> = ({ user, events = [], onManageEvent, onC
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-slate-50/50 text-[10px] font-black uppercase text-slate-400 tracking-widest">
+              <tr className="bg-slate-50/50 text-[10px] font-black uppercase text-slate-700 tracking-widest">
                 <th className="px-8 py-4">Turnamen</th>
                 <th className="px-8 py-4">Status</th>
                 <th className="px-8 py-4">Archer</th>
@@ -264,7 +264,7 @@ const AdminDashboard: React.FC<Props> = ({ user, events = [], onManageEvent, onC
                       </div>
                       <div>
                         <p className="font-black uppercase text-xs text-slate-900 leading-tight">{event.settings?.tournamentName || 'Untitled'}</p>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase">{event.settings?.location || 'No Location'}</p>
+                        <p className="text-[9px] font-bold text-slate-700 uppercase">{event.settings?.location || 'No Location'}</p>
                       </div>
                     </div>
                   </td>
@@ -280,19 +280,19 @@ const AdminDashboard: React.FC<Props> = ({ user, events = [], onManageEvent, onC
                   </td>
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-2">
-                       <Users className="w-3 h-3 text-slate-300" />
+                       <Users className="w-3 h-3 text-slate-600" />
                        <span className="text-xs font-bold text-slate-700">
                          {Math.max((event.archers || []).length + (event.officials || []).length, (event as any).registrationCount || 0)}
                        </span>
                     </div>
                   </td>
                   <td className="px-8 py-5">
-                    <span className="text-[10px] font-bold text-slate-500">{event.settings?.eventDate || 'TBA'}</span>
+                    <span className="text-[10px] font-bold text-slate-800">{event.settings?.eventDate || 'TBA'}</span>
                   </td>
                   <td className="px-8 py-5 text-right">
                     <button 
                       onClick={() => onManageEvent(event.id)}
-                      className="p-2 text-slate-400 hover:text-arcus-red transition-all"
+                      className="p-2 text-slate-700 hover:text-arcus-red transition-all"
                     >
                       <ArrowUpRight className="w-5 h-5" />
                     </button>
@@ -323,7 +323,7 @@ const DashboardCard: React.FC<{
         <div className={`flex items-center gap-1 text-[9px] font-black uppercase ${
           trendUp === true ? 'text-emerald-500' : 
           trendUp === false ? 'text-red-500' : 
-          'text-slate-400'
+          'text-slate-700'
         }`}>
           {trendUp === true && <ArrowUpRight className="w-3 h-3" />}
           {trendUp === false && <ArrowDownRight className="w-3 h-3" />}
@@ -332,7 +332,7 @@ const DashboardCard: React.FC<{
       )}
     </div>
     <div>
-      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-2">{title}</p>
+      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest leading-none mb-2">{title}</p>
       <h4 className="text-4xl font-black font-oswald italic text-slate-900 leading-none tracking-tighter">{value}</h4>
     </div>
   </div>

@@ -272,7 +272,7 @@ export const ParticipantScannerModal: React.FC<Props> = ({
                   Live Sync
                 </span>
               </div>
-              <p className="text-[10px] font-black text-white/50 uppercase tracking-widest mt-0.5">
+              <p className="text-[10px] font-black text-white/90 uppercase tracking-widest mt-0.5">
                 Support Handheld Barcode Scanner (USB/Bluetooth) & Kamera HP/PC
               </p>
             </div>
@@ -288,7 +288,7 @@ export const ParticipantScannerModal: React.FC<Props> = ({
         {/* Live Statistics Ribbon */}
         <div className="grid grid-cols-4 bg-slate-50 border-b border-slate-100 p-3 text-center shrink-0">
           <div>
-            <span className="text-[8px] font-black uppercase text-slate-400 tracking-wider block">Total Peserta</span>
+            <span className="text-[8px] font-black uppercase text-slate-700 tracking-wider block">Total Peserta</span>
             <span className="text-sm md:text-base font-black text-slate-800 font-oswald">{stats.total}</span>
           </div>
           <div>
@@ -320,7 +320,7 @@ export const ParticipantScannerModal: React.FC<Props> = ({
                 value={scanInput}
                 onChange={(e) => setScanInput(e.target.value)}
                 placeholder="Scan barcode kartu / ketik Nama, Klub, No Bantalan (Contoh: 14A)..."
-                className="w-full pl-12 pr-28 py-4 bg-slate-50 border-2 border-purple-200 focus:border-purple-600 focus:bg-white rounded-2xl text-sm font-bold text-slate-900 outline-none transition-all placeholder:text-slate-400 shadow-inner"
+                className="w-full pl-12 pr-28 py-4 bg-slate-50 border-2 border-purple-200 focus:border-purple-600 focus:bg-white rounded-2xl text-sm font-bold text-slate-900 outline-none transition-all placeholder:text-slate-700 shadow-inner"
                 autoFocus
               />
               <button
@@ -376,7 +376,7 @@ export const ParticipantScannerModal: React.FC<Props> = ({
                     {selectedArcher.photoUrl ? (
                       <img src={selectedArcher.photoUrl} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <User className="w-8 h-8 text-slate-300" />
+                      <User className="w-8 h-8 text-slate-600" />
                     )}
                   </div>
                   <div>
@@ -386,8 +386,8 @@ export const ParticipantScannerModal: React.FC<Props> = ({
                     <h3 className="text-2xl font-black font-oswald uppercase text-slate-900 leading-none">
                       {selectedArcher.name}
                     </h3>
-                    <p className="text-xs font-bold text-slate-500 mt-1 flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-slate-400" /> {selectedArcher.club}
+                    <p className="text-xs font-bold text-slate-800 mt-1 flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-slate-700" /> {selectedArcher.club}
                     </p>
                   </div>
                 </div>
@@ -421,19 +421,19 @@ export const ParticipantScannerModal: React.FC<Props> = ({
               {/* Technical Details Grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 text-center">
-                  <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest block mb-1">Bantalan & Posisi</span>
+                  <span className="text-[8px] font-black uppercase text-slate-700 tracking-widest block mb-1">Bantalan & Posisi</span>
                   <span className="text-xl font-black text-slate-900 font-oswald">
                     {selectedArcher.targetNo || '-'}{selectedArcher.position || ''}
                   </span>
                 </div>
                 <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 text-center">
-                  <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest block mb-1">Gelombang / Sesi</span>
+                  <span className="text-[8px] font-black uppercase text-slate-700 tracking-widest block mb-1">Gelombang / Sesi</span>
                   <span className="text-xl font-black text-slate-900 font-oswald">
                     Sesi {selectedArcher.wave || 1}
                   </span>
                 </div>
                 <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 text-center">
-                  <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest block mb-1">Status Pembayaran</span>
+                  <span className="text-[8px] font-black uppercase text-slate-700 tracking-widest block mb-1">Status Pembayaran</span>
                   <span className={`text-xs font-black uppercase px-2 py-1 rounded-lg inline-block mt-1 ${
                     selectedArcher.status === RegistrationStatus.APPROVED || selectedArcher.status === RegistrationStatus.CONFIRMED || selectedArcher.status === RegistrationStatus.PAID
                       ? 'bg-emerald-100 text-emerald-800'
@@ -443,7 +443,7 @@ export const ParticipantScannerModal: React.FC<Props> = ({
                   </span>
                 </div>
                 <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 text-center">
-                  <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest block mb-1">ID Peserta</span>
+                  <span className="text-[8px] font-black uppercase text-slate-700 tracking-widest block mb-1">ID Peserta</span>
                   <span className="text-xs font-mono font-bold text-slate-600 truncate block mt-1">
                     {selectedArcher.registrationNo || selectedArcher.id.substring(0, 10)}
                   </span>
@@ -498,11 +498,11 @@ export const ParticipantScannerModal: React.FC<Props> = ({
             </div>
           ) : (
             <div className="py-12 px-6 border-2 border-dashed border-slate-200 rounded-3xl text-center space-y-3 bg-slate-50/50">
-              <BarcodeIcon className="w-12 h-12 text-slate-300 mx-auto animate-pulse" />
+              <BarcodeIcon className="w-12 h-12 text-slate-600 mx-auto animate-pulse" />
               <h4 className="text-base font-black font-oswald uppercase text-slate-700">
                 Siap Memindai Barcode Kartu Peserta
               </h4>
-              <p className="text-xs font-bold text-slate-400 max-w-md mx-auto">
+              <p className="text-xs font-bold text-slate-700 max-w-md mx-auto">
                 Gunakan scanner barcode batang (laser/USB) atau kamera untuk langsung membaca data peserta dan melakukan registrasi ulang secara instan.
               </p>
             </div>
@@ -511,7 +511,7 @@ export const ParticipantScannerModal: React.FC<Props> = ({
           {/* Recent Scanned Log */}
           {recentScans.length > 0 && (
             <div className="space-y-2 pt-2">
-              <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest block px-1">
+              <span className="text-[9px] font-black uppercase text-slate-700 tracking-widest block px-1">
                 Riwayat Pemindaian Terakhir ({recentScans.length})
               </span>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -529,10 +529,10 @@ export const ParticipantScannerModal: React.FC<Props> = ({
                       <div className={`w-2 h-2 rounded-full ${item.success ? (item.archer.checkedIn ? 'bg-emerald-500' : 'bg-purple-500') : 'bg-red-500'}`} />
                       <div className="truncate">
                         <span className="font-bold text-slate-800 block truncate">{item.archer.name}</span>
-                        <span className="text-[9px] text-slate-400 block truncate">{item.archer.club} • {item.archer.targetNo || ''}{item.archer.position || ''}</span>
+                        <span className="text-[9px] text-slate-700 block truncate">{item.archer.club} • {item.archer.targetNo || ''}{item.archer.position || ''}</span>
                       </div>
                     </div>
-                    <span className="text-[9px] font-mono text-slate-400 shrink-0">{item.time}</span>
+                    <span className="text-[9px] font-mono text-slate-700 shrink-0">{item.time}</span>
                   </div>
                 ))}
               </div>
@@ -542,7 +542,7 @@ export const ParticipantScannerModal: React.FC<Props> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">
+        <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[10px] font-bold text-slate-700 uppercase tracking-wider shrink-0">
           <span>Tekan ESC untuk menutup</span>
           <button
             onClick={onClose}
