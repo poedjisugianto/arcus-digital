@@ -7,7 +7,7 @@ import {
   Link as LinkIcon, Info, Hash, Repeat, Compass, Layers, 
   Users as UsersIcon, AlertTriangle, AlertCircle, ShieldCheck, Zap, ToggleRight, ToggleLeft,
   FileDown, ExternalLink, HelpCircle, Check, ChevronLeft, Smartphone, Clock, Swords, Monitor,
-  Heart, Youtube, Video
+  Heart, Youtube, Video, Crosshair, Scale, Sliders, Award
 } from 'lucide-react';
 import { TournamentSettings, CategoryType, TargetType, PaymentMethod, ScorerAccess, CategoryConfig, Sponsorship, Archer, ParticipantRegistration, GlobalSettings, RundownItem } from '../types';
 import { CATEGORY_LABELS, TARGET_LABELS } from '../constants';
@@ -500,9 +500,189 @@ const AdminPanel: React.FC<Props> = ({
       </div>
 
       <div className="max-w-7xl mx-auto p-6 md:p-10 pb-32">
-        <form onSubmit={handleSubmit} className="space-y-16">
-          
-          {activeTab === 'GENERAL' && (
+        {activeTab === 'PARTICIPANTS' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-12">
+            <div className="bg-white rounded-[3rem] p-4 md:p-10 border border-slate-100 shadow-sm">
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-lg md:text-2xl font-black font-oswald uppercase italic flex items-center gap-3">
+                  <TargetIcon className="w-6 h-6 text-arcus-red" /> Daftar Archer
+                </h3>
+              </div>
+              <ArcherList 
+                archers={archers} 
+                onBack={() => setActiveTab('GENERAL')} 
+                onRemove={onRemoveParticipant || (() => {})}
+                onAdd={onAddParticipant || (() => {})}
+                onUpdate={(a) => onUpdateParticipant?.(a.id, a)}
+                onBulkUpdate={onBulkUpdateArchers || (() => {})}
+                onGoToIdCardEditor={onManageIdCards || (() => {})}
+                onRefreshData={onRefreshData}
+                onPushToCloud={onPushToCloud}
+                isPushing={isPushing}
+                archersPerTarget={settings.archersPerTarget || 3}
+                totalTargets={settings.totalTargets || 20}
+                settings={settings}
+                eventId={eventId}
+                globalSettings={globalSettings}
+              />
+            </div>
+
+            <div className="bg-white rounded-[3rem] p-4 md:p-10 border border-slate-100 shadow-sm">
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-lg md:text-2xl font-black font-oswald uppercase italic flex items-center gap-3">
+                  <ShieldCheck className="w-6 h-6 text-emerald-500" /> Daftar Official
+                </h3>
+              </div>
+              <OfficialList 
+                officials={officials} 
+                onBack={() => setActiveTab('GENERAL')} 
+                onUpdate={(o) => onUpdateParticipant?.(o.id, o)}
+                onRemove={onRemoveParticipant || (() => {})}
+                onGoToIdCardEditor={onManageIdCards}
+                settings={settings}
+              />
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'SCORING' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
+            <div className="bg-slate-900 text-white rounded-[2.5rem] p-8 md:p-12 border border-slate-800 shadow-2xl relative overflow-hidden">
+              <div className="absolute right-0 bottom-0 translate-x-1/4 translate-y-1/4 opacity-10 blur-xl">
+                <TargetIcon className="w-96 h-96" />
+              </div>
+              <div className="relative z-10 max-w-3xl space-y-4">
+                <span className="bg-arcus-red text-white text-[7px] md:text-[8px] font-black px-2 py-1 rounded uppercase tracking-[0.25em]">
+                  Digital scoring center
+                </span>
+                <h3 className="text-2xl md:text-4xl font-black font-oswald uppercase italic leading-none tracking-tight">
+                  Pusat Penilaian &amp; Rekapitulasi Skor
+                </h3>
+                <p className="text-slate-600 text-xs md:text-sm font-medium leading-relaxed italic">
+                  Kelola seluruh pencatatan nilai sesi kualifikasi turnamen Anda dari satu tempat. Gunakan metode input cepat grid untuk rekap massal, atau konsol koreksi jika terdapat kesalahan atau komplain atlet.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Option 1: Quick Grid Scoring */}
+              <div className="bg-white hover:bg-slate-50 border border-slate-100 rounded-[2.5rem] p-8 md:p-10 flex flex-col justify-between shadow-sm transition-all hover:shadow-md hover:-translate-y-1 duration-300">
+                <div className="space-y-6">
+                  <div className="w-14 h-14 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600">
+                    <TargetIcon className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">
+                      1. Quick Scoring Grid
+                    </h4>
+                    <p className="text-slate-800 text-xs font-semibold leading-relaxed">
+                      Input skor super cepat berbasis nomor bantalan kualifikasi. Ideal untuk memasukkan rekap fisik lembar skor secara masif.
+                    </p>
+                  </div>
+                </div>
+                <div className="pt-8">
+                  <button
+                    type="button"
+                    onClick={onGoToQuickScoring}
+                    className="w-full py-4 text-center bg-purple-600 hover:bg-purple-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
+                  >
+                    Buka Quick Grid
+                  </button>
+                </div>
+              </div>
+
+              {/* Option 2: Operator Center & Audit */}
+              <div className="bg-white hover:bg-slate-50 border border-slate-100 rounded-[2.5rem] p-8 md:p-10 flex flex-col justify-between shadow-sm transition-all hover:shadow-md hover:-translate-y-1 duration-300">
+                <div className="space-y-6">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600">
+                    <FileText className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">
+                      2. Operator &amp; Audit Desk
+                    </h4>
+                    <p className="text-slate-800 text-xs font-semibold leading-relaxed">
+                      Koreksi &amp; audit skor manual resmi. Dilengkapi audit logs (mencatat alasan perubahan) sesuai standar regulasi judge panitia.
+                    </p>
+                  </div>
+                </div>
+                <div className="pt-8">
+                  <button
+                    type="button"
+                    onClick={onGoToOperatorCenter}
+                    className="w-full py-4 text-center bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
+                  >
+                    Buka Operator Desk
+                  </button>
+                </div>
+              </div>
+
+              {/* Option 3: Direct Scorer Terminal */}
+              <div className="bg-white hover:bg-slate-50 border border-slate-100 rounded-[2.5rem] p-8 md:p-10 flex flex-col justify-between shadow-sm transition-all hover:shadow-md hover:-translate-y-1 duration-300">
+                <div className="space-y-6">
+                  <div className="w-14 h-14 rounded-2xl bg-pink-50 flex items-center justify-center text-pink-600">
+                    <Smartphone className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">
+                      3. Field Scorer Panel
+                    </h4>
+                    <p className="text-slate-800 text-xs font-semibold leading-relaxed">
+                      Tampilan persis dengan gadget yang digunakan oleh Tim Scorer di lapangan atau Atlet di bantalan untuk mencatat skor anak panah (arrow-by-arrow).
+                    </p>
+                  </div>
+                </div>
+                <div className="pt-8">
+                  <button
+                    type="button"
+                    onClick={onGoToFieldScoring}
+                    className="w-full py-4 text-center bg-pink-600 hover:bg-pink-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
+                  >
+                    Buka Terminal Scorer
+                  </button>
+                </div>
+              </div>
+
+              {/* Option 4: Tournament Timer & Shooting Clock */}
+              <div className="bg-white hover:bg-slate-50 border border-slate-100 rounded-[2.5rem] p-8 md:p-10 flex flex-col justify-between shadow-sm transition-all hover:shadow-md hover:-translate-y-1 duration-300">
+                <div className="space-y-6">
+                  <div className="w-14 h-14 rounded-2xl bg-teal-50 flex items-center justify-center text-teal-600">
+                    <Clock className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">
+                      4. Timer &amp; Shooting Clock
+                    </h4>
+                    <p className="text-slate-800 text-xs font-semibold leading-relaxed">
+                      Akses stopwatch terintegrasi &amp; timer official turnamen untuk menghitung durasi tembak atlet (240s / 120s) secara sinkron.
+                    </p>
+                  </div>
+                </div>
+                <div className="pt-8 space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowTimerModal(true)}
+                    className="w-full py-3.5 text-center bg-teal-600 hover:bg-teal-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
+                  >
+                    <Monitor className="w-4 h-4" /> Sematkan Di Sini
+                  </button>
+                  <a
+                    href="https://ais-pre-ihwvpfbazwbyenzfsn3unw-238734823836.asia-southeast1.run.app/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full py-3 text-center border-2 border-slate-200 hover:border-slate-400 text-slate-700 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                  >
+                    <ExternalLink className="w-4 h-4" /> Buka Tab Baru
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab !== 'PARTICIPANTS' && activeTab !== 'SCORING' && (
+          <form onSubmit={handleSubmit} className="space-y-16">
+            {activeTab === 'GENERAL' && (
             <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
               {/* Section: Basic Identity */}
               <div className="space-y-8">
@@ -879,32 +1059,111 @@ const AdminPanel: React.FC<Props> = ({
                       </div>
 
                       <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-6">
-                        <div className="flex items-center gap-2 mb-2">
-                           <Swords className="w-4 h-4 text-arcus-red" />
-                           <p className="text-xs font-black uppercase text-slate-900 tracking-widest">Alur Pertandingan (Eliminasi & Aduan)</p>
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                           <div className="flex items-center gap-2">
+                              <Swords className="w-5 h-5 text-arcus-red" />
+                              <p className="text-xs font-black uppercase text-slate-900 tracking-widest font-oswald italic">Alur Pertandingan &amp; Regulasi Aduan</p>
+                           </div>
+                           <span className="text-[9px] font-black text-white bg-slate-900 px-2.5 py-1 rounded-md uppercase tracking-wider">
+                              Eliminasi &amp; Aduan
+                           </span>
+                        </div>
+
+                        {/* PILIHAN 2 MODE ALUR PERTANDINGAN */}
+                        <div className="space-y-3">
+                          <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1 flex items-center gap-1.5">
+                            <Scale className="w-3.5 h-3.5 text-arcus-red" />
+                            Pilih Mode Alur Pertandingan &amp; Ketentuan Shoot-Off:
+                          </span>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Mode 1: Perangkingan Poin */}
+                            <div 
+                              onClick={() => updateCategoryConfig(cat, 'tournamentFlowMode', 'RANKING_POINTS_STAGE')}
+                              className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between space-y-3 relative ${
+                                (localSettings.categoryConfigs?.[cat]?.tournamentFlowMode || 'RANKING_POINTS_STAGE') === 'RANKING_POINTS_STAGE'
+                                  ? 'border-purple-600 bg-purple-50/50 shadow-md ring-2 ring-purple-100'
+                                  : 'border-slate-200 hover:border-slate-300 bg-white'
+                              }`}
+                            >
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[9px] font-black text-purple-700 bg-purple-100 px-2 py-0.5 rounded uppercase tracking-wider">
+                                    Mode 1: Poin &amp; Aduan
+                                  </span>
+                                  {(localSettings.categoryConfigs?.[cat]?.tournamentFlowMode || 'RANKING_POINTS_STAGE') === 'RANKING_POINTS_STAGE' && (
+                                    <div className="w-5 h-5 bg-purple-600 rounded-full flex items-center justify-center text-white">
+                                      <Check className="w-3 h-3" />
+                                    </div>
+                                  )}
+                                </div>
+                                <h4 className="text-sm font-black font-oswald uppercase italic text-slate-900 leading-tight">
+                                  Mode Perangkingan Poin
+                                </h4>
+                                <p className="text-[10px] font-bold text-purple-900">
+                                  Shoot-Off Mulai Pada Babak Aduan
+                                </p>
+                                <p className="text-[9px] text-slate-700 font-medium leading-relaxed">
+                                  Di babak <b>Kualifikasi &amp; Penyaringan Skor (Top 32/16/8)</b>, nilai seri diselesaikan murni lewat <b>perangkingan poin (Countback jumlah angka 6 &amp; 5, total skor)</b> tanpa shoot-off lapangan. <b>Shoot-Off 1 panah</b> baru aktif saat masuk <b>Babak Aduan 1 vs 1 (H2H)</b>.
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Mode 2: Shoot-Off Langsung */}
+                            <div 
+                              onClick={() => updateCategoryConfig(cat, 'tournamentFlowMode', 'DIRECT_SHOOT_OFF')}
+                              className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between space-y-3 relative ${
+                                localSettings.categoryConfigs?.[cat]?.tournamentFlowMode === 'DIRECT_SHOOT_OFF'
+                                  ? 'border-amber-500 bg-amber-50/50 shadow-md ring-2 ring-amber-100'
+                                  : 'border-slate-200 hover:border-slate-300 bg-white'
+                              }`}
+                            >
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[9px] font-black text-amber-800 bg-amber-100 px-2 py-0.5 rounded uppercase tracking-wider">
+                                    Mode 2: Shoot-Off Penuh
+                                  </span>
+                                  {localSettings.categoryConfigs?.[cat]?.tournamentFlowMode === 'DIRECT_SHOOT_OFF' && (
+                                    <div className="w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center text-white">
+                                      <Check className="w-3 h-3" />
+                                    </div>
+                                  )}
+                                </div>
+                                <h4 className="text-sm font-black font-oswald uppercase italic text-slate-900 leading-tight">
+                                  Mode Shoot-Off Langsung
+                                </h4>
+                                <p className="text-[10px] font-bold text-amber-900">
+                                  Shoot-Off Berlaku Sejak Babak Eliminasi
+                                </p>
+                                <p className="text-[9px] text-slate-700 font-medium leading-relaxed">
+                                  Setelah babak kualifikasi, setiap kali ada skor imbang antar atlet di babak eliminasi/sistem gugur, <b>wajib langsung dilakukan 1 Panah Shoot-Off</b> (skor tertinggi / panah terdekat ke titik X) untuk menentukan pemenang yang lolos.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <label className="block space-y-2">
-                            <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest px-1">Aduan (H2H) Dimulai Dari:</span>
+                            <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1">Aduan (H2H) Dimulai Dari:</span>
                             <select 
                               value={localSettings.categoryConfigs?.[cat]?.h2hStartSize || 0} 
                               onChange={e => updateCategoryConfig(cat, 'h2hStartSize', parseInt(e.target.value))} 
-                              className="w-full rounded-xl border-slate-200 p-3 border font-black text-xs focus:border-arcus-red transition-all"
+                              className="w-full rounded-xl border-slate-200 p-3 border font-black text-xs focus:border-arcus-red transition-all text-slate-900"
                             >
                               <option value="0">TIDAK ADA ADUAN (HANYA KUALIFIKASI)</option>
-                              <option value="32">32 BESAR (ADUAN)</option>
-                              <option value="16">16 BESAR (ADUAN)</option>
-                              <option value="8">8 BESAR (ADUAN)</option>
-                              <option value="4">FINAL 4 (ADUAN)</option>
+                              <option value="64">64 BESAR (ADUAN / BRACKET)</option>
+                              <option value="32">32 BESAR (ADUAN / BRACKET)</option>
+                              <option value="16">16 BESAR (ADUAN / BRACKET)</option>
+                              <option value="8">8 BESAR (ADUAN / PEREMPAT FINAL)</option>
+                              <option value="4">FINAL 4 (ADUAN / SEMI FINAL)</option>
                             </select>
-                            <p className="text-[9px] font-bold text-slate-700 italic">Pilih kapan babak Head-to-Head (bracket) dimulai.</p>
+                            <p className="text-[9px] font-bold text-slate-700 italic">Pilih kapan babak Head-to-Head (bracket bagan) dimulai.</p>
                           </label>
 
                           <div className="space-y-2">
-                            <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest px-1">Babak Penyaringan Skor (Eliminasi):</span>
+                            <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1">Babak Penyaringan Skor (Eliminasi):</span>
                             <div className="flex flex-wrap gap-2">
-                              {[32, 16, 8, 4].map(size => {
+                              {[64, 32, 16, 8, 4].map(size => {
                                 const stages = localSettings.categoryConfigs?.[cat]?.eliminationStages || [];
                                 const isSelected = stages.includes(size);
                                 const h2hStart = localSettings.categoryConfigs?.[cat]?.h2hStartSize || 0;
@@ -938,31 +1197,153 @@ const AdminPanel: React.FC<Props> = ({
                                 );
                               })}
                             </div>
-                            <p className="text-[9px] font-bold text-slate-700 italic">Klik untuk menambah babak penyaringan skor sebelum masuk babak aduan.</p>
+                            <p className="text-[9px] font-bold text-slate-700 italic">Pilih tahapan penyaringan skor kualifikasi bertahap sebelum masuk aduan.</p>
                           </div>
                         </div>
-                        
-                        {(localSettings.categoryConfigs?.[cat]?.eliminationStages?.length || 0) > 0 && (
-                          <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 flex items-start gap-3">
-                            <div className="p-1 bg-emerald-500 rounded-full mt-0.5">
-                               <Check className="w-3 h-3 text-white" />
+
+                        {/* Pengaturan Aduan & Shoot-Off */}
+                        {(localSettings.categoryConfigs?.[cat]?.h2hStartSize || 0) > 0 && (
+                          <div className="p-5 bg-purple-50/70 border border-purple-100 rounded-2xl space-y-5">
+                            <div className="flex items-center gap-2">
+                              <Crosshair className="w-4 h-4 text-purple-700" />
+                              <h5 className="text-[11px] font-black uppercase text-purple-950 tracking-wider">
+                                Regulasi Penentuan Seri (Shoot-Off / Countback) &amp; Poin Aduan
+                              </h5>
                             </div>
-                            <div className="space-y-1">
-                               <p className="text-[10px] font-black text-emerald-900 uppercase tracking-widest">Alur yang Terbentuk:</p>
-                               <ol className="text-[9px] font-bold text-emerald-700 space-y-1 list-decimal pl-4 italic">
-                                  <li>Kualifikasi (Semua Peserta)</li>
-                                  {localSettings.categoryConfigs?.[cat]?.eliminationStages?.map(stage => (
-                                    <li key={stage}>Penyaringan Skor Top {stage}</li>
-                                  ))}
-                                  {localSettings.categoryConfigs?.[cat]?.h2hStartSize ? (
-                                    <li>Bagan Aduan (Head-to-Head) {localSettings.categoryConfigs?.[cat]?.h2hStartSize} Besar</li>
-                                  ) : (
-                                    <li>Penentuan Pemenang dari Hasil Terakhir</li>
-                                  )}
-                               </ol>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {/* Tie-Break / Shoot-Off Method Selector */}
+                              <label className="block space-y-1.5">
+                                <span className="text-[10px] font-black text-purple-950 uppercase tracking-widest flex items-center gap-1.5">
+                                  <Scale className="w-3.5 h-3.5 text-purple-700" />
+                                  Metode Penentu Seri (Tie-Break Rule):
+                                </span>
+                                <select 
+                                  value={localSettings.categoryConfigs?.[cat]?.tieBreakMethod || 'BOTH'} 
+                                  onChange={e => updateCategoryConfig(cat, 'tieBreakMethod', e.target.value)} 
+                                  className="w-full rounded-xl border-purple-200 bg-white p-3 border font-black text-xs text-slate-900 focus:border-purple-600 transition-all shadow-sm"
+                                >
+                                  <option value="BOTH">FLEKSIBEL / KEDUANYA (PILIH SAAT SERI DI LAPANGAN)</option>
+                                  <option value="SHOOT_OFF">SHOOT-OFF (1 PANAH PENENTU / CLOSEST TO CENTER)</option>
+                                  <option value="COUNTBACK">COUNTBACK (JUMLAH ANGKA 6 &amp; 5 / X &amp; 10)</option>
+                                </select>
+                                <p className="text-[9px] font-semibold text-purple-900 italic">
+                                  {localSettings.categoryConfigs?.[cat]?.tieBreakMethod === 'SHOOT_OFF' && 'Jika seri, atlet menembak 1 panah penentu. Skor tertinggi / terdekat ke X menang.'}
+                                  {localSettings.categoryConfigs?.[cat]?.tieBreakMethod === 'COUNTBACK' && 'Jika seri, pemenang ditentukan dari perolehan angka 6/X terbanyak, lalu 5/10, lalu skor kualifikasi.'}
+                                  {(localSettings.categoryConfigs?.[cat]?.tieBreakMethod === 'BOTH' || !localSettings.categoryConfigs?.[cat]?.tieBreakMethod) && 'Juri/Scorer dapat memilih tombol Shoot-Off atau Countback 6/5 secara fleksibel saat skor seri.'}
+                                </p>
+                              </label>
+
+                              {/* Jumlah Panah Shoot-Off */}
+                              <label className="block space-y-1.5">
+                                <span className="text-[10px] font-black text-purple-950 uppercase tracking-widest flex items-center gap-1.5">
+                                  <Crosshair className="w-3.5 h-3.5 text-purple-700" />
+                                  Format Shoot-Off:
+                                </span>
+                                <select 
+                                  value={localSettings.categoryConfigs?.[cat]?.shootOffArrows || 1} 
+                                  onChange={e => updateCategoryConfig(cat, 'shootOffArrows', parseInt(e.target.value))} 
+                                  className="w-full rounded-xl border-purple-200 bg-white p-3 border font-black text-xs text-slate-900 focus:border-purple-600 transition-all shadow-sm"
+                                >
+                                  <option value="1">1 ANAK PANAH PENENTU (STANDAR GOLDEN ARROW)</option>
+                                  <option value="3">3 ANAK PANAH (1 RAMBAHAN TAMBAHAN PENUH)</option>
+                                </select>
+                                <p className="text-[9px] font-semibold text-purple-900 italic">
+                                  Standar World Archery menggunakan 1 anak panah penentu per atlet.
+                                </p>
+                              </label>
+
+                              {/* Sistem Poin Aduan */}
+                              <label className="block space-y-1.5">
+                                <span className="text-[10px] font-black text-purple-950 uppercase tracking-widest flex items-center gap-1.5">
+                                  <Award className="w-3.5 h-3.5 text-purple-700" />
+                                  Sistem Penilaian Aduan:
+                                </span>
+                                <select 
+                                  value={localSettings.categoryConfigs?.[cat]?.scoringSystem || 'SET_SYSTEM'} 
+                                  onChange={e => updateCategoryConfig(cat, 'scoringSystem', e.target.value)} 
+                                  className="w-full rounded-xl border-purple-200 bg-white p-3 border font-black text-xs text-slate-900 focus:border-purple-600 transition-all shadow-sm"
+                                >
+                                  <option value="SET_SYSTEM">SET SYSTEM (MENANG 2, SERI 1, KALAH 0 - TARGET 6 POIN)</option>
+                                  <option value="TOTAL_SCORE">TOTAL CUMULATIVE SCORE (AKUMULASI SELURUH RAMBAHAN)</option>
+                                </select>
+                                <p className="text-[9px] font-semibold text-purple-900 italic">
+                                  Recurve/Standar bow memakai Set System; Compound umum memakai Total Score.
+                                </p>
+                              </label>
+
+                              {/* Jumlah Rambahan Aduan (Ends) */}
+                              <div className="grid grid-cols-2 gap-2">
+                                <label className="block space-y-1.5">
+                                  <span className="text-[10px] font-black text-purple-950 uppercase tracking-widest">
+                                    Rambahan Aduan:
+                                  </span>
+                                  <input 
+                                    type="number"
+                                    min="1"
+                                    max="10"
+                                    value={localSettings.categoryConfigs?.[cat]?.matchEnds || 5}
+                                    onChange={e => updateCategoryConfig(cat, 'matchEnds', parseInt(e.target.value) || 5)}
+                                    className="w-full rounded-xl border-purple-200 bg-white p-3 border font-black text-xs text-slate-900 focus:border-purple-600 transition-all text-center shadow-sm"
+                                    placeholder="5 Rambahan"
+                                  />
+                                </label>
+                                <label className="block space-y-1.5">
+                                  <span className="text-[10px] font-black text-purple-950 uppercase tracking-widest">
+                                    Panah / Rambahan:
+                                  </span>
+                                  <input 
+                                    type="number"
+                                    min="1"
+                                    max="6"
+                                    value={localSettings.categoryConfigs?.[cat]?.matchArrowsPerEnd || 3}
+                                    onChange={e => updateCategoryConfig(cat, 'matchArrowsPerEnd', parseInt(e.target.value) || 3)}
+                                    className="w-full rounded-xl border-purple-200 bg-white p-3 border font-black text-xs text-slate-900 focus:border-purple-600 transition-all text-center shadow-sm"
+                                    placeholder="3 Panah"
+                                  />
+                                </label>
+                              </div>
                             </div>
                           </div>
                         )}
+                        
+                        <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 flex items-start gap-3">
+                          <div className="p-1 bg-emerald-500 rounded-full mt-0.5 shrink-0">
+                             <Check className="w-3 h-3 text-white" />
+                          </div>
+                          <div className="space-y-1.5">
+                             <p className="text-[10px] font-black text-emerald-900 uppercase tracking-widest">Alur &amp; Regulasi Pertandingan Kategori Ini:</p>
+                             <ol className="text-[9px] font-bold text-emerald-800 space-y-1 list-decimal pl-4 italic">
+                                <li>Babak Kualifikasi ({localSettings.categoryConfigs?.[cat]?.ends || 6} Rambahan x {localSettings.categoryConfigs?.[cat]?.arrows || 6} Panah @ {localSettings.categoryConfigs?.[cat]?.distance || '20m'})</li>
+                                <li>
+                                  {localSettings.categoryConfigs?.[cat]?.tournamentFlowMode === 'DIRECT_SHOOT_OFF' ? (
+                                    <span className="text-amber-800 font-black">Mode Shoot-Off Langsung: Seri di babak gugur/eliminasi langsung Shoot-Off 1 Panah</span>
+                                  ) : (
+                                    <span className="text-purple-800 font-black">Mode Perangkingan Poin: Seri di kualifikasi/penyaringan diselesaikan dengan Countback Poin</span>
+                                  )}
+                                </li>
+                                {localSettings.categoryConfigs?.[cat]?.eliminationStages?.map(stage => (
+                                  <li key={stage}>Penyaringan Skor Top {stage} Besar (Peringkat Poin)</li>
+                                ))}
+                                {localSettings.categoryConfigs?.[cat]?.h2hStartSize ? (
+                                  <>
+                                    <li>Bagan Aduan (Head-to-Head) {localSettings.categoryConfigs?.[cat]?.h2hStartSize} Besar ({localSettings.categoryConfigs?.[cat]?.scoringSystem === 'TOTAL_SCORE' ? 'Akumulasi Total Skor' : 'Set System Target 6 Poin'}, {localSettings.categoryConfigs?.[cat]?.matchEnds || 5} Ends)</li>
+                                    <li className="text-purple-900 font-black">
+                                      Penentu Seri di Babak Aduan: {
+                                        localSettings.categoryConfigs?.[cat]?.tieBreakMethod === 'SHOOT_OFF' 
+                                          ? `Shoot-Off (${localSettings.categoryConfigs?.[cat]?.shootOffArrows || 1} Panah Penentu / Terdekat ke Titik Pusat Target)` 
+                                          : localSettings.categoryConfigs?.[cat]?.tieBreakMethod === 'COUNTBACK' 
+                                            ? 'Countback (Perhitungan Jumlah Angka 6/X terbanyak, lalu 5/10)' 
+                                            : `Fleksibel (Shoot-Off ${localSettings.categoryConfigs?.[cat]?.shootOffArrows || 1} Panah atau Countback 6/5 di Lapangan)`
+                                      }
+                                    </li>
+                                  </>
+                                ) : (
+                                  <li>Penentuan Juara Langsung dari Akumulasi Skor Kualifikasi Akhir</li>
+                                )}
+                             </ol>
+                          </div>
+                        </div>
                       </div>
                     </>
                   )}
@@ -982,186 +1363,6 @@ const AdminPanel: React.FC<Props> = ({
             </div>
           </div>
 
-            </div>
-          )}
-
-          {activeTab === 'PARTICIPANTS' && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-12">
-               <div className="bg-white rounded-[3rem] p-4 md:p-10 border border-slate-100 shadow-sm">
-                  <div className="flex items-center justify-between mb-8">
-                    <h3 className="text-lg md:text-2xl font-black font-oswald uppercase italic flex items-center gap-3">
-                      <TargetIcon className="w-6 h-6 text-arcus-red" /> Daftar Archer
-                    </h3>
-                  </div>
-                    <ArcherList 
-                      archers={archers} 
-                      onBack={() => setActiveTab('GENERAL')} 
-                      onRemove={onRemoveParticipant || (() => {})}
-                      onAdd={onAddParticipant || (() => {})}
-                      onUpdate={(a) => onUpdateParticipant?.(a.id, a)}
-                      onBulkUpdate={onBulkUpdateArchers || (() => {})}
-                      onGoToIdCardEditor={onManageIdCards || (() => {})}
-                      onRefreshData={onRefreshData}
-                      onPushToCloud={onPushToCloud}
-                      isPushing={isPushing}
-                      archersPerTarget={settings.archersPerTarget || 3}
-                      totalTargets={settings.totalTargets || 20}
-                      settings={settings}
-                      eventId={eventId}
-                      globalSettings={globalSettings}
-                    />
-                 </div>
-  
-                 <div className="bg-white rounded-[3rem] p-4 md:p-10 border border-slate-100 shadow-sm">
-                    <div className="flex items-center justify-between mb-8">
-                      <h3 className="text-lg md:text-2xl font-black font-oswald uppercase italic flex items-center gap-3">
-                        <ShieldCheck className="w-6 h-6 text-emerald-500" /> Daftar Official
-                      </h3>
-                    </div>
-                    <OfficialList 
-                      officials={officials} 
-                      onBack={() => setActiveTab('GENERAL')} 
-                      onUpdate={(o) => onUpdateParticipant?.(o.id, o)}
-                      onRemove={onRemoveParticipant || (() => {})}
-                      onGoToIdCardEditor={onManageIdCards}
-                      settings={settings}
-                    />
-               </div>
-            </div>
-          )}
-
-          {activeTab === 'SCORING' && (
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-8">
-              <div className="bg-slate-900 text-white rounded-[2.5rem] p-8 md:p-12 border border-slate-800 shadow-2xl relative overflow-hidden">
-                <div className="absolute right-0 bottom-0 translate-x-1/4 translate-y-1/4 opacity-10 blur-xl">
-                  <TargetIcon className="w-96 h-96" />
-                </div>
-                <div className="relative z-10 max-w-3xl space-y-4">
-                  <span className="bg-arcus-red text-white text-[7px] md:text-[8px] font-black px-2 py-1 rounded uppercase tracking-[0.25em]">
-                    Digital scoring center
-                  </span>
-                  <h3 className="text-2xl md:text-4xl font-black font-oswald uppercase italic leading-none tracking-tight">
-                    Pusat Penilaian &amp; Rekapitulasi Skor
-                  </h3>
-                  <p className="text-slate-600 text-xs md:text-sm font-medium leading-relaxed italic">
-                    Kelola seluruh pencatatan nilai sesi kualifikasi turnamen Anda dari satu tempat. Gunakan metode input cepat grid untuk rekap massal, atau konsol koreksi jika terdapat kesalahan atau komplain atlet.
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {/* Option 1: Quick Grid Scoring */}
-                <div className="bg-white hover:bg-slate-50 border border-slate-100 rounded-[2.5rem] p-8 md:p-10 flex flex-col justify-between shadow-sm transition-all hover:shadow-md hover:-translate-y-1 duration-300">
-                  <div className="space-y-6">
-                    <div className="w-14 h-14 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600">
-                      <TargetIcon className="w-7 h-7" />
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">
-                        1. Quick Scoring Grid
-                      </h4>
-                      <p className="text-slate-800 text-xs font-semibold leading-relaxed">
-                        Input skor super cepat berbasis nomor bantalan kualifikasi. Ideal untuk memasukkan rekap fisik lembar skor secara masif.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="pt-8">
-                    <button
-                      type="button"
-                      onClick={onGoToQuickScoring}
-                      className="w-full py-4 text-center bg-purple-600 hover:bg-purple-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
-                    >
-                      Buka Quick Grid
-                    </button>
-                  </div>
-                </div>
-
-                {/* Option 2: Operator Center & Audit */}
-                <div className="bg-white hover:bg-slate-50 border border-slate-100 rounded-[2.5rem] p-8 md:p-10 flex flex-col justify-between shadow-sm transition-all hover:shadow-md hover:-translate-y-1 duration-300">
-                  <div className="space-y-6">
-                    <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-600">
-                      <FileText className="w-7 h-7" />
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">
-                        2. Operator &amp; Audit Desk
-                      </h4>
-                      <p className="text-slate-800 text-xs font-semibold leading-relaxed">
-                        Koreksi &amp; audit skor manual resmi. Dilengkapi audit logs (mencatat alasan perubahan) sesuai standar regulasi judge panitia.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="pt-8">
-                    <button
-                      type="button"
-                      onClick={onGoToOperatorCenter}
-                      className="w-full py-4 text-center bg-amber-500 hover:bg-amber-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
-                    >
-                      Buka Operator Desk
-                    </button>
-                  </div>
-                </div>
-
-                {/* Option 3: Direct Scorer Terminal */}
-                <div className="bg-white hover:bg-slate-50 border border-slate-100 rounded-[2.5rem] p-8 md:p-10 flex flex-col justify-between shadow-sm transition-all hover:shadow-md hover:-translate-y-1 duration-300">
-                  <div className="space-y-6">
-                    <div className="w-14 h-14 rounded-2xl bg-pink-50 flex items-center justify-center text-pink-600">
-                      <Smartphone className="w-7 h-7" />
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">
-                        3. Field Scorer Panel
-                      </h4>
-                      <p className="text-slate-800 text-xs font-semibold leading-relaxed">
-                        Tampilan persis dengan gadget yang digunakan oleh Tim Scorer di lapangan atau Atlet di bantalan untuk mencatat skor anak panah (arrow-by-arrow).
-                      </p>
-                    </div>
-                  </div>
-                  <div className="pt-8">
-                    <button
-                      type="button"
-                      onClick={onGoToFieldScoring}
-                      className="w-full py-4 text-center bg-pink-600 hover:bg-pink-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
-                    >
-                      Buka Terminal Scorer
-                    </button>
-                  </div>
-                </div>
-
-                {/* Option 4: Tournament Timer & Shooting Clock */}
-                <div className="bg-white hover:bg-slate-50 border border-slate-100 rounded-[2.5rem] p-8 md:p-10 flex flex-col justify-between shadow-sm transition-all hover:shadow-md hover:-translate-y-1 duration-300">
-                  <div className="space-y-6">
-                    <div className="w-14 h-14 rounded-2xl bg-teal-50 flex items-center justify-center text-teal-600">
-                      <Clock className="w-7 h-7" />
-                    </div>
-                    <div className="space-y-2">
-                      <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">
-                        4. Timer &amp; Shooting Clock
-                      </h4>
-                      <p className="text-slate-800 text-xs font-semibold leading-relaxed">
-                        Akses stopwatch terintegrasi &amp; timer official turnamen untuk menghitung durasi tembak atlet (240s / 120s) secara sinkron.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="pt-8 space-y-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowTimerModal(true)}
-                      className="w-full py-3.5 text-center bg-teal-600 hover:bg-teal-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
-                    >
-                      <Monitor className="w-4 h-4" /> Sematkan Di Sini
-                    </button>
-                    <a
-                      href="https://ais-pre-ihwvpfbazwbyenzfsn3unw-238734823836.asia-southeast1.run.app/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block w-full py-3 text-center border-2 border-slate-200 hover:border-slate-400 text-slate-700 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all active:scale-95 flex items-center justify-center gap-1.5"
-                    >
-                      <ExternalLink className="w-4 h-4" /> Buka Tab Baru
-                    </a>
-                  </div>
-                </div>
-              </div>
             </div>
           )}
 
@@ -1706,6 +1907,7 @@ const AdminPanel: React.FC<Props> = ({
             </button>
           </div>
         </form>
+        )}
       </div>
 
       {showDraftConfirm && (

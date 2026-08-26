@@ -176,7 +176,8 @@ export interface Match {
   endsB: number[];
   winnerId?: string;
   status: 'PENDING' | 'LIVE' | 'COMPLETED';
-  // Shoot-Off / Penentuan Skor Seri
+  // Penentuan Skor Seri / Tie-Break (Pilihan: Shoot-Off atau Countback Poin Tertinggi)
+  tieBreakMethod?: 'SHOOT_OFF' | 'COUNTBACK';
   isShootOff?: boolean;
   shootOffA?: number | string; // Nilai panah tembakan shoot-off atlet A (cth: 10, 'X', 9, 8)
   shootOffB?: number | string; // Nilai panah tembakan shoot-off atlet B (cth: 10, 'X', 9, 8)
@@ -185,7 +186,17 @@ export interface Match {
   shootOffDistanceA?: number; // Jarak panah A ke pusat target dalam mm (opsional)
   shootOffDistanceB?: number; // Jarak panah B ke pusat target dalam mm (opsional)
   shootOffNote?: string; // Catatan keputusan wasit / judge
+  // Perolehan Jumlah Poin Tertinggi (Countback Angka 6 & 5 / Poin Kualifikasi)
+  countback6_A?: number; // Jumlah perolehan angka 6 / X atlet A
+  countback6_B?: number; // Jumlah perolehan angka 6 / X atlet B
+  countback5_A?: number; // Jumlah perolehan angka 5 / 10 atlet A
+  countback5_B?: number; // Jumlah perolehan angka 5 / 10 atlet B
+  countbackTotal_A?: number; // Total skor akumulasi / kualifikasi A
+  countbackTotal_B?: number; // Total skor akumulasi / kualifikasi B
+  tieBreakWinnerReason?: string; // Keterangan pemenang tie break (cth: "Menang Shoot-Off (10 vs 9)", "Menang Countback Jumlah Angka 6 (4 vs 2)")
 }
+
+export type TournamentFlowMode = 'RANKING_POINTS_STAGE' | 'DIRECT_SHOOT_OFF';
 
 export interface CategoryConfig {
   registrationFee: number;
@@ -194,9 +205,17 @@ export interface CategoryConfig {
   ends: number;
   targetType: TargetType;
   quota?: number; // Kuota maksimal peserta kategori ini
+  // Mode Alur Pertandingan
+  tournamentFlowMode?: TournamentFlowMode; // Mode Perangkingan Poin (Shoot-Off mulai Aduan) vs Mode Shoot-Off Langsung (Sejak Eliminasi)
   // Konfigurasi aduan/Eliminasi
   h2hStartSize: 2 | 4 | 8 | 16 | 32 | 64 | 0; // 0 berarti tidak ada aduan
   eliminationStages: number[]; // Contoh: [32, 16] berarti ada penyaringan skor top 32 lalu top 16 baru masuk aduan
+  // Pengaturan Penentuan Seri / Shoot-Off & Aduan
+  tieBreakMethod?: 'SHOOT_OFF' | 'COUNTBACK' | 'BOTH'; // Default penentu seri (Shoot-Off, Countback 6&5, atau Fleksibel)
+  shootOffArrows?: number; // Jumlah panah shoot-off (1 panah / 3 panah)
+  scoringSystem?: 'SET_SYSTEM' | 'TOTAL_SCORE'; // Sistem poin set (2-1-0 hingga 6 pts) atau total skor kumulatif
+  matchEnds?: number; // Jumlah rambahan aduan (default 5 untuk set system)
+  matchArrowsPerEnd?: number; // Jumlah panah per rambahan aduan (default 3)
 }
 
 export interface Sponsorship {

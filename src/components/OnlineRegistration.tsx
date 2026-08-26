@@ -25,9 +25,10 @@ interface Props {
   onRegister: (r: ParticipantRegistration[]) => void;
   onBack: () => void;
   onViewParticipants: () => void;
+  onGoToIdCardPortal?: (club?: string) => void;
 }
 
-export default function OnlineRegistration({ event, globalSettings, onRegister, onBack, onViewParticipants }: Props) {
+export default function OnlineRegistration({ event, globalSettings, onRegister, onBack, onViewParticipants, onGoToIdCardPortal }: Props) {
   const [regMode, setRegMode] = useState<'INDIVIDUAL' | 'COLLECTIVE'>('INDIVIDUAL');
   const [step, setStep] = useState(1);
   const [recentRegistrations, setRecentRegistrations] = useState<ParticipantRegistration[]>([]);
@@ -707,6 +708,14 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                 >
                   <Users className="w-4 h-4" /> CEK DAFTAR PESERTA
                 </button>
+                {onGoToIdCardPortal && (
+                  <button 
+                    onClick={() => onGoToIdCardPortal(formData.club || undefined)} 
+                    className="w-full py-4 bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-2xl font-black uppercase text-xs hover:bg-arcus-red transition-all flex items-center justify-center gap-3 shadow-lg shadow-indigo-950/20 border border-slate-700"
+                  >
+                    <QrCode className="w-4 h-4 text-amber-400" /> CETAK KARTU PESERTA (E-ID)
+                  </button>
+                )}
                 <button 
                   onClick={() => setShowInvoice(true)} 
                   className="w-full py-4 bg-amber-500 text-white rounded-2xl font-black uppercase text-xs hover:bg-amber-600 transition-all flex items-center justify-center gap-3 shadow-lg shadow-amber-500/20"

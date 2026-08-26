@@ -83,6 +83,7 @@ import EventInfo from './components/EventInfo';
 import ScorerLogin from './components/ScorerLogin';
 import EntryList from './components/EntryList';
 import IdCardEditor from './components/IdCardEditor';
+import SelfServiceIdCardPortal from './components/SelfServiceIdCardPortal';
 
 import { auth, db } from './firebase';
 const googleProvider = new GoogleAuthProvider();
@@ -92,6 +93,8 @@ export default function App() {
   // @ts-ignore
   const dummy: 'ACTIVATE_TOURNAMENT' | 'MEMBER_DASHBOARD' = 'ACTIVATE_TOURNAMENT';
   const [isSplashVisible, setIsSplashVisible] = useState(true);
+  const [selfServiceClub, setSelfServiceClub] = useState<string>('');
+  const [selfServiceSearch, setSelfServiceSearch] = useState<string>('');
   const [appState, setAppState] = useState<AppState>({
     events: [],
     users: [],
@@ -1707,6 +1710,12 @@ export default function App() {
             setAppState(prev => ({ ...prev, activeEventId: id }));
             setView('REGISTER_PARTICIPANT');
           }}
+          onPrintIdCards={(id, club) => {
+            setAppState(prev => ({ ...prev, activeEventId: id }));
+            setSelfServiceClub(club || '');
+            setSelfServiceSearch('');
+            setView('SELF_SERVICE_ID_CARD');
+          }}
           onLogin={() => setView('LOGIN_PANEL')}
           onScorerLogin={() => setView('SCORER_LOGIN')}
           onCreateEvent={() => {
@@ -1820,6 +1829,11 @@ export default function App() {
           }}
           onBack={() => setView('LANDING')}
           onViewParticipants={() => setView('ENTRY_LIST')}
+          onGoToIdCardPortal={(club) => {
+            setSelfServiceClub(club || '');
+            setSelfServiceSearch('');
+            setView('SELF_SERVICE_ID_CARD');
+          }}
         />;
 
       case 'SCORER_LOGIN':
@@ -2169,6 +2183,11 @@ export default function App() {
           }}
           onViewParticipants={() => setView('ENTRY_LIST')}
           onViewLiveScoreboard={() => setView('LIVE_SCOREBOARD')}
+          onPrintIdCards={() => {
+            setSelfServiceClub('');
+            setSelfServiceSearch('');
+            setView('SELF_SERVICE_ID_CARD');
+          }}
         />;
 
       case 'LIVE_SCOREBOARD':
@@ -2190,7 +2209,24 @@ export default function App() {
           event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           onBack={() => setView('PUBLIC_EVENT_INFO')}
           onRefresh={() => refreshActiveEventDetails(true)}
+          onPrintIdCards={(club) => {
+            setSelfServiceClub(club || '');
+            setSelfServiceSearch('');
+            setView('SELF_SERVICE_ID_CARD');
+          }}
           isSyncing={isSyncing}
+        />;
+
+      case 'SELF_SERVICE_ID_CARD':
+        if (!activeEvent) {
+          setView('LANDING');
+          return null;
+        }
+        return <SelfServiceIdCardPortal 
+          event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
+          initialClub={selfServiceClub}
+          initialSearch={selfServiceSearch}
+          onBack={() => setView('PUBLIC_EVENT_INFO')}
         />;
 
       default:
@@ -2212,6 +2248,12 @@ export default function App() {
           onRegister={(id) => {
             setAppState(prev => ({ ...prev, activeEventId: id }));
             setView('REGISTER_PARTICIPANT');
+          }}
+          onPrintIdCards={(id, club) => {
+            setAppState(prev => ({ ...prev, activeEventId: id }));
+            setSelfServiceClub(club || '');
+            setSelfServiceSearch('');
+            setView('SELF_SERVICE_ID_CARD');
           }}
           onLogin={() => setView('LOGIN_PANEL')}
           onScorerLogin={() => setView('SCORER_LOGIN')}

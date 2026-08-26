@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { ArcheryEvent, CategoryType, Match, Archer, TargetType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
-import { Trophy, GitBranch, User, Save, RefreshCw, ChevronRight, Swords, ArrowLeft, Trash2, Settings2, Zap, Medal, Plus, Minus, Check, FileText, X, AlertTriangle, Bell, Volume2, Target } from 'lucide-react';
+import { Trophy, GitBranch, User, Save, RefreshCw, ChevronRight, Swords, ArrowLeft, Trash2, Settings2, Zap, Medal, Plus, Minus, Check, FileText, X, AlertTriangle, Bell, Volume2, Target, BarChart3, ListOrdered, Award, Scale } from 'lucide-react';
 import { playShootOffAlarm, playVictorySound } from '../lib/soundAlarm';
 
 interface Props {
@@ -18,6 +18,19 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
   const [showSavedFlag, setShowSavedFlag] = useState(false);
   const [flagMessage, setFlagMessage] = useState('');
   const [activeShootOffMatchId, setActiveShootOffMatchId] = useState<string | null>(null);
+  const [tieBreakTab, setTieBreakTab] = useState<Record<string, 'SHOOT_OFF' | 'COUNTBACK'>>({});
+  const config = (event.settings.categoryConfigs || {})[activeCategory as CategoryType];
+  const defaultTieBreak = config?.tieBreakMethod === 'COUNTBACK' ? 'COUNTBACK' : 'SHOOT_OFF';
+  const [modalTieBreakTab, setModalTieBreakTab] = useState<'SHOOT_OFF' | 'COUNTBACK'>('SHOOT_OFF');
+
+  // Update default tab when activeCategory / config changes
+  useEffect(() => {
+    if (config?.tieBreakMethod === 'COUNTBACK') {
+      setModalTieBreakTab('COUNTBACK');
+    } else {
+      setModalTieBreakTab('SHOOT_OFF');
+    }
+  }, [config?.tieBreakMethod, activeCategory]);
 
   // Persist active category
   useEffect(() => {
@@ -37,8 +50,6 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
   const archersInCategory = useMemo(() => {
     return event.archers.filter(a => a.category === activeCategory);
   }, [event.archers, activeCategory]);
-
-  const config = (event.settings.categoryConfigs || {})[activeCategory as CategoryType];
 
   const rankedArchers = useMemo(() => {
     let baseSession = 'QUAL';
@@ -232,6 +243,15 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
     }
   };
 
+  const getArcherStats = (id: string | undefined) => {
+    const found = rankedArchers.find(a => a.id === id);
+    return {
+      sixes: found?.sixes || 0,
+      fives: found?.fives || 0,
+      total: found?.total || 0,
+    };
+  };
+
   const handleApplyShootOffWinner = (match: Match) => {
     if (!match.archerAId || !match.archerBId) return;
     
@@ -239,20 +259,27 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
     const valB = match.shootOffB !== undefined ? (match.shootOffB === 'X' ? 11 : Number(match.shootOffB)) : -1;
     
     let winnerId: string | undefined = undefined;
+    let reason = '';
 
     if (valA > valB) {
       winnerId = match.archerAId;
+      reason = `Menang Shoot-Off (${match.shootOffA} vs ${match.shootOffB})`;
     } else if (valB > valA) {
       winnerId = match.archerBId;
+      reason = `Menang Shoot-Off (${match.shootOffB} vs ${match.shootOffA})`;
     } else if (match.shootOffClosestA && !match.shootOffClosestB) {
       winnerId = match.archerAId;
+      reason = `Menang Shoot-Off: Panah Terdekat ke Pusat (Closest to Center / X)`;
     } else if (match.shootOffClosestB && !match.shootOffClosestA) {
       winnerId = match.archerBId;
+      reason = `Menang Shoot-Off: Panah Terdekat ke Pusat (Closest to Center / X)`;
     } else if (match.shootOffDistanceA !== undefined && match.shootOffDistanceB !== undefined) {
       if (match.shootOffDistanceA < match.shootOffDistanceB) {
         winnerId = match.archerAId;
+        reason = `Menang Shoot-Off: Jarak ke Pusat Lebih Dekat (${match.shootOffDistanceA}mm vs ${match.shootOffDistanceB}mm)`;
       } else if (match.shootOffDistanceB < match.shootOffDistanceA) {
         winnerId = match.archerBId;
+        reason = `Menang Shoot-Off: Jarak ke Pusat Lebih Dekat (${match.shootOffDistanceB}mm vs ${match.shootOffDistanceA}mm)`;
       }
     }
 
@@ -263,10 +290,70 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
 
     updateMatch(match.id, { 
       winnerId, 
+      tieBreakMethod: 'SHOOT_OFF',
       isShootOff: true, 
+      tieBreakWinnerReason: reason,
       status: 'COMPLETED' 
     });
-    triggerFlag(`Shoot-Off Selesai! Pemenang: ${getArcherName(winnerId)}`);
+    triggerFlag(`Shoot-Off Selesai! ${reason} -> Pemenang: ${getArcherName(winnerId)}`);
+  };
+
+  const handleApplyCountbackWinner = (match: Match) => {
+    if (!match.archerAId || !match.archerBId) return;
+
+    const statsA = getArcherStats(match.archerAId);
+    const statsB = getArcherStats(match.archerBId);
+
+    const sixA = match.countback6_A !== undefined ? match.countback6_A : statsA.sixes;
+    const sixB = match.countback6_B !== undefined ? match.countback6_B : statsB.sixes;
+
+    const fiveA = match.countback5_A !== undefined ? match.countback5_A : statsA.fives;
+    const fiveB = match.countback5_B !== undefined ? match.countback5_B : statsB.fives;
+
+    const totA = match.countbackTotal_A !== undefined ? match.countbackTotal_A : statsA.total;
+    const totB = match.countbackTotal_B !== undefined ? match.countbackTotal_B : statsB.total;
+
+    let winnerId: string | undefined = undefined;
+    let reason = '';
+
+    if (sixA > sixB) {
+      winnerId = match.archerAId;
+      reason = `Menang Jumlah Angka 6 Terbanyak (${sixA} vs ${sixB})`;
+    } else if (sixB > sixA) {
+      winnerId = match.archerBId;
+      reason = `Menang Jumlah Angka 6 Terbanyak (${sixB} vs ${sixA})`;
+    } else if (fiveA > fiveB) {
+      winnerId = match.archerAId;
+      reason = `Menang Jumlah Angka 5 Terbanyak (${fiveA} vs ${fiveB})`;
+    } else if (fiveB > fiveA) {
+      winnerId = match.archerBId;
+      reason = `Menang Jumlah Angka 5 Terbanyak (${fiveB} vs ${fiveA})`;
+    } else if (totA > totB) {
+      winnerId = match.archerAId;
+      reason = `Menang Total Poin Kualifikasi (${totA} vs ${totB})`;
+    } else if (totB > totA) {
+      winnerId = match.archerBId;
+      reason = `Menang Total Poin Kualifikasi (${totB} vs ${totA})`;
+    }
+
+    if (!winnerId) {
+      triggerFlag("Perolehan angka 6 & 5 sama! Tentukan pemenang manual atau lakukan 1 panah Shoot-Off.");
+      return;
+    }
+
+    updateMatch(match.id, {
+      winnerId,
+      tieBreakMethod: 'COUNTBACK',
+      countback6_A: sixA,
+      countback6_B: sixB,
+      countback5_A: fiveA,
+      countback5_B: fiveB,
+      countbackTotal_A: totA,
+      countbackTotal_B: totB,
+      tieBreakWinnerReason: reason,
+      status: 'COMPLETED'
+    });
+    triggerFlag(`Countback Selesai! ${reason} -> Pemenang: ${getArcherName(winnerId)}`);
   };
 
   const autoSelectWinner = (match: Match) => {
@@ -275,7 +362,7 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
       playShootOffAlarm();
       updateMatch(match.id, { isShootOff: true });
       setActiveShootOffMatchId(match.id);
-      triggerFlag("Skor Seri! Wajib Melakukan Shoot-off");
+      triggerFlag("Skor Seri! Silakan Pilih Metode: Shoot-Off atau Jumlah Poin (Countback 6/5)");
       return;
     }
     const winnerId = match.scoreA > match.scoreB ? match.archerAId : match.archerBId;
@@ -369,14 +456,27 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-black font-oswald uppercase italic leading-none">Manajemen Bagan Eliminasi & Shoot-Off</h2>
+              <h2 className="text-xl font-black font-oswald uppercase italic leading-none">Manajemen Bagan Eliminasi &amp; Shoot-Off</h2>
               {tiedMatches.length > 0 && (
                 <span className="px-2.5 py-1 bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-wider rounded-lg border border-amber-300">
                   {tiedMatches.length} Shoot-Off
                 </span>
               )}
+              {config?.tournamentFlowMode === 'DIRECT_SHOOT_OFF' ? (
+                <span className="px-2.5 py-1 bg-amber-500 text-slate-950 text-[9px] font-black uppercase tracking-wider rounded-lg shadow-sm">
+                  Mode: Shoot-Off Sejak Eliminasi
+                </span>
+              ) : (
+                <span className="px-2.5 py-1 bg-purple-100 text-purple-800 text-[9px] font-black uppercase tracking-wider rounded-lg border border-purple-200">
+                  Mode: Perangkingan Poin (Shoot-Off di Aduan)
+                </span>
+              )}
             </div>
-            <p className="text-[10px] font-black text-purple-600 uppercase tracking-widest mt-1">Sistem Eliminasi (64 / 32 / 16 / 8 Besar) & Aduan Final</p>
+            <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mt-1">
+              {config?.tournamentFlowMode === 'DIRECT_SHOOT_OFF' 
+                ? 'Sistem Gugur Langsung: Seri di babak eliminasi diselesaikan dengan 1 Panah Shoot-Off'
+                : 'Sistem Peringkat Poin: Seri di kualifikasi dihitung Countback; Shoot-Off aktif di babak aduan'}
+            </p>
           </div>
         </div>
         
@@ -491,7 +591,17 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                   {round.matches.map((match) => {
                     const isTied = match.archerAId && match.archerBId && match.scoreA === match.scoreB && (match.scoreA > 0 || match.scoreB > 0);
                     const isShootOffActive = isTied || match.isShootOff;
-                    const hasShootOffRecord = match.isShootOff || match.shootOffA !== undefined || match.shootOffB !== undefined;
+                    const hasShootOffRecord = match.tieBreakMethod === 'SHOOT_OFF' || match.isShootOff || match.shootOffA !== undefined || match.shootOffB !== undefined;
+                    const hasCountbackRecord = match.tieBreakMethod === 'COUNTBACK' || (match.tieBreakWinnerReason && match.tieBreakWinnerReason.includes('Jumlah Angka'));
+                    const currentTab = tieBreakTab[match.id] || (hasCountbackRecord ? 'COUNTBACK' : hasShootOffRecord ? 'SHOOT_OFF' : defaultTieBreak);
+                    const statsA = getArcherStats(match.archerAId);
+                    const statsB = getArcherStats(match.archerBId);
+                    const sixA = match.countback6_A !== undefined ? match.countback6_A : statsA.sixes;
+                    const sixB = match.countback6_B !== undefined ? match.countback6_B : statsB.sixes;
+                    const fiveA = match.countback5_A !== undefined ? match.countback5_A : statsA.fives;
+                    const fiveB = match.countback5_B !== undefined ? match.countback5_B : statsB.fives;
+                    const totA = match.countbackTotal_A !== undefined ? match.countbackTotal_A : statsA.total;
+                    const totB = match.countbackTotal_B !== undefined ? match.countbackTotal_B : statsB.total;
 
                     return (
                       <div key={match.id} className="relative group">
@@ -506,17 +616,23 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                           <div className={`px-6 py-2.5 flex items-center justify-between border-b text-[10px] font-black uppercase tracking-wider ${
                             isTied && !match.winnerId 
                               ? 'bg-amber-500 text-slate-950 font-black' 
-                              : hasShootOffRecord 
-                                ? 'bg-purple-900 text-white' 
-                                : 'bg-slate-50 text-slate-700'
+                              : hasCountbackRecord
+                                ? 'bg-emerald-900 text-white'
+                                : hasShootOffRecord 
+                                  ? 'bg-purple-900 text-white' 
+                                  : 'bg-slate-50 text-slate-700'
                           }`}>
                             <div className="flex items-center gap-2">
                               <span>Match #{match.matchNo}</span>
-                              {hasShootOffRecord && (
+                              {hasCountbackRecord ? (
+                                <span className="px-2 py-0.5 bg-emerald-400 text-slate-950 rounded text-[8px] font-black uppercase">
+                                  COUNTBACK (6/5)
+                                </span>
+                              ) : hasShootOffRecord ? (
                                 <span className="px-2 py-0.5 bg-yellow-400 text-slate-950 rounded text-[8px] font-black uppercase">
                                   SHOOT-OFF
                                 </span>
-                              )}
+                              ) : null}
                             </div>
                             {isTied && !match.winnerId ? (
                               <button 
@@ -526,7 +642,7 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                                 <Volume2 className="w-3 h-3" /> Alarm
                               </button>
                             ) : match.winnerId ? (
-                              <span className="text-emerald-500 flex items-center gap-1">
+                              <span className="text-emerald-400 flex items-center gap-1">
                                 <Check className="w-3.5 h-3.5" /> SELESAI
                               </span>
                             ) : (
@@ -536,33 +652,59 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
 
                           {/* Tied Alert Notification Banner */}
                           {isTied && !match.winnerId && (
-                            <div className="bg-amber-50 border-b border-amber-200 px-6 py-2 flex items-center justify-between">
+                            <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
                               <div className="flex items-center gap-2 text-amber-900 text-[10px] font-black">
                                 <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                                <span>SKOR SERI ({match.scoreA} - {match.scoreB})! Wajib Shoot-Off</span>
+                                <span>SKOR SERI ({match.scoreA} - {match.scoreB})! Pilih Shoot-Off atau Countback (6/5)</span>
                               </div>
                               <button
                                 onClick={() => setActiveShootOffMatchId(activeShootOffMatchId === match.id ? null : match.id)}
-                                className="text-[9px] font-black uppercase px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow-sm transition-all"
+                                className="text-[9px] font-black uppercase px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow-sm transition-all shrink-0"
                               >
-                                {activeShootOffMatchId === match.id ? 'Tutup Panel S.O' : 'Input Shoot-Off'}
+                                {activeShootOffMatchId === match.id ? 'Tutup Panel Tie-Break' : 'Pilih Metode Penentu'}
                               </button>
                             </div>
                           )}
 
-                          {/* Historical Display: Data Sebelum vs Sesudah Shoot-Off */}
-                          {hasShootOffRecord && (
-                            <div className="bg-purple-50/70 border-b border-purple-100 px-6 py-2.5 flex items-center justify-between text-[9px] font-black uppercase">
-                              <div className="flex items-center gap-2 text-purple-900">
-                                <span className="text-purple-500 font-bold">Skor Regulasi (Sebelum):</span>
-                                <span className="px-2 py-0.5 bg-white rounded border text-purple-700">{match.scoreA} - {match.scoreB}</span>
+                          {/* Historical Display: Data Sebelum vs Sesudah Tie-Break */}
+                          {hasCountbackRecord && match.winnerId && (
+                            <div className="bg-emerald-50/80 border-b border-emerald-200 px-6 py-2.5 flex flex-col gap-1 text-[9px] font-black uppercase">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-emerald-900">
+                                  <span className="text-emerald-600 font-bold">Skor Regulasi:</span>
+                                  <span className="px-2 py-0.5 bg-white rounded border border-emerald-200 text-emerald-800">{match.scoreA} - {match.scoreB}</span>
+                                </div>
+                                <div className="text-emerald-800 bg-emerald-200/90 px-2 py-0.5 rounded font-black">
+                                  CB: 6s({sixA} vs {sixB}) | 5s({fiveA} vs {fiveB})
+                                </div>
                               </div>
-                              <div className="flex items-center gap-2 text-purple-900">
-                                <span className="text-amber-600 font-bold">Hasil Shoot-Off:</span>
-                                <span className="px-2 py-0.5 bg-amber-500 text-slate-950 rounded font-black">
-                                  {match.shootOffA !== undefined ? match.shootOffA : '-'}{match.shootOffClosestA ? ' (X)' : ''} vs {match.shootOffB !== undefined ? match.shootOffB : '-'}{match.shootOffClosestB ? ' (X)' : ''}
-                                </span>
+                              {match.tieBreakWinnerReason && (
+                                <p className="text-[8px] text-emerald-700 font-bold normal-case italic">
+                                  {match.tieBreakWinnerReason}
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          {hasShootOffRecord && !hasCountbackRecord && (
+                            <div className="bg-purple-50/70 border-b border-purple-100 px-6 py-2.5 flex flex-col gap-1 text-[9px] font-black uppercase">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-purple-900">
+                                  <span className="text-purple-500 font-bold">Skor Regulasi:</span>
+                                  <span className="px-2 py-0.5 bg-white rounded border text-purple-700">{match.scoreA} - {match.scoreB}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-purple-900">
+                                  <span className="text-amber-600 font-bold">Hasil Shoot-Off:</span>
+                                  <span className="px-2 py-0.5 bg-amber-500 text-slate-950 rounded font-black">
+                                    {match.shootOffA !== undefined ? match.shootOffA : '-'}{match.shootOffClosestA ? ' (X)' : ''} vs {match.shootOffB !== undefined ? match.shootOffB : '-'}{match.shootOffClosestB ? ' (X)' : ''}
+                                  </span>
+                                </div>
                               </div>
+                              {match.tieBreakWinnerReason && (
+                                <p className="text-[8px] text-purple-700 font-bold normal-case italic">
+                                  {match.tieBreakWinnerReason}
+                                </p>
+                              )}
                             </div>
                           )}
 
@@ -592,7 +734,7 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                                      : 'bg-white border-slate-100 text-slate-900'
                                }`}>
                                  {match.scoreA}
-                               </div>
+                                </div>
                                <button onClick={() => updateMatch(match.id, { scoreA: match.scoreA + 1 })} className="w-8 h-8 rounded-lg bg-purple-50 border-purple-100 border flex items-center justify-center hover:bg-purple-100 active:scale-90 transition-all text-purple-600"><Plus className="w-4 h-4" /></button>
                             </div>
                           </div>
@@ -623,106 +765,229 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                                      : 'bg-white border-slate-100 text-slate-900'
                                }`}>
                                  {match.scoreB}
-                               </div>
+                                </div>
                                <button onClick={() => updateMatch(match.id, { scoreB: match.scoreB + 1 })} className="w-8 h-8 rounded-lg bg-purple-50 border-purple-100 border flex items-center justify-center hover:bg-purple-100 active:scale-90 transition-all text-purple-600"><Plus className="w-4 h-4" /></button>
                             </div>
                           </div>
 
-                          {/* Shoot-Off Direct Scoring Input Box (Expands when tied or opened) */}
-                          {(isTied || activeShootOffMatchId === match.id || hasShootOffRecord) && (
+                          {/* DUAL TIE-BREAK RESOLUTION PANEL: OPSI 1 (Shoot-Off) vs OPSI 2 (Countback 6/5) */}
+                          {(isTied || activeShootOffMatchId === match.id || hasShootOffRecord || hasCountbackRecord) && (
                             <div className="bg-amber-50/70 p-5 border-t border-amber-200 space-y-4">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2 text-amber-950 font-black text-xs font-oswald uppercase italic">
-                                  <Target className="w-4 h-4 text-amber-600" />
-                                  Input Skor 1 Panah Shoot-Off
-                                </div>
-                                <span className="text-[8px] font-bold text-amber-800 bg-amber-200/70 px-2 py-0.5 rounded uppercase">
-                                  World Archery Rule
-                                </span>
-                              </div>
-
-                              <div className="grid grid-cols-2 gap-3">
-                                {/* Archer A Shoot Off */}
-                                <div className="bg-white p-3 rounded-2xl border border-amber-200 space-y-2">
-                                  <p className="text-[9px] font-black text-slate-600 uppercase truncate">
-                                    Panah A ({getArcherName(match.archerAId)})
-                                  </p>
-                                  <div className="flex items-center gap-1.5">
-                                    {['X', 10, 9, 8, 7, 0].map(val => (
-                                      <button
-                                        key={val}
-                                        onClick={() => updateMatch(match.id, { shootOffA: val })}
-                                        className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all ${
-                                          match.shootOffA === val 
-                                            ? 'bg-amber-500 text-slate-950 shadow-md font-black scale-105' 
-                                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                                        }`}
-                                      >
-                                        {val}
-                                      </button>
-                                    ))}
-                                  </div>
-                                  <button
-                                    onClick={() => updateMatch(match.id, { shootOffClosestA: !match.shootOffClosestA, shootOffClosestB: false })}
-                                    className={`w-full py-1 rounded-lg text-[8px] font-black uppercase tracking-wider border transition-all ${
-                                      match.shootOffClosestA 
-                                        ? 'bg-amber-500 text-slate-950 border-amber-600 font-black' 
-                                        : 'bg-slate-50 text-slate-800 border-slate-200'
-                                    }`}
-                                  >
-                                    {match.shootOffClosestA ? '★ Panah Terdekat ke Tengah' : 'Tandai Terdekat ke Titik Tengah'}
-                                  </button>
-                                </div>
-
-                                {/* Archer B Shoot Off */}
-                                <div className="bg-white p-3 rounded-2xl border border-amber-200 space-y-2">
-                                  <p className="text-[9px] font-black text-slate-600 uppercase truncate">
-                                    Panah B ({getArcherName(match.archerBId)})
-                                  </p>
-                                  <div className="flex items-center gap-1.5">
-                                    {['X', 10, 9, 8, 7, 0].map(val => (
-                                      <button
-                                        key={val}
-                                        onClick={() => updateMatch(match.id, { shootOffB: val })}
-                                        className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all ${
-                                          match.shootOffB === val 
-                                            ? 'bg-amber-500 text-slate-950 shadow-md font-black scale-105' 
-                                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                                        }`}
-                                      >
-                                        {val}
-                                      </button>
-                                    ))}
-                                  </div>
-                                  <button
-                                    onClick={() => updateMatch(match.id, { shootOffClosestB: !match.shootOffClosestB, shootOffClosestA: false })}
-                                    className={`w-full py-1 rounded-lg text-[8px] font-black uppercase tracking-wider border transition-all ${
-                                      match.shootOffClosestB 
-                                        ? 'bg-amber-500 text-slate-950 border-amber-600 font-black' 
-                                        : 'bg-slate-50 text-slate-800 border-slate-200'
-                                    }`}
-                                  >
-                                    {match.shootOffClosestB ? '★ Panah Terdekat ke Tengah' : 'Tandai Terdekat ke Titik Tengah'}
-                                  </button>
-                                </div>
-                              </div>
-
-                              <div className="flex gap-2">
+                              {/* Option Tab Switcher */}
+                              <div className="flex bg-slate-200/80 p-1 rounded-2xl gap-1">
                                 <button
-                                  onClick={() => handleApplyShootOffWinner(match)}
-                                  className="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-slate-950 font-black text-[9px] uppercase tracking-widest rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                                  onClick={() => setTieBreakTab(prev => ({ ...prev, [match.id]: 'SHOOT_OFF' }))}
+                                  className={`flex-1 py-2 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+                                    currentTab === 'SHOOT_OFF'
+                                      ? 'bg-amber-500 text-slate-950 font-black shadow-md'
+                                      : 'bg-transparent text-slate-700 hover:text-slate-950'
+                                  }`}
                                 >
-                                  <Check className="w-3.5 h-3.5" /> Tetapkan Pemenang Shoot-Off
+                                  <Target className="w-3.5 h-3.5" /> Opsi 1: Shoot-Off (1 Panah)
                                 </button>
-                                {hasShootOffRecord && (
-                                  <button
-                                    onClick={() => updateMatch(match.id, { isShootOff: false, shootOffA: undefined, shootOffB: undefined, shootOffClosestA: false, shootOffClosestB: false })}
-                                    className="px-3 py-2.5 bg-white border border-slate-200 text-slate-800 hover:text-red-600 rounded-xl text-[9px] font-black uppercase transition-all"
-                                  >
-                                    Hapus S.O
-                                  </button>
-                                )}
+                                <button
+                                  onClick={() => setTieBreakTab(prev => ({ ...prev, [match.id]: 'COUNTBACK' }))}
+                                  className={`flex-1 py-2 px-3 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+                                    currentTab === 'COUNTBACK'
+                                      ? 'bg-emerald-600 text-white font-black shadow-md'
+                                      : 'bg-transparent text-slate-700 hover:text-slate-950'
+                                  }`}
+                                >
+                                  <BarChart3 className="w-3.5 h-3.5" /> Opsi 2: Jumlah Poin (6 &amp; 5)
+                                </button>
                               </div>
+
+                              {/* TAB 1: SHOOT-OFF (1 ARROW) */}
+                              {currentTab === 'SHOOT_OFF' ? (
+                                <div className="space-y-4 animate-in fade-in duration-200">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 text-amber-950 font-black text-xs font-oswald uppercase italic">
+                                      <Target className="w-4 h-4 text-amber-600" />
+                                      Input Skor 1 Panah Shoot-Off
+                                    </div>
+                                    <span className="text-[8px] font-bold text-amber-800 bg-amber-200/70 px-2 py-0.5 rounded uppercase">
+                                      World Archery Rule
+                                    </span>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-3">
+                                    {/* Archer A Shoot Off */}
+                                    <div className="bg-white p-3 rounded-2xl border border-amber-200 space-y-2">
+                                      <p className="text-[9px] font-black text-slate-600 uppercase truncate">
+                                        Panah A ({getArcherName(match.archerAId)})
+                                      </p>
+                                      <div className="flex items-center gap-1.5">
+                                        {['X', 10, 9, 8, 7, 0].map(val => (
+                                          <button
+                                            key={val}
+                                            onClick={() => updateMatch(match.id, { shootOffA: val })}
+                                            className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all ${
+                                              match.shootOffA === val 
+                                                ? 'bg-amber-500 text-slate-950 shadow-md font-black scale-105' 
+                                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                            }`}
+                                          >
+                                            {val}
+                                          </button>
+                                        ))}
+                                      </div>
+                                      <button
+                                        onClick={() => updateMatch(match.id, { shootOffClosestA: !match.shootOffClosestA, shootOffClosestB: false })}
+                                        className={`w-full py-1 rounded-lg text-[8px] font-black uppercase tracking-wider border transition-all ${
+                                          match.shootOffClosestA 
+                                            ? 'bg-amber-500 text-slate-950 border-amber-600 font-black' 
+                                            : 'bg-slate-50 text-slate-800 border-slate-200'
+                                        }`}
+                                      >
+                                        {match.shootOffClosestA ? '★ Panah Terdekat ke Tengah' : 'Tandai Terdekat ke Titik Tengah'}
+                                      </button>
+                                    </div>
+
+                                    {/* Archer B Shoot Off */}
+                                    <div className="bg-white p-3 rounded-2xl border border-amber-200 space-y-2">
+                                      <p className="text-[9px] font-black text-slate-600 uppercase truncate">
+                                        Panah B ({getArcherName(match.archerBId)})
+                                      </p>
+                                      <div className="flex items-center gap-1.5">
+                                        {['X', 10, 9, 8, 7, 0].map(val => (
+                                          <button
+                                            key={val}
+                                            onClick={() => updateMatch(match.id, { shootOffB: val })}
+                                            className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all ${
+                                              match.shootOffB === val 
+                                                ? 'bg-amber-500 text-slate-950 shadow-md font-black scale-105' 
+                                                : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                            }`}
+                                          >
+                                            {val}
+                                          </button>
+                                        ))}
+                                      </div>
+                                      <button
+                                        onClick={() => updateMatch(match.id, { shootOffClosestB: !match.shootOffClosestB, shootOffClosestA: false })}
+                                        className={`w-full py-1 rounded-lg text-[8px] font-black uppercase tracking-wider border transition-all ${
+                                          match.shootOffClosestB 
+                                            ? 'bg-amber-500 text-slate-950 border-amber-600 font-black' 
+                                            : 'bg-slate-50 text-slate-800 border-slate-200'
+                                        }`}
+                                      >
+                                        {match.shootOffClosestB ? '★ Panah Terdekat ke Tengah' : 'Tandai Terdekat ke Titik Tengah'}
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => handleApplyShootOffWinner(match)}
+                                      className="flex-1 py-2.5 bg-gradient-to-r from-amber-500 to-orange-600 text-slate-950 font-black text-[9px] uppercase tracking-widest rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                                    >
+                                      <Check className="w-3.5 h-3.5" /> Tetapkan Pemenang Shoot-Off
+                                    </button>
+                                    {(hasShootOffRecord || hasCountbackRecord) && (
+                                      <button
+                                        onClick={() => updateMatch(match.id, { isShootOff: false, shootOffA: undefined, shootOffB: undefined, shootOffClosestA: false, shootOffClosestB: false, tieBreakMethod: undefined, tieBreakWinnerReason: undefined })}
+                                        className="px-3 py-2.5 bg-white border border-slate-200 text-slate-800 hover:text-red-600 rounded-xl text-[9px] font-black uppercase transition-all"
+                                      >
+                                        Hapus S.O
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
+                                /* TAB 2: COUNTBACK (JUMLAH POINT TERTINGGI 6 & 5) */
+                                <div className="space-y-4 animate-in fade-in duration-200">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 text-emerald-950 font-black text-xs font-oswald uppercase italic">
+                                      <BarChart3 className="w-4 h-4 text-emerald-600" />
+                                      Perolehan Jumlah Poin Tertinggi (Countback)
+                                    </div>
+                                    <span className="text-[8px] font-bold text-emerald-800 bg-emerald-200/80 px-2 py-0.5 rounded uppercase">
+                                      Prioritas: Angka 6 ➔ Angka 5 ➔ Total Poin
+                                    </span>
+                                  </div>
+
+                                  <div className="bg-white rounded-2xl border border-emerald-200 p-4 space-y-3">
+                                    {/* Perbandingan Angka 6 */}
+                                    <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl">
+                                      <div className="text-left w-1/3 min-w-0">
+                                        <p className="text-[8px] font-black uppercase text-slate-500 truncate">{getArcherName(match.archerAId)}</p>
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                          <button onClick={() => updateMatch(match.id, { countback6_A: Math.max(0, sixA - 1) })} className="w-5 h-5 rounded bg-slate-200 text-[10px] font-bold">-</button>
+                                          <span className="font-black text-base font-oswald text-purple-700">{sixA}</span>
+                                          <button onClick={() => updateMatch(match.id, { countback6_A: sixA + 1 })} className="w-5 h-5 rounded bg-purple-100 text-purple-700 text-[10px] font-bold">+</button>
+                                        </div>
+                                      </div>
+                                      <div className="text-center px-2">
+                                        <span className="px-2.5 py-1 bg-amber-100 text-amber-900 rounded-full font-black text-[9px] uppercase tracking-wider block">
+                                          Jumlah Angka 6 (X)
+                                        </span>
+                                        <span className="text-[8px] text-slate-700 font-bold block mt-0.5">
+                                          {sixA > sixB ? 'A Lebih Banyak' : sixB > sixA ? 'B Lebih Banyak' : 'Sama (Imbang)'}
+                                        </span>
+                                      </div>
+                                      <div className="text-right w-1/3 min-w-0">
+                                        <p className="text-[8px] font-black uppercase text-slate-500 truncate">{getArcherName(match.archerBId)}</p>
+                                        <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                                          <button onClick={() => updateMatch(match.id, { countback6_B: Math.max(0, sixB - 1) })} className="w-5 h-5 rounded bg-slate-200 text-[10px] font-bold">-</button>
+                                          <span className="font-black text-base font-oswald text-slate-900">{sixB}</span>
+                                          <button onClick={() => updateMatch(match.id, { countback6_B: sixB + 1 })} className="w-5 h-5 rounded bg-purple-100 text-purple-700 text-[10px] font-bold">+</button>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Perbandingan Angka 5 */}
+                                    <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl">
+                                      <div className="text-left w-1/3 min-w-0">
+                                        <p className="text-[8px] font-black uppercase text-slate-500 truncate">{getArcherName(match.archerAId)}</p>
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                          <button onClick={() => updateMatch(match.id, { countback5_A: Math.max(0, fiveA - 1) })} className="w-5 h-5 rounded bg-slate-200 text-[10px] font-bold">-</button>
+                                          <span className="font-black text-base font-oswald text-purple-700">{fiveA}</span>
+                                          <button onClick={() => updateMatch(match.id, { countback5_A: fiveA + 1 })} className="w-5 h-5 rounded bg-purple-100 text-purple-700 text-[10px] font-bold">+</button>
+                                        </div>
+                                      </div>
+                                      <div className="text-center px-2">
+                                        <span className="px-2.5 py-1 bg-blue-100 text-blue-900 rounded-full font-black text-[9px] uppercase tracking-wider block">
+                                          Jumlah Angka 5 (10)
+                                        </span>
+                                        <span className="text-[8px] text-slate-700 font-bold block mt-0.5">
+                                          {fiveA > fiveB ? 'A Lebih Banyak' : fiveB > fiveA ? 'B Lebih Banyak' : 'Sama (Imbang)'}
+                                        </span>
+                                      </div>
+                                      <div className="text-right w-1/3 min-w-0">
+                                        <p className="text-[8px] font-black uppercase text-slate-500 truncate">{getArcherName(match.archerBId)}</p>
+                                        <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                                          <button onClick={() => updateMatch(match.id, { countback5_B: Math.max(0, fiveB - 1) })} className="w-5 h-5 rounded bg-slate-200 text-[10px] font-bold">-</button>
+                                          <span className="font-black text-base font-oswald text-slate-900">{fiveB}</span>
+                                          <button onClick={() => updateMatch(match.id, { countback5_B: fiveB + 1 })} className="w-5 h-5 rounded bg-purple-100 text-purple-700 text-[10px] font-bold">+</button>
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Ringkasan Skor Kualifikasi */}
+                                    <div className="flex items-center justify-between px-3 py-2 bg-emerald-50 rounded-xl text-[9px] font-black">
+                                      <span className="text-emerald-800">Total Poin: <b>{totA}</b></span>
+                                      <span className="text-slate-500 uppercase tracking-widest text-[8px]">Skor Total Kualifikasi</span>
+                                      <span className="text-emerald-800">Total Poin: <b>{totB}</b></span>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => handleApplyCountbackWinner(match)}
+                                      className="flex-1 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-black text-[9px] uppercase tracking-widest rounded-xl shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                                    >
+                                      <Award className="w-3.5 h-3.5" /> Hitung &amp; Tetapkan Pemenang Countback
+                                    </button>
+                                    <button
+                                      onClick={() => updateMatch(match.id, { countback6_A: statsA.sixes, countback6_B: statsB.sixes, countback5_A: statsA.fives, countback5_B: statsB.fives, countbackTotal_A: statsA.total, countbackTotal_B: statsB.total })}
+                                      className="px-3 py-2.5 bg-white border border-slate-200 text-slate-700 hover:text-purple-600 rounded-xl text-[9px] font-black uppercase transition-all"
+                                      title="Ambil Ulang Data Kualifikasi"
+                                    >
+                                      <RefreshCw className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
 
@@ -749,7 +1014,7 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                                onClick={() => setSelectedMatchForEnds(match)}
                                className="w-full py-3 bg-white text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 transition-all border border-slate-200"
                              >
-                               <FileText className="w-3 h-3" /> Input Skor Rambahan &amp; Shoot-Off
+                               <FileText className="w-3 h-3" /> Input Skor Rambahan &amp; Tie-Break
                              </button>
                              
                              {!match.winnerId && match.archerAId && match.archerBId && (match.scoreA > 0 || match.scoreB > 0) && (
@@ -761,7 +1026,7 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                                      : 'bg-purple-100 text-purple-700 hover:bg-purple-200 border-purple-200'
                                  }`}
                                >
-                                 <Zap className="w-3 h-3" /> {isTied ? 'Mulai Shoot-Off' : 'Selesai & Lanjut'}
+                                 <Zap className="w-3 h-3" /> {isTied ? 'Pilih Metode Tie-Break' : 'Selesai & Lanjut'}
                                </button>
                              )}
 
@@ -787,177 +1052,302 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
         </div>
       )}
 
-      {/* Per-End & Shoot-Off Score Input Modal */}
-      {selectedMatchForEnds && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
-            <div className="p-8 bg-slate-900 text-white flex justify-between items-center">
-               <div>
-                  <h3 className="text-xl font-black font-oswald uppercase italic leading-none">Input Skor Per-Rambahan &amp; Shoot-Off</h3>
-                  <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest mt-1">Match ID: {selectedMatchForEnds.id}</p>
-               </div>
-               <button onClick={() => setSelectedMatchForEnds(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="w-6 h-6 text-slate-700" /></button>
-            </div>
+      {/* Per-End & Tie-Break Score Input Modal */}
+      {selectedMatchForEnds && (() => {
+        const m = selectedMatchForEnds;
+        const sA = getArcherStats(m.archerAId);
+        const sB = getArcherStats(m.archerBId);
+        const mSixA = m.countback6_A !== undefined ? m.countback6_A : sA.sixes;
+        const mSixB = m.countback6_B !== undefined ? m.countback6_B : sB.sixes;
+        const mFiveA = m.countback5_A !== undefined ? m.countback5_A : sA.fives;
+        const mFiveB = m.countback5_B !== undefined ? m.countback5_B : sB.fives;
+        const mTotA = m.countbackTotal_A !== undefined ? m.countbackTotal_A : sA.total;
+        const mTotB = m.countbackTotal_B !== undefined ? m.countbackTotal_B : sB.total;
 
-            <div className="flex-1 overflow-y-auto p-8 space-y-8">
-               {/* Archer A */}
-               <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                     <div className="w-10 h-10 bg-purple-600 rounded-xl flex items-center justify-center text-white font-black">A</div>
-                     <div>
-                        <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">{getArcherName(selectedMatchForEnds.archerAId)}</h4>
-                        <p className="text-[9px] font-bold text-slate-700 uppercase tracking-wider">{getArcherClub(selectedMatchForEnds.archerAId)}</p>
-                     </div>
-                  </div>
-                  <div className="grid grid-cols-5 gap-3">
-                     {(selectedMatchForEnds.endsA || Array(5).fill(0)).map((score, idx) => (
-                        <div key={idx} className="space-y-2">
-                           <p className="text-[9px] font-black text-slate-700 uppercase text-center">End {idx + 1}</p>
-                           <input 
-                              type="number" 
-                              value={score} 
-                              onChange={(e) => {
-                                 const newEnds = [...(selectedMatchForEnds.endsA || Array(5).fill(0))];
-                                 newEnds[idx] = parseInt(e.target.value) || 0;
-                                 updateMatch(selectedMatchForEnds.id, { endsA: newEnds });
-                              }}
-                              className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl text-center font-black text-lg focus:border-purple-600 outline-none transition-all"
-                           />
-                        </div>
-                     ))}
-                  </div>
-               </div>
+        return (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+              <div className="p-8 bg-slate-900 text-white flex justify-between items-center">
+                 <div>
+                    <h3 className="text-xl font-black font-oswald uppercase italic leading-none">Input Skor Rambahan &amp; Penentuan Tie-Break</h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Match #{m.matchNo} - ID: {m.id}</p>
+                 </div>
+                 <button onClick={() => setSelectedMatchForEnds(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="w-6 h-6 text-slate-400" /></button>
+              </div>
 
-               <div className="h-px bg-slate-100" />
+              <div className="flex-1 overflow-y-auto p-8 space-y-8">
+                 {/* Archer A */}
+                 <div className="space-y-4">
+                    <div className="flex items-center gap-4">
+                       <div className="w-10 h-10 bg-purple-600 rounded-xl flex items-center justify-center text-white font-black">A</div>
+                       <div>
+                          <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">{getArcherName(m.archerAId)}</h4>
+                          <p className="text-[9px] font-bold text-slate-700 uppercase tracking-wider">{getArcherClub(m.archerAId)}</p>
+                       </div>
+                    </div>
+                    <div className="grid grid-cols-5 gap-3">
+                       {(m.endsA || Array(5).fill(0)).map((score, idx) => (
+                          <div key={idx} className="space-y-2">
+                             <p className="text-[9px] font-black text-slate-700 uppercase text-center">End {idx + 1}</p>
+                             <input 
+                                type="number" 
+                                value={score} 
+                                onChange={(e) => {
+                                   const newEnds = [...(m.endsA || Array(5).fill(0))];
+                                   newEnds[idx] = parseInt(e.target.value) || 0;
+                                   updateMatch(m.id, { endsA: newEnds });
+                                }}
+                                className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl text-center font-black text-lg focus:border-purple-600 outline-none transition-all"
+                             />
+                          </div>
+                       ))}
+                    </div>
+                 </div>
 
-               {/* Archer B */}
-               <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                     <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black">B</div>
-                     <div>
-                        <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">{getArcherName(selectedMatchForEnds.archerBId)}</h4>
-                        <p className="text-[9px] font-bold text-slate-700 uppercase tracking-wider">{getArcherClub(selectedMatchForEnds.archerBId)}</p>
-                     </div>
-                  </div>
-                  <div className="grid grid-cols-5 gap-3">
-                     {(selectedMatchForEnds.endsB || Array(5).fill(0)).map((score, idx) => (
-                        <div key={idx} className="space-y-2">
-                           <p className="text-[9px] font-black text-slate-700 uppercase text-center">End {idx + 1}</p>
-                           <input 
-                              type="number" 
-                              value={score} 
-                              onChange={(e) => {
-                                 const newEnds = [...(selectedMatchForEnds.endsB || Array(5).fill(0))];
-                                 newEnds[idx] = parseInt(e.target.value) || 0;
-                                 updateMatch(selectedMatchForEnds.id, { endsB: newEnds });
-                              }}
-                              className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl text-center font-black text-lg focus:border-purple-600 outline-none transition-all"
-                           />
-                        </div>
-                     ))}
-                  </div>
-               </div>
+                 <div className="h-px bg-slate-100" />
 
-               {/* Shoot-Off Detailed Section */}
-               <div className="p-6 bg-amber-50 rounded-3xl border border-amber-200 space-y-4">
-                  <div className="flex items-center justify-between">
-                     <div className="flex items-center gap-2">
-                        <AlertTriangle className="w-5 h-5 text-amber-600" />
-                        <h5 className="font-black font-oswald uppercase italic text-amber-950 text-base">Penentuan Shoot-Off (Jika Skor Akhir Seri)</h5>
-                     </div>
-                     <span className="text-[9px] font-bold text-amber-800 bg-amber-200 px-2 py-0.5 rounded uppercase">1 Panah Penentu</span>
-                  </div>
+                 {/* Archer B */}
+                 <div className="space-y-4">
+                    <div className="flex items-center gap-4">
+                       <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black">B</div>
+                       <div>
+                          <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">{getArcherName(m.archerBId)}</h4>
+                          <p className="text-[9px] font-bold text-slate-700 uppercase tracking-wider">{getArcherClub(m.archerBId)}</p>
+                       </div>
+                    </div>
+                    <div className="grid grid-cols-5 gap-3">
+                       {(m.endsB || Array(5).fill(0)).map((score, idx) => (
+                          <div key={idx} className="space-y-2">
+                             <p className="text-[9px] font-black text-slate-700 uppercase text-center">End {idx + 1}</p>
+                             <input 
+                                type="number" 
+                                value={score} 
+                                onChange={(e) => {
+                                   const newEnds = [...(m.endsB || Array(5).fill(0))];
+                                   newEnds[idx] = parseInt(e.target.value) || 0;
+                                   updateMatch(m.id, { endsB: newEnds });
+                                }}
+                                className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl text-center font-black text-lg focus:border-purple-600 outline-none transition-all"
+                             />
+                          </div>
+                       ))}
+                    </div>
+                 </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                     <div className="bg-white p-4 rounded-2xl border border-amber-200 space-y-3">
-                        <p className="text-[10px] font-black uppercase text-purple-700">Panah Atlet A ({getArcherName(selectedMatchForEnds.archerAId)})</p>
-                        <div className="flex gap-1.5 flex-wrap">
-                           {['X', 10, 9, 8, 7, 6, 0].map(val => (
+                 {/* Dual Tie-Break Detailed Section */}
+                 <div className="p-6 bg-amber-50/80 rounded-3xl border border-amber-200 space-y-4">
+                    <div className="flex items-center justify-between">
+                       <div className="flex items-center gap-2">
+                          <AlertTriangle className="w-5 h-5 text-amber-600" />
+                          <h5 className="font-black font-oswald uppercase italic text-amber-950 text-base">Metode Penentuan Pemenang (Jika Seri)</h5>
+                       </div>
+                       <span className="text-[9px] font-bold text-amber-800 bg-amber-200 px-2.5 py-0.5 rounded-full uppercase">Pilih Opsi 1 / Opsi 2</span>
+                    </div>
+
+                    {/* Modal Tab Switcher */}
+                    <div className="flex bg-amber-200/60 p-1 rounded-2xl gap-1">
+                      <button
+                        onClick={() => setModalTieBreakTab('SHOOT_OFF')}
+                        className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+                          modalTieBreakTab === 'SHOOT_OFF'
+                            ? 'bg-amber-500 text-slate-950 font-black shadow-md'
+                            : 'text-amber-900 hover:text-slate-950'
+                        }`}
+                      >
+                        <Target className="w-3.5 h-3.5" /> Opsi 1: Shoot-Off (1 Panah)
+                      </button>
+                      <button
+                        onClick={() => setModalTieBreakTab('COUNTBACK')}
+                        className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+                          modalTieBreakTab === 'COUNTBACK'
+                            ? 'bg-emerald-600 text-white font-black shadow-md'
+                            : 'text-amber-900 hover:text-slate-950'
+                        }`}
+                      >
+                        <BarChart3 className="w-3.5 h-3.5" /> Opsi 2: Jumlah Poin (6 &amp; 5)
+                      </button>
+                    </div>
+
+                    {modalTieBreakTab === 'SHOOT_OFF' ? (
+                      <div className="space-y-4 animate-in fade-in duration-200">
+                        <div className="grid grid-cols-2 gap-4">
+                           <div className="bg-white p-4 rounded-2xl border border-amber-200 space-y-3">
+                              <p className="text-[10px] font-black uppercase text-purple-700">Panah Atlet A ({getArcherName(m.archerAId)})</p>
+                              <div className="flex gap-1.5 flex-wrap">
+                                 {['X', 10, 9, 8, 7, 6, 0].map(val => (
+                                    <button
+                                       key={val}
+                                       onClick={() => updateMatch(m.id, { shootOffA: val })}
+                                       className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                                          m.shootOffA === val 
+                                             ? 'bg-amber-500 text-slate-950 font-black shadow-md' 
+                                             : 'bg-slate-100 text-slate-700'
+                                       }`}
+                                    >
+                                       {val}
+                                    </button>
+                                 ))}
+                              </div>
                               <button
-                                 key={val}
-                                 onClick={() => updateMatch(selectedMatchForEnds.id, { shootOffA: val })}
-                                 className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
-                                    selectedMatchForEnds.shootOffA === val 
-                                       ? 'bg-amber-500 text-slate-950 font-black shadow-md' 
-                                       : 'bg-slate-100 text-slate-700'
+                                 onClick={() => updateMatch(m.id, { shootOffClosestA: !m.shootOffClosestA, shootOffClosestB: false })}
+                                 className={`w-full py-1.5 rounded-lg text-[9px] font-black uppercase border transition-all ${
+                                    m.shootOffClosestA 
+                                       ? 'bg-amber-500 text-slate-950 border-amber-600 font-black' 
+                                       : 'bg-slate-50 text-slate-800 border-slate-200'
                                  }`}
                               >
-                                 {val}
+                                 {m.shootOffClosestA ? '★ Panah Terdekat ke Titik Pusat' : 'Tandai Terdekat ke Pusat'}
                               </button>
-                           ))}
-                        </div>
-                        <button
-                           onClick={() => updateMatch(selectedMatchForEnds.id, { shootOffClosestA: !selectedMatchForEnds.shootOffClosestA, shootOffClosestB: false })}
-                           className={`w-full py-1.5 rounded-lg text-[9px] font-black uppercase border transition-all ${
-                              selectedMatchForEnds.shootOffClosestA 
-                                 ? 'bg-amber-500 text-slate-950 border-amber-600 font-black' 
-                                 : 'bg-slate-50 text-slate-800 border-slate-200'
-                           }`}
-                        >
-                           {selectedMatchForEnds.shootOffClosestA ? '★ Panah Terdekat ke Titik Pusat' : 'Tandai Terdekat ke Pusat'}
-                        </button>
-                     </div>
+                           </div>
 
-                     <div className="bg-white p-4 rounded-2xl border border-amber-200 space-y-3">
-                        <p className="text-[10px] font-black uppercase text-slate-900">Panah Atlet B ({getArcherName(selectedMatchForEnds.archerBId)})</p>
-                        <div className="flex gap-1.5 flex-wrap">
-                           {['X', 10, 9, 8, 7, 6, 0].map(val => (
+                           <div className="bg-white p-4 rounded-2xl border border-amber-200 space-y-3">
+                              <p className="text-[10px] font-black uppercase text-slate-900">Panah Atlet B ({getArcherName(m.archerBId)})</p>
+                              <div className="flex gap-1.5 flex-wrap">
+                                 {['X', 10, 9, 8, 7, 6, 0].map(val => (
+                                    <button
+                                       key={val}
+                                       onClick={() => updateMatch(m.id, { shootOffB: val })}
+                                       className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                                          m.shootOffB === val 
+                                             ? 'bg-amber-500 text-slate-950 font-black shadow-md' 
+                                             : 'bg-slate-100 text-slate-700'
+                                       }`}
+                                    >
+                                       {val}
+                                    </button>
+                                 ))}
+                              </div>
                               <button
-                                 key={val}
-                                 onClick={() => updateMatch(selectedMatchForEnds.id, { shootOffB: val })}
-                                 className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
-                                    selectedMatchForEnds.shootOffB === val 
-                                       ? 'bg-amber-500 text-slate-950 font-black shadow-md' 
-                                       : 'bg-slate-100 text-slate-700'
+                                 onClick={() => updateMatch(m.id, { shootOffClosestB: !m.shootOffClosestB, shootOffClosestA: false })}
+                                 className={`w-full py-1.5 rounded-lg text-[9px] font-black uppercase border transition-all ${
+                                    m.shootOffClosestB 
+                                       ? 'bg-amber-500 text-slate-950 border-amber-600 font-black' 
+                                       : 'bg-slate-50 text-slate-800 border-slate-200'
                                  }`}
                               >
-                                 {val}
+                                 {m.shootOffClosestB ? '★ Panah Terdekat ke Titik Pusat' : 'Tandai Terdekat ke Pusat'}
                               </button>
-                           ))}
+                           </div>
                         </div>
-                        <button
-                           onClick={() => updateMatch(selectedMatchForEnds.id, { shootOffClosestB: !selectedMatchForEnds.shootOffClosestB, shootOffClosestA: false })}
-                           className={`w-full py-1.5 rounded-lg text-[9px] font-black uppercase border transition-all ${
-                              selectedMatchForEnds.shootOffClosestB 
-                                 ? 'bg-amber-500 text-slate-950 border-amber-600 font-black' 
-                                 : 'bg-slate-50 text-slate-800 border-slate-200'
-                           }`}
-                        >
-                           {selectedMatchForEnds.shootOffClosestB ? '★ Panah Terdekat ke Titik Pusat' : 'Tandai Terdekat ke Pusat'}
-                        </button>
-                     </div>
-                  </div>
-               </div>
-            </div>
 
-            <div className="p-8 bg-slate-50 border-t flex flex-col sm:flex-row items-center justify-between gap-4">
-               <div className="flex gap-10">
-                  <div>
-                     <p className="text-[9px] font-black text-slate-700 uppercase">Total A</p>
-                     <p className="text-2xl font-black font-oswald text-purple-600 leading-none">{selectedMatchForEnds.scoreA}</p>
-                  </div>
-                  <div>
-                     <p className="text-[9px] font-black text-slate-700 uppercase">Total B</p>
-                     <p className="text-2xl font-black font-oswald text-slate-900 leading-none">{selectedMatchForEnds.scoreB}</p>
-                  </div>
-               </div>
-               <div className="flex gap-3 w-full sm:w-auto">
-                  <button 
-                     onClick={() => {
-                        if (selectedMatchForEnds.scoreA === selectedMatchForEnds.scoreB && (selectedMatchForEnds.scoreA > 0 || selectedMatchForEnds.scoreB > 0)) {
-                           handleApplyShootOffWinner(selectedMatchForEnds);
-                        }
-                        setSelectedMatchForEnds(null);
-                     }} 
-                     className="flex-1 sm:flex-none px-10 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-black transition-all"
-                  >
-                     Simpan &amp; Tutup
-                  </button>
-               </div>
+                        <button
+                          onClick={() => handleApplyShootOffWinner(m)}
+                          className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-600 text-slate-950 font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2"
+                        >
+                          <Check className="w-4 h-4" /> Tetapkan Pemenang Shoot-Off
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="space-y-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-2xl border border-emerald-200 p-4 space-y-3">
+                          {/* Perbandingan Angka 6 */}
+                          <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl">
+                            <div className="text-left w-1/3 min-w-0">
+                              <p className="text-[8px] font-black uppercase text-slate-500 truncate">{getArcherName(m.archerAId)}</p>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <button onClick={() => updateMatch(m.id, { countback6_A: Math.max(0, mSixA - 1) })} className="w-5 h-5 rounded bg-slate-200 text-[10px] font-bold">-</button>
+                                <span className="font-black text-base font-oswald text-purple-700">{mSixA}</span>
+                                <button onClick={() => updateMatch(m.id, { countback6_A: mSixA + 1 })} className="w-5 h-5 rounded bg-purple-100 text-purple-700 text-[10px] font-bold">+</button>
+                              </div>
+                            </div>
+                            <div className="text-center px-2">
+                              <span className="px-2.5 py-1 bg-amber-100 text-amber-900 rounded-full font-black text-[9px] uppercase tracking-wider block">
+                                Jumlah Angka 6 (X)
+                              </span>
+                              <span className="text-[8px] text-slate-700 font-bold block mt-0.5">
+                                {mSixA > mSixB ? 'A Lebih Banyak' : mSixB > mSixA ? 'B Lebih Banyak' : 'Sama (Imbang)'}
+                              </span>
+                            </div>
+                            <div className="text-right w-1/3 min-w-0">
+                              <p className="text-[8px] font-black uppercase text-slate-500 truncate">{getArcherName(m.archerBId)}</p>
+                              <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                                <button onClick={() => updateMatch(m.id, { countback6_B: Math.max(0, mSixB - 1) })} className="w-5 h-5 rounded bg-slate-200 text-[10px] font-bold">-</button>
+                                <span className="font-black text-base font-oswald text-slate-900">{mSixB}</span>
+                                <button onClick={() => updateMatch(m.id, { countback6_B: mSixB + 1 })} className="w-5 h-5 rounded bg-purple-100 text-purple-700 text-[10px] font-bold">+</button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Perbandingan Angka 5 */}
+                          <div className="flex items-center justify-between bg-slate-50 p-2.5 rounded-xl">
+                            <div className="text-left w-1/3 min-w-0">
+                              <p className="text-[8px] font-black uppercase text-slate-500 truncate">{getArcherName(m.archerAId)}</p>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <button onClick={() => updateMatch(m.id, { countback5_A: Math.max(0, mFiveA - 1) })} className="w-5 h-5 rounded bg-slate-200 text-[10px] font-bold">-</button>
+                                <span className="font-black text-base font-oswald text-purple-700">{mFiveA}</span>
+                                <button onClick={() => updateMatch(m.id, { countback5_A: mFiveA + 1 })} className="w-5 h-5 rounded bg-purple-100 text-purple-700 text-[10px] font-bold">+</button>
+                              </div>
+                            </div>
+                            <div className="text-center px-2">
+                              <span className="px-2.5 py-1 bg-blue-100 text-blue-900 rounded-full font-black text-[9px] uppercase tracking-wider block">
+                                Jumlah Angka 5 (10)
+                              </span>
+                              <span className="text-[8px] text-slate-700 font-bold block mt-0.5">
+                                {mFiveA > mFiveB ? 'A Lebih Banyak' : mFiveB > mFiveA ? 'B Lebih Banyak' : 'Sama (Imbang)'}
+                              </span>
+                            </div>
+                            <div className="text-right w-1/3 min-w-0">
+                              <p className="text-[8px] font-black uppercase text-slate-500 truncate">{getArcherName(m.archerBId)}</p>
+                              <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                                <button onClick={() => updateMatch(m.id, { countback5_B: Math.max(0, mFiveB - 1) })} className="w-5 h-5 rounded bg-slate-200 text-[10px] font-bold">-</button>
+                                <span className="font-black text-base font-oswald text-slate-900">{mFiveB}</span>
+                                <button onClick={() => updateMatch(m.id, { countback5_B: mFiveB + 1 })} className="w-5 h-5 rounded bg-purple-100 text-purple-700 text-[10px] font-bold">+</button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Ringkasan Skor Kualifikasi */}
+                          <div className="flex items-center justify-between px-3 py-2 bg-emerald-50 rounded-xl text-[9px] font-black">
+                            <span className="text-emerald-800">Total Poin: <b>{mTotA}</b></span>
+                            <span className="text-slate-500 uppercase tracking-widest text-[8px]">Skor Total Kualifikasi</span>
+                            <span className="text-emerald-800">Total Poin: <b>{mTotB}</b></span>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => handleApplyCountbackWinner(m)}
+                          className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-700 text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2"
+                        >
+                          <Award className="w-4 h-4" /> Hitung &amp; Tetapkan Pemenang Countback (6/5)
+                        </button>
+                      </div>
+                    )}
+                 </div>
+              </div>
+
+              <div className="p-8 bg-slate-50 border-t flex flex-col sm:flex-row items-center justify-between gap-4">
+                 <div className="flex gap-10">
+                    <div>
+                       <p className="text-[9px] font-black text-slate-700 uppercase">Total A</p>
+                       <p className="text-2xl font-black font-oswald text-purple-600 leading-none">{m.scoreA}</p>
+                    </div>
+                    <div>
+                       <p className="text-[9px] font-black text-slate-700 uppercase">Total B</p>
+                       <p className="text-2xl font-black font-oswald text-slate-900 leading-none">{m.scoreB}</p>
+                    </div>
+                 </div>
+                 <div className="flex gap-3 w-full sm:w-auto">
+                    <button 
+                       onClick={() => {
+                          if (m.scoreA === m.scoreB && (m.scoreA > 0 || m.scoreB > 0)) {
+                             if (modalTieBreakTab === 'COUNTBACK') {
+                               handleApplyCountbackWinner(m);
+                             } else {
+                               handleApplyShootOffWinner(m);
+                             }
+                          }
+                          setSelectedMatchForEnds(null);
+                       }} 
+                       className="flex-1 sm:flex-none px-10 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs tracking-widest shadow-xl hover:bg-black transition-all"
+                    >
+                       Simpan &amp; Tutup
+                    </button>
+                 </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

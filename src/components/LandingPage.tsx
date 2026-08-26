@@ -15,7 +15,9 @@ import {
   RefreshCw,
   AlertTriangle,
   Download,
-  Laptop
+  Laptop,
+  QrCode,
+  Printer
 } from 'lucide-react';
 import { ArcheryEvent, User } from '../types';
 import { resolveGoogleDriveUrl } from '../lib/photoService';
@@ -35,6 +37,7 @@ interface Props {
   onScorerLogin: () => void;
   onCreateEvent: () => void;
   onShare: (eventId: string) => void;
+  onPrintIdCards?: (eventId: string, club?: string) => void;
   currentUser?: User | null;
   onLogout?: () => void;
   onRefresh?: () => void;
@@ -53,6 +56,7 @@ export default function LandingPage({
   onScorerLogin,
   onCreateEvent,
   onShare,
+  onPrintIdCards,
   currentUser,
   onLogout,
   onRefresh,
@@ -390,6 +394,38 @@ export default function LandingPage({
             </div>
           </div>
 
+          {/* Participant ID Card Self-Service Notice Callout */}
+          {activeEvents.length > 0 && onPrintIdCards && (
+            <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 rounded-2xl p-4 sm:p-5 text-white shadow-lg border border-slate-700 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div className="flex items-center gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-arcus-red text-white flex items-center justify-center shrink-0 shadow-md">
+                  <QrCode className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 bg-amber-400 text-slate-950 rounded text-[8px] font-black uppercase tracking-wider">
+                      Informasi Peserta &amp; Official
+                    </span>
+                    <span className="text-[10px] font-bold text-slate-300 hidden sm:inline">&bull; Bebas Antre di Lapangan</span>
+                  </div>
+                  <p className="text-xs sm:text-sm font-bold text-white mt-0.5">
+                    Sudah terdaftar? Silakan <b>Cek Data &amp; Unduh / Cetak Kartu Peserta (E-ID Card)</b> secara mandiri.
+                  </p>
+                  <p className="text-[10px] text-slate-300 mt-0.5">
+                    Pendaftaran kolektif klub dapat mencari dan mencetak semua kartu atlet sekaligus dengan memilih nama klub.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => onPrintIdCards(activeEvents[0].id)}
+                className="w-full md:w-auto px-5 py-2.5 bg-white text-slate-950 hover:bg-arcus-red hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 shrink-0 shadow-sm active:scale-95"
+              >
+                <Printer className="w-4 h-4 text-arcus-red hover:text-white" />
+                Cetak Kartu Peserta
+              </button>
+            </div>
+          )}
+
           {activeEvents.length > 0 ? (
             viewMode === 'GRID' ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -505,11 +541,21 @@ export default function LandingPage({
 
                       <button 
                         onClick={() => onViewParticipants(event.id)}
-                        className="w-full py-3 bg-white text-slate-900 border-2 border-slate-100 flex items-center justify-center gap-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-arcus-red hover:text-arcus-red transition-all shadow-sm active:scale-95"
+                        className="w-full py-3 bg-white text-slate-900 border-2 border-slate-100 flex items-center justify-center gap-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:border-arcus-red hover:text-arcus-red transition-all shadow-sm active:scale-95 mb-2"
                       >
                         <Users className="w-4 h-4" />
                         DAFTAR PESERTA
                       </button>
+
+                      {onPrintIdCards && (
+                        <button 
+                          onClick={() => onPrintIdCards(event.id)}
+                          className="w-full py-3 bg-slate-900 text-white flex items-center justify-center gap-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-arcus-red transition-all shadow-sm active:scale-95"
+                        >
+                          <QrCode className="w-4 h-4 text-amber-400" />
+                          CETAK KARTU PESERTA (E-ID)
+                        </button>
+                      )}
 
                       <div className="grid grid-cols-2 gap-2 mt-3">
                         <button 
