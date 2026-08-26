@@ -1710,12 +1710,6 @@ export default function App() {
             setAppState(prev => ({ ...prev, activeEventId: id }));
             setView('REGISTER_PARTICIPANT');
           }}
-          onPrintIdCards={(id, club) => {
-            setAppState(prev => ({ ...prev, activeEventId: id }));
-            setSelfServiceClub(club || '');
-            setSelfServiceSearch('');
-            setView('SELF_SERVICE_ID_CARD');
-          }}
           onLogin={() => setView('LOGIN_PANEL')}
           onScorerLogin={() => setView('SCORER_LOGIN')}
           onCreateEvent={() => {
@@ -2248,12 +2242,6 @@ export default function App() {
           onRegister={(id) => {
             setAppState(prev => ({ ...prev, activeEventId: id }));
             setView('REGISTER_PARTICIPANT');
-          }}
-          onPrintIdCards={(id, club) => {
-            setAppState(prev => ({ ...prev, activeEventId: id }));
-            setSelfServiceClub(club || '');
-            setSelfServiceSearch('');
-            setView('SELF_SERVICE_ID_CARD');
           }}
           onLogin={() => setView('LOGIN_PANEL')}
           onScorerLogin={() => setView('SCORER_LOGIN')}

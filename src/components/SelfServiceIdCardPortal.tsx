@@ -2,10 +2,10 @@ import React, { useState, useMemo, useRef } from 'react';
 import { 
   ArrowLeft, Search, Printer, Download, Users, 
   CheckCircle2, Info, Building2, Target, ShieldCheck, 
-  Sparkles, Smartphone, QrCode, RefreshCw, X, ChevronRight,
+  Sparkles, Smartphone, Barcode as BarcodeIcon, RefreshCw, X, ChevronRight,
   Filter, Check, User
 } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
+import { Barcode } from './Barcode';
 import { ArcheryEvent, Archer, CategoryType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
 import ArcusLogo from './ArcusLogo';
@@ -221,20 +221,20 @@ export default function SelfServiceIdCardPortal({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
                 <span className="p-2 bg-arcus-red rounded-xl text-white shadow-md">
-                  <QrCode className="w-5 h-5" />
+                  <BarcodeIcon className="w-5 h-5" />
                 </span>
                 <div>
                   <h2 className="text-base sm:text-xl font-black font-oswald uppercase italic tracking-wide">
-                    E-ID Card &amp; Presensi Mandiri
+                    E-ID Card &amp; Presensi Mandiri Barcode
                   </h2>
                   <p className="text-xs text-slate-300">
-                    Cetak atau simpan kartu ini di HP untuk verifikasi cepat di meja registrasi
+                    Cetak atau simpan kartu ini di HP untuk scan barcode otomatis di meja registrasi
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 self-start sm:self-auto bg-white/10 px-3 py-1.5 rounded-full border border-white/10 text-[11px] font-bold">
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>QR Presensi 1 Detik</span>
+                <span>Barcode 1D Scan Cepat</span>
               </div>
             </div>
 
@@ -504,21 +504,28 @@ export default function SelfServiceIdCardPortal({
                         </div>
                       </div>
 
-                      {/* QR Preview Mini */}
+                      {/* Barcode Preview Mini */}
                       <div className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1 bg-slate-100 rounded-lg">
-                            <QRCodeSVG value={p.id} size={34} level="M" />
+                        <div className="flex items-center gap-2 overflow-hidden flex-1">
+                          <div className="p-1 bg-slate-50 rounded-lg shrink-0 max-w-[120px] overflow-hidden border border-slate-100">
+                            <Barcode 
+                              value={p.id} 
+                              width={1} 
+                              height={24} 
+                              fontSize={8} 
+                              displayValue={false} 
+                              margin={0}
+                            />
                           </div>
-                          <div>
+                          <div className="truncate">
                             <span className="text-[8px] font-bold text-slate-600 uppercase block">No. Pendaftaran</span>
-                            <span className="text-[10px] font-mono font-bold text-slate-800">
+                            <span className="text-[10px] font-mono font-bold text-slate-800 truncate block">
                               {p.registrationNo || p.id.substring(0, 8)}
                             </span>
                           </div>
                         </div>
                         {p.checkedIn && (
-                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[8px] font-black rounded-md uppercase">
+                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[8px] font-black rounded-md uppercase shrink-0 ml-1">
                             Hadir
                           </span>
                         )}
@@ -556,9 +563,9 @@ export default function SelfServiceIdCardPortal({
           <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-6 shadow-2xl border border-slate-200 animate-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <QrCode className="w-5 h-5 text-arcus-red" />
+                <BarcodeIcon className="w-5 h-5 text-arcus-red" />
                 <h3 className="text-sm font-black font-oswald uppercase italic text-slate-900">
-                  Pratinjau Kartu Peserta
+                  Pratinjau Kartu Peserta (Barcode 1D)
                 </h3>
               </div>
               <button
@@ -583,8 +590,8 @@ export default function SelfServiceIdCardPortal({
 
               {/* Middle Section */}
               <div className="text-center space-y-3 relative z-10 my-auto">
-                {/* Photo & QR side-by-side or stacked */}
-                <div className="flex items-center justify-center gap-3">
+                {/* Photo & Barcode 1D */}
+                <div className="flex flex-col items-center justify-center gap-2.5">
                   <div className="w-16 h-20 bg-white/10 rounded-xl border border-white/20 flex items-center justify-center overflow-hidden shrink-0 shadow-md">
                     {selectedParticipant.photoUrl ? (
                       <img src={selectedParticipant.photoUrl} alt="" className="w-full h-full object-cover" />
@@ -592,8 +599,18 @@ export default function SelfServiceIdCardPortal({
                       <User className="w-8 h-8 text-white/50" />
                     )}
                   </div>
-                  <div className="p-2 bg-white rounded-xl shadow-md shrink-0">
-                    <QRCodeSVG value={selectedParticipant.id} size={64} level="H" />
+                  <div className="px-3 py-1.5 bg-white rounded-xl shadow-md shrink-0 w-full max-w-[210px] flex flex-col items-center">
+                    <Barcode 
+                      value={selectedParticipant.id} 
+                      width={1.2} 
+                      height={32} 
+                      fontSize={8} 
+                      displayValue={true} 
+                      text={selectedParticipant.registrationNo || selectedParticipant.id.substring(0, 10)}
+                      background="transparent"
+                      lineColor="#0f172a"
+                      margin={0}
+                    />
                   </div>
                 </div>
 
@@ -715,9 +732,9 @@ export default function SelfServiceIdCardPortal({
                   </span>
                 </div>
 
-                {/* Center Content: Photo & QR */}
+                {/* Center Content: Photo & Barcode Batang */}
                 <div className="flex items-center justify-center gap-3 my-2">
-                  <div className="w-[28mm] h-[36mm] border-2 border-black rounded-xl flex items-center justify-center overflow-hidden bg-slate-50">
+                  <div className="w-[28mm] h-[36mm] border-2 border-black rounded-xl flex items-center justify-center overflow-hidden bg-slate-50 shrink-0">
                     {person.photoUrl ? (
                       <img src={person.photoUrl} alt="" className="w-full h-full object-cover" />
                     ) : (
@@ -727,10 +744,20 @@ export default function SelfServiceIdCardPortal({
                       </div>
                     )}
                   </div>
-                  <div className="p-2 border-2 border-black rounded-xl flex flex-col items-center justify-center">
-                    <QRCodeSVG value={person.id} size={80} level="H" />
-                    <span className="text-[7px] font-mono font-bold mt-1 text-center">
-                      {person.registrationNo || person.id.substring(0, 8)}
+                  <div className="p-2 border-2 border-black rounded-xl flex flex-col items-center justify-center bg-white w-[42mm] shrink-0">
+                    <Barcode 
+                      value={person.id} 
+                      width={1.2} 
+                      height={36} 
+                      fontSize={8} 
+                      displayValue={true} 
+                      text={person.registrationNo || person.id.substring(0, 10)}
+                      background="transparent"
+                      lineColor="#000000"
+                      margin={0}
+                    />
+                    <span className="text-[7px] font-mono font-bold mt-0.5 text-center">
+                      {person.targetNo && person.targetNo > 0 ? `T-${person.targetNo}${person.position || ''}` : 'E-ID'}
                     </span>
                   </div>
                 </div>
