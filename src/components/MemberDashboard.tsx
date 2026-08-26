@@ -9,7 +9,7 @@ import {
   QrCode, Loader2, Smartphone, Share2, Shield, ChevronRight, ShieldAlert,
   Bell, BellRing, Mail, Inbox, Send, MessageSquare, History, RefreshCw,
   TrendingUp, BarChart2, Database, Search, Users, Filter, Calendar, MapPin,
-  ExternalLink
+  ExternalLink, ChevronDown, Sparkles
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ArcusLogo from './ArcusLogo';
@@ -689,143 +689,40 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
         </div>
       )}
 
-      {/* Creation & Billing Modals */}
-      <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 self-start mb-6 md:mb-8">
-        <button 
-          onClick={() => setActiveTab('DASHBOARD')}
-          className={`px-6 md:px-8 py-2 md:py-2.5 rounded-md md:rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'DASHBOARD' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-700 hover:text-slate-600'}`}
-        >
-          <BarChart2 className="w-3.5 h-3.5" /> Dashboard
-        </button>
-        <button 
-          onClick={() => setActiveTab('EVENTS')}
-          className={`px-6 md:px-8 py-2 md:py-2.5 rounded-md md:rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'EVENTS' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'text-slate-700 hover:text-slate-600'}`}
-        >
-          <Trophy className="w-3.5 h-3.5" /> Daftar Event
-        </button>
-      </div>
-
-      {/* Search & Filter Bar */}
-      <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-4">
-        <div className="flex flex-col lg:flex-row gap-4">
-          {/* Search Input */}
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700" />
-            <input 
-              type="text" 
-              placeholder="Cari turnamen, latihan, atau lokasi..." 
-              value={eventSearch}
-              onChange={(e) => setEventSearch(e.target.value)}
-              className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-100 rounded-2xl font-bold text-sm outline-none focus:border-arcus-red transition-all"
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-             <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
-                <button 
-                  onClick={() => setTypeFilter('ALL')}
-                  className={`px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${typeFilter === 'ALL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700'}`}
-                >
-                  Semua Tipe
-                </button>
-                <button 
-                  onClick={() => setTypeFilter('TOURNAMENT')}
-                  className={`px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${typeFilter === 'TOURNAMENT' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700'}`}
-                >
-                  Turnamen
-                </button>
-                <button 
-                  onClick={() => setTypeFilter('PRACTICE')}
-                  className={`px-4 py-2 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${typeFilter === 'PRACTICE' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700'}`}
-                >
-                  Latihan
-                </button>
-             </div>
-
-             <div className="relative group">
-                <select 
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value as any)}
-                  className="appearance-none pl-10 pr-10 py-3 bg-white border border-slate-200 rounded-xl font-black text-[9px] uppercase tracking-widest outline-none focus:border-arcus-red transition-all shadow-sm"
-                >
-                  <option value="ALL">Semua Status</option>
-                  <option value="DRAFT">Draf</option>
-                  <option value="UPCOMING">Mendatang</option>
-                  <option value="ACTIVE">Aktif (Reg)</option>
-                  <option value="ONGOING">Sedang Jalan</option>
-                  <option value="COMPLETED">Selesai</option>
-                </select>
-                <Filter className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-700 pointer-events-none" />
-                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-700">
-                  <Layout className="w-3.5 h-3.5" />
-                </div>
-             </div>
-
-             <div className="relative group">
-                <select 
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="appearance-none pl-10 pr-10 py-3 bg-white border border-slate-200 rounded-xl font-black text-[9px] uppercase tracking-widest outline-none focus:border-blue-600 transition-all shadow-sm"
-                >
-                  <option value="NEWEST">Terbaru</option>
-                  <option value="OLDEST">Terlama</option>
-                  <option value="NAME_ASC">Nama A-Z</option>
-                </select>
-                <TrendingUp className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-700 pointer-events-none" />
-                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-700">
-                  <Layout className="w-3.5 h-3.5" />
-                </div>
-             </div>
-
-             <div className="relative group">
-                <select 
-                  value={paymentStatusFilter}
-                  onChange={(e) => setPaymentStatusFilter(e.target.value as any)}
-                  className="appearance-none pl-10 pr-10 py-3 bg-white border border-slate-200 rounded-xl font-black text-[9px] uppercase tracking-widest outline-none focus:border-emerald-600 transition-all shadow-sm"
-                >
-                  <option value="ALL">Semua Biaya</option>
-                  <option value="PAID">Lunas Admin</option>
-                  <option value="UNPAID">Pending Admin</option>
-                </select>
-                <DollarSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-700 pointer-events-none" />
-                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-700">
-                  <Layout className="w-3.5 h-3.5" />
-                </div>
-             </div>
-          </div>
+      {/* Tab Switcher: Modern Pill Navigation */}
+      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+        <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+          <button 
+            onClick={() => setActiveTab('DASHBOARD')}
+            className={`px-6 sm:px-8 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+              activeTab === 'DASHBOARD' 
+                ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80' 
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <BarChart2 className="w-4 h-4 text-arcus-red" />
+            <span>Ringkasan Dashboard</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('EVENTS')}
+            className={`px-6 sm:px-8 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+              activeTab === 'EVENTS' 
+                ? 'bg-white text-slate-900 shadow-sm border border-slate-200/80' 
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Trophy className="w-4 h-4 text-amber-500" />
+            <span>Daftar Semua Event ({events.length})</span>
+          </button>
         </div>
 
-        {/* Quick Filter Indicators */}
-        {(eventSearch || statusFilter !== 'ALL' || typeFilter !== 'ALL') && (
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-50">
-            <span className="text-[8px] font-black text-slate-700 uppercase tracking-widest mr-2">Filter Aktif:</span>
-            {eventSearch && (
-              <span className="bg-slate-900 text-white px-3 py-1 rounded-full text-[8px] font-black flex items-center gap-2">
-                "{eventSearch}" <X className="w-2.5 h-2.5 cursor-pointer" onClick={() => setEventSearch('')} />
-              </span>
-            )}
-            {typeFilter !== 'ALL' && (
-              <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-[8px] font-black flex items-center gap-2">
-                {typeFilter} <X className="w-2.5 h-2.5 cursor-pointer" onClick={() => setTypeFilter('ALL')} />
-              </span>
-            )}
-            {statusFilter !== 'ALL' && (
-              <span className="bg-arcus-red text-white px-3 py-1 rounded-full text-[8px] font-black flex items-center gap-2">
-                STATUS: {statusFilter} <X className="w-2.5 h-2.5 cursor-pointer" onClick={() => setStatusFilter('ALL')} />
-              </span>
-            )}
-            {paymentStatusFilter !== 'ALL' && (
-              <span className="bg-emerald-600 text-white px-3 py-1 rounded-full text-[8px] font-black flex items-center gap-2">
-                BIAYA: {paymentStatusFilter} <X className="w-2.5 h-2.5 cursor-pointer" onClick={() => setPaymentStatusFilter('ALL')} />
-              </span>
-            )}
-            <button 
-              onClick={() => { setEventSearch(''); setTypeFilter('ALL'); setStatusFilter('ALL'); setSortBy('NEWEST'); setPaymentStatusFilter('ALL'); }}
-              className="text-[8px] font-black text-arcus-red uppercase tracking-widest hover:underline ml-auto"
-            >
-              Reset Semua
-            </button>
-          </div>
+        {activeTab === 'EVENTS' && (
+          <button
+            onClick={handleStartCreation}
+            className="hidden sm:flex items-center gap-2 px-4 py-2.5 bg-arcus-red hover:bg-red-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md shadow-red-500/20 active:scale-95"
+          >
+            <Plus className="w-4 h-4" /> Turnamen Baru
+          </button>
         )}
       </div>
 
@@ -837,24 +734,146 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
           onCreateEvent={handleStartCreation}
         />
       ) : (
-        <div className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-2 border-l-4 border-arcus-red mb-2">
-            <h3 className="text-xl font-black text-slate-800 flex items-center gap-3 italic font-oswald uppercase tracking-tighter">
-              <ShieldCheck className="w-5 h-5 text-emerald-500" /> Event & Sesi Aktif
-            </h3>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700" />
-              <input 
-                type="text" 
-                placeholder="Cari event..." 
-                value={eventSearch}
-                onChange={(e) => setEventSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-arcus-red transition-all shadow-sm"
-              />
+        <div className="space-y-6 animate-in fade-in duration-300">
+          {/* Search & Filter Bar for Events */}
+          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-xs space-y-4">
+            <div className="flex flex-col lg:flex-row gap-3 sm:gap-4">
+              {/* Search Input */}
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Cari turnamen, latihan, atau lokasi..." 
+                  value={eventSearch}
+                  onChange={(e) => setEventSearch(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-xs outline-none focus:border-arcus-red focus:bg-white transition-all placeholder:text-slate-400"
+                />
+                {eventSearch && (
+                  <button 
+                    onClick={() => setEventSearch('')}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5">
+                {/* Type Filter Buttons */}
+                <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+                  <button 
+                    onClick={() => setTypeFilter('ALL')}
+                    className={`px-3.5 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${typeFilter === 'ALL' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    Semua
+                  </button>
+                  <button 
+                    onClick={() => setTypeFilter('TOURNAMENT')}
+                    className={`px-3.5 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${typeFilter === 'TOURNAMENT' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    Turnamen
+                  </button>
+                  <button 
+                    onClick={() => setTypeFilter('PRACTICE')}
+                    className={`px-3.5 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${typeFilter === 'PRACTICE' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                  >
+                    Latihan
+                  </button>
+                </div>
+
+                {/* Status Dropdown */}
+                <div className="relative">
+                  <select 
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as any)}
+                    className="appearance-none pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-wider outline-none focus:border-arcus-red transition-all shadow-xs cursor-pointer text-slate-700"
+                  >
+                    <option value="ALL">Semua Status</option>
+                    <option value="DRAFT">Draf</option>
+                    <option value="UPCOMING">Mendatang</option>
+                    <option value="ACTIVE">Aktif (Reg)</option>
+                    <option value="ONGOING">Sedang Jalan</option>
+                    <option value="COMPLETED">Selesai</option>
+                  </select>
+                  <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                </div>
+
+                {/* Sort By Dropdown */}
+                <div className="relative">
+                  <select 
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as any)}
+                    className="appearance-none pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-wider outline-none focus:border-blue-600 transition-all shadow-xs cursor-pointer text-slate-700"
+                  >
+                    <option value="NEWEST">Terbaru</option>
+                    <option value="OLDEST">Terlama</option>
+                    <option value="NAME_ASC">Nama A-Z</option>
+                  </select>
+                  <TrendingUp className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                </div>
+
+                {/* Payment Status Dropdown */}
+                <div className="relative">
+                  <select 
+                    value={paymentStatusFilter}
+                    onChange={(e) => setPaymentStatusFilter(e.target.value as any)}
+                    className="appearance-none pl-9 pr-8 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-[10px] uppercase tracking-wider outline-none focus:border-emerald-600 transition-all shadow-xs cursor-pointer text-slate-700"
+                  >
+                    <option value="ALL">Semua Biaya</option>
+                    <option value="PAID">Lunas Admin</option>
+                    <option value="UNPAID">Pending Admin</option>
+                  </select>
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+                </div>
+              </div>
             </div>
+
+            {/* Quick Filter Tags */}
+            {(eventSearch || statusFilter !== 'ALL' || typeFilter !== 'ALL' || paymentStatusFilter !== 'ALL') && (
+              <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-100">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mr-1">Filter Aktif:</span>
+                {eventSearch && (
+                  <span className="bg-slate-900 text-white px-2.5 py-1 rounded-lg text-[9px] font-bold flex items-center gap-1.5">
+                    "{eventSearch}" <X className="w-3 h-3 cursor-pointer" onClick={() => setEventSearch('')} />
+                  </span>
+                )}
+                {typeFilter !== 'ALL' && (
+                  <span className="bg-blue-600 text-white px-2.5 py-1 rounded-lg text-[9px] font-bold flex items-center gap-1.5">
+                    {typeFilter} <X className="w-3 h-3 cursor-pointer" onClick={() => setTypeFilter('ALL')} />
+                  </span>
+                )}
+                {statusFilter !== 'ALL' && (
+                  <span className="bg-arcus-red text-white px-2.5 py-1 rounded-lg text-[9px] font-bold flex items-center gap-1.5">
+                    STATUS: {statusFilter} <X className="w-3 h-3 cursor-pointer" onClick={() => setStatusFilter('ALL')} />
+                  </span>
+                )}
+                {paymentStatusFilter !== 'ALL' && (
+                  <span className="bg-emerald-600 text-white px-2.5 py-1 rounded-lg text-[9px] font-bold flex items-center gap-1.5">
+                    BIAYA: {paymentStatusFilter} <X className="w-3 h-3 cursor-pointer" onClick={() => setPaymentStatusFilter('ALL')} />
+                  </span>
+                )}
+                <button 
+                  onClick={() => { setEventSearch(''); setTypeFilter('ALL'); setStatusFilter('ALL'); setSortBy('NEWEST'); setPaymentStatusFilter('ALL'); }}
+                  className="text-[9px] font-black text-arcus-red uppercase tracking-wider hover:underline ml-auto"
+                >
+                  Reset Semua
+                </button>
+              </div>
+            )}
           </div>
-          
-          <div className="grid grid-cols-1 divide-y divide-slate-100 bg-white border-y border-slate-100">
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between px-1">
+              <h3 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2.5 uppercase tracking-tight font-oswald">
+                <span className="w-2.5 h-5 bg-arcus-red rounded-full" />
+                Daftar Turnamen &amp; Sesi Panahan ({filteredEvents.length})
+              </h3>
+            </div>
+            
+            <div className="grid grid-cols-1 divide-y divide-slate-100 bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
             {filteredEvents.length === 0 ? (
               <div className="py-12 bg-white rounded-2xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-slate-600 gap-3">
                 <Layout className="w-12 h-12 opacity-10" />
@@ -972,6 +991,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                 );
               })
             )}
+            </div>
           </div>
         </div>
       )}
