@@ -5,6 +5,7 @@ import { CATEGORY_LABELS } from '../constants';
 import { toast } from 'sonner';
 import ArcusLogo from './ArcusLogo';
 import PrintRoundReportModal from './PrintRoundReportModal';
+import { exportToExcel, exportToCSV } from '../lib/excelHelper';
 
 interface Props {
   state: ArcheryEvent;
@@ -114,7 +115,7 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
     window.print();
   };
 
-  const handleDownloadCSV = () => {
+  const getExportPayload = () => {
     const allRankings: any[] = [];
     
     // Calculate for all categories
@@ -183,28 +184,87 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
         allRankings.push(...ranked);
       });
 
-    const headers = ['Rank', 'Nama', 'Klub', 'Kategori', 'Total Skor', '6s/Xs/2s', '5s/9s/1s'];
-    const rows = allRankings.map(r => [
-      `"${r.displayRank}${r.tieLabel}"`,
-      `"${r.name}"`,
-      `"${r.club}"`,
-      `"${r.categoryLabel}"`,
+    const tournamentName = state.settings.tournamentName || 'TURNAMEN PANAHAN RESMI';
+    const location = state.settings.location || '-';
+    const eventDate = state.settings.eventDate 
+      ? new Date(state.settings.eventDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+      : '-';
+    const sessionLabel = activeSession === 'QUAL' ? 'Kualifikasi (Qualification)' : 'Eliminasi (Elimination)';
+    const exportTime = new Date().toLocaleString('id-ID', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+
+    const metadata = [
+      { label: 'Nama Turnamen:', value: tournamentName },
+      { label: 'Lokasi / Venue:', value: location },
+      { label: 'Tanggal Pelaksanaan:', value: eventDate },
+      { label: 'Sesi Pertandingan:', value: sessionLabel },
+      { label: 'Waktu Unduh / Ekspor:', value: `${exportTime} WIB` },
+      { label: 'Total Peserta Terdata:', value: `${allRankings.length} Peserta` }
+    ];
+
+    const headers = ['No', 'Rank Kualifikasi', 'Nomor Bantalan', 'Nama Lengkap Atlet', 'Klub / Kontingen', 'Kategori', 'Total Skor', 'X+10 / 6s / 2s', '9s / 5s / 1s'];
+
+    const rows = allRankings.map((r, idx) => [
+      idx + 1,
+      `${r.displayRank}${r.tieLabel}`,
+      `${r.targetNo || '-'}${r.position || ''}`,
+      r.name || '',
+      r.club || '-',
+      r.categoryLabel || r.category || '-',
       r.total,
       r.sixes,
       r.fives
     ]);
 
-    const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Hasil_Tournament_${state.settings.tournamentName}_${activeSession}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("CSV Berhasil diunduh (Seluruh Kategori)");
+    const safeBaseFileName = `Hasil_Skor_${tournamentName.replace(/[^a-zA-Z0-9]/g, '_')}_${activeSession}_${new Date().toISOString().split('T')[0]}`;
+
+    return {
+      title: 'DOKUMEN RESMI TURNAMEN PANAHAN - REKAPITULASI SKOR KESELURUHAN',
+      metadata,
+      headers,
+      rows,
+      safeBaseFileName,
+      count: allRankings.length
+    };
+  };
+
+  const handleExportExcel = () => {
+    try {
+      const data = getExportPayload();
+      exportToExcel({
+        fileName: data.safeBaseFileName,
+        sheetName: 'Hasil Skor',
+        title: data.title,
+        metadata: data.metadata,
+        headers: data.headers,
+        rows: data.rows
+      });
+      toast.success(`Berhasil mengunduh Excel (.xlsx) dengan ${data.count} data hasil skor!`);
+    } catch (err: any) {
+      toast.error('Gagal mengunduh Excel: ' + err.message);
+    }
+  };
+
+  const handleDownloadCSV = () => {
+    try {
+      const data = getExportPayload();
+      exportToCSV({
+        fileName: data.safeBaseFileName,
+        title: data.title,
+        metadata: data.metadata,
+        headers: data.headers,
+        rows: data.rows
+      });
+      toast.success(`Berhasil mengunduh CSV dengan ${data.count} data hasil skor!`);
+    } catch (err: any) {
+      toast.error('Gagal mengunduh CSV: ' + err.message);
+    }
   };
 
   return (
@@ -227,22 +287,30 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-1 md:gap-4">
+          <div className="flex items-center gap-1.5 md:gap-3">
             <button 
               onClick={() => setShowPrintModal(true)}
-              className="bg-red-600 text-white px-3 md:px-5 py-1.5 md:py-2.5 rounded-lg md:rounded-2xl text-[8px] md:text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-md flex items-center gap-1 md:gap-2 whitespace-nowrap"
+              className="bg-red-600 text-white px-3 md:px-4 py-1.5 md:py-2.5 rounded-lg md:rounded-2xl text-[8px] md:text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-md flex items-center gap-1 md:gap-1.5 whitespace-nowrap"
               title="Pusat Cetak & Laporan Skor Babak (Data Master)"
             >
               <Printer className="w-3.5 h-3.5 md:w-4 md:h-4" />
               <span>CETAK LAPORAN RESMI</span>
             </button>
             <button 
-              onClick={handleDownloadCSV}
-              className="bg-slate-900 text-white px-4 md:px-8 py-1.5 md:py-3 rounded-lg md:rounded-2xl text-[8px] md:text-[10px] font-black uppercase tracking-widest hover:bg-arcus-red transition-all shadow-xl flex items-center gap-1 md:gap-2 whitespace-nowrap group"
+              onClick={handleExportExcel}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 md:px-4 py-1.5 md:py-2.5 rounded-lg md:rounded-2xl text-[8px] md:text-[10px] font-black uppercase tracking-widest transition-all shadow-md flex items-center gap-1 md:gap-1.5 whitespace-nowrap group"
+              title="Unduh rekapitulasi hasil skor dalam format tabel Excel (.xlsx)"
             >
-              <Download className="w-3.5 h-3.5 md:w-5 md:h-5 group-hover:scale-110 transition-transform" />
-              <span className="hidden sm:inline">DOWNLOAD HASIL</span>
-              <span className="sm:hidden">HASIL</span>
+              <FileSpreadsheet className="w-3.5 h-3.5 md:w-4 md:h-4 group-hover:scale-110 transition-transform" />
+              <span>EKSPOR EXCEL</span>
+            </button>
+            <button 
+              onClick={handleDownloadCSV}
+              className="bg-slate-900 text-white px-2.5 md:px-4 py-1.5 md:py-2.5 rounded-lg md:rounded-2xl text-[8px] md:text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-md flex items-center gap-1 md:gap-1.5 whitespace-nowrap group"
+              title="Unduh format teks CSV (.csv)"
+            >
+              <Download className="w-3.5 h-3.5 md:w-4 md:h-4 group-hover:scale-110 transition-transform" />
+              <span>CSV</span>
             </button>
           </div>
         </div>

@@ -10,6 +10,7 @@ import { ArcheryEvent, CategoryType, Match, Archer, TargetType } from '../types'
 import { CATEGORY_LABELS } from '../constants';
 import ArcusLogo from './ArcusLogo';
 import { toast } from 'sonner';
+import { exportToExcel, exportToCSV } from '../lib/excelHelper';
 
 interface Props {
   isOpen?: boolean;
@@ -282,109 +283,170 @@ export default function PrintRoundReportModal({
     }, 50);
   };
 
-  // Export CSV
-  const handleExportCSV = () => {
+  // Prepare Export Matrix
+  const getExportData = () => {
     let headers: string[] = [];
     let rows: (string | number)[][] = [];
-    const tournamentName = event.settings?.tournamentName || 'Tournament';
+    const tournamentName = event.settings?.tournamentName || 'TURNAMEN PANAHAN RESMI';
     const categoryName = CATEGORY_LABELS[selectedCategory] || selectedCategory;
+    const location = event.settings?.location || '-';
+    const eventDate = event.settings?.eventDate 
+      ? new Date(event.settings.eventDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+      : '-';
+    const exportTime = new Date().toLocaleString('id-ID', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+
+    const metadata = [
+      { label: 'Nama Turnamen:', value: tournamentName },
+      { label: 'Lokasi / Venue:', value: location },
+      { label: 'Tanggal Pelaksanaan:', value: eventDate },
+      { label: 'Kategori Lomba:', value: categoryName },
+      { label: 'Jarak & Target Face:', value: `Jarak: ${config?.distance || 'Standard'} | Target: ${config?.targetType || 'Standard'}` },
+      { label: 'Jenis Laporan:', value: getRoundLabel(selectedRoundType) },
+      { label: 'Batas Kuota Cutoff:', value: `Top ${qualifiedCutoff} Besar` },
+      { label: 'Waktu Unduh / Ekspor:', value: `${exportTime} WIB` },
+      { label: 'Total Peserta Terdaftar:', value: `${archersInCategory.length} Atlet` }
+    ];
 
     if (selectedRoundType === 'QUAL') {
-      headers = ['Rank', 'Seed', 'Bantalan', 'Nama Atlet', 'Klub / Kontingen', 'Kategori', tieBreakLabels.highest, tieBreakLabels.second, 'Total Skor', 'Status Penyaringan'];
-      rows = rankedArchers.map(a => [
-        `"${a.displayRank}${a.tieLabel}"`,
+      headers = ['No', 'Rank Kualifikasi', 'Seed', 'Nomor Bantalan', 'Nama Lengkap Atlet', 'Klub / Kontingen', 'Kategori', tieBreakLabels.highest, tieBreakLabels.second, 'Total Skor', 'Status Penyaringan'];
+      rows = rankedArchers.map((a, idx) => [
+        idx + 1,
+        `${a.displayRank}${a.tieLabel}`,
         a.seed,
-        `"${a.targetNo || '-'}${a.position || ''}"`,
-        `"${a.name}"`,
-        `"${a.club || '-'}"`,
-        `"${categoryName}"`,
+        `${a.targetNo || '-'}${a.position || ''}`,
+        a.name || '',
+        a.club || '-',
+        categoryName,
         a.sixes,
         a.fives,
         a.total,
         a.isQualified ? `LOLOS TOP ${qualifiedCutoff}` : 'TERELIMINASI'
       ]);
     } else if (selectedRoundType === 'QUAL_QUALIFIED') {
-      headers = ['Seed Eliminasi', 'Rank Kualifikasi', 'Bantalan Kualifikasi', 'Nama Atlet', 'Klub / Kontingen', 'Kategori', tieBreakLabels.highest, tieBreakLabels.second, 'Total Skor Kualifikasi', 'Status Kelulusan', 'Lawan Match Pertama Babak Eliminasi'];
+      headers = ['No', 'Seed Eliminasi', 'Rank Kualifikasi', 'Bantalan Asal', 'Nama Lengkap Atlet', 'Klub / Kontingen', 'Kategori', tieBreakLabels.highest, tieBreakLabels.second, 'Total Skor Kualifikasi', 'Status Kelulusan', 'Lawan Match Pertama Babak Eliminasi'];
       rows = rankedArchers.map((a, idx) => {
         const seedNum = idx + 1;
         const opponentSeed = qualifiedCutoff - idx;
         const opponent = rankedArchers[opponentSeed - 1];
         const isQual = seedNum <= qualifiedCutoff;
         return [
+          idx + 1,
           isQual ? `Seed ${seedNum}` : '-',
-          `"${a.displayRank}${a.tieLabel}"`,
-          `"${a.targetNo || '-'}${a.position || ''}"`,
-          `"${a.name}"`,
-          `"${a.club || '-'}"`,
-          `"${categoryName}"`,
+          `${a.displayRank}${a.tieLabel}`,
+          `${a.targetNo || '-'}${a.position || ''}`,
+          a.name || '',
+          a.club || '-',
+          categoryName,
           a.sixes,
           a.fives,
           a.total,
           isQual ? `LOLOS KE BABAK ELIMINASI (TOP ${qualifiedCutoff})` : 'TERELIMINASI (TIDAK LOLOS CUTOFF)',
-          isQual ? `"${opponent ? `Seed ${opponentSeed}: ${opponent.name} (${opponent.club || '-'})` : `Seed ${opponentSeed} (BYE)`}"` : '-'
+          isQual ? (opponent ? `Seed ${opponentSeed}: ${opponent.name} (${opponent.club || '-'})` : `Seed ${opponentSeed} (BYE - Lolos Otomatis)`) : '-'
         ];
       });
     } else if (['64', '32', '16', '8', '4', '2', '1'].includes(selectedRoundType)) {
       const roundMatches = matchesInCategory.filter(m => m.round === selectedRoundType).sort((a, b) => (a.matchNo || 0) - (b.matchNo || 0));
-      headers = ['Match #', 'Bantalan A', 'Nama Atlet A', 'Klub A', 'Skor A', 'Skor B', 'Nama Atlet B', 'Klub B', 'Bantalan B', 'Pemenang', 'Keterangan Tie Break'];
-      rows = roundMatches.map(m => {
+      headers = ['No', 'Match #', 'Bantalan A', 'Nama Atlet A', 'Klub A', 'Skor A', 'Skor B', 'Nama Atlet B', 'Klub B', 'Bantalan B', 'Pemenang', 'Keterangan Tie Break'];
+      rows = roundMatches.map((m, idx) => {
         const archerA = getArcherById(m.archerAId);
         const archerB = getArcherById(m.archerBId);
         const winner = getArcherById(m.winnerId);
         const posA = (archerA as any)?.targetNo ? `TGT ${archerA?.targetNo}${archerA?.position || ''}` : '-';
         const posB = (archerB as any)?.targetNo ? `TGT ${archerB?.targetNo}${archerB?.position || ''}` : '-';
         return [
+          idx + 1,
           m.matchNo || 1,
           posA,
-          `"${archerA?.name || 'TBA'}"`,
-          `"${archerA?.club || '-'}"`,
+          archerA?.name || 'TBA',
+          archerA?.club || '-',
           m.scoreA,
           m.scoreB,
-          `"${archerB?.name || 'TBA'}"`,
-          `"${archerB?.club || '-'}"`,
+          archerB?.name || 'TBA',
+          archerB?.club || '-',
           posB,
-          `"${winner ? winner.name : 'Belum Selesai'}"`,
-          `"${m.tieBreakWinnerReason || (m.isShootOff ? 'Shoot-Off' : '-')}"`
+          winner ? winner.name : 'Belum Selesai',
+          m.tieBreakWinnerReason || (m.isShootOff ? 'Shoot-Off' : '-')
         ];
       });
     } else if (selectedRoundType === 'FINAL_STANDINGS') {
-      headers = ['Posisi', 'Medali / Penghargaan', 'Nama Atlet', 'Klub / Kontingen', 'Kategori'];
+      headers = ['No', 'Posisi', 'Medali / Penghargaan', 'Nama Lengkap Atlet', 'Klub / Kontingen', 'Kategori'];
       rows = [
-        ['Juara 1', 'Medali Emas (Gold Medal)', `"${winners.juara1?.name || 'TBA'}"`, `"${winners.juara1?.club || '-'}"`, `"${categoryName}"`],
-        ['Juara 2', 'Medali Perak (Silver Medal)', `"${winners.juara2?.name || 'TBA'}"`, `"${winners.juara2?.club || '-'}"`, `"${categoryName}"`],
-        ['Juara 3', 'Medali Perunggu (Bronze Medal)', `"${winners.juara3?.name || 'TBA'}"`, `"${winners.juara3?.club || '-'}"`, `"${categoryName}"`],
-        ['Juara 4', 'Peringkat 4 (Semi-Finalist)', `"${winners.juara4?.name || 'TBA'}"`, `"${winners.juara4?.club || '-'}"`, `"${categoryName}"`],
+        [1, 'Juara 1', 'Medali Emas (Gold Medal)', winners.juara1?.name || 'TBA', winners.juara1?.club || '-', categoryName],
+        [2, 'Juara 2', 'Medali Perak (Silver Medal)', winners.juara2?.name || 'TBA', winners.juara2?.club || '-', categoryName],
+        [3, 'Juara 3', 'Medali Perunggu (Bronze Medal)', winners.juara3?.name || 'TBA', winners.juara3?.club || '-', categoryName],
+        [4, 'Juara 4', 'Peringkat 4 (Semi-Finalist)', winners.juara4?.name || 'TBA', winners.juara4?.club || '-', categoryName],
       ];
     } else {
       // BRACKET_ALL
-      headers = ['Round', 'Match #', 'Atlet A', 'Skor A', 'Skor B', 'Atlet B', 'Pemenang'];
-      rows = matchesInCategory.map(m => {
+      headers = ['No', 'Babak / Round', 'Match #', 'Nama Atlet A', 'Skor A', 'Skor B', 'Nama Atlet B', 'Pemenang Match'];
+      rows = matchesInCategory.map((m, idx) => {
         const archerA = getArcherById(m.archerAId);
         const archerB = getArcherById(m.archerBId);
         const winner = getArcherById(m.winnerId);
         return [
+          idx + 1,
           `Round ${m.round}`,
           m.matchNo || 1,
-          `"${archerA?.name || 'TBA'}"`,
+          archerA?.name || 'TBA',
           m.scoreA,
           m.scoreB,
-          `"${archerB?.name || 'TBA'}"`,
-          `"${winner ? winner.name : '-'}"`
+          archerB?.name || 'TBA',
+          winner ? winner.name : '-'
         ];
       });
     }
 
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `MasterData_${tournamentName.replace(/\s+/g, '_')}_${selectedCategory}_${selectedRoundType}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("File CSV Master Data Berhasil Diunduh");
+    const safeBaseFileName = `MasterData_${tournamentName.replace(/[^a-zA-Z0-9]/g, '_')}_${categoryName.replace(/[^a-zA-Z0-9]/g, '_')}_${selectedRoundType}`;
+
+    return {
+      title: 'DOKUMEN RESMI TURNAMEN PANAHAN - REKAPITULASI DATA MASTER & SKOR',
+      metadata,
+      headers,
+      rows,
+      safeBaseFileName
+    };
+  };
+
+  // Export Excel (.xlsx)
+  const handleExportExcel = () => {
+    try {
+      const data = getExportData();
+      exportToExcel({
+        fileName: data.safeBaseFileName,
+        sheetName: 'Laporan Skor',
+        title: data.title,
+        metadata: data.metadata,
+        headers: data.headers,
+        rows: data.rows
+      });
+      toast.success("File Excel (.xlsx) Master Data berhasil diunduh dalam bentuk tabel terpisah!");
+    } catch (err: any) {
+      toast.error("Gagal mengunduh Excel: " + err.message);
+    }
+  };
+
+  // Export CSV (.csv)
+  const handleExportCSV = () => {
+    try {
+      const data = getExportData();
+      exportToCSV({
+        fileName: data.safeBaseFileName,
+        title: data.title,
+        metadata: data.metadata,
+        headers: data.headers,
+        rows: data.rows
+      });
+      toast.success("File CSV Master Data lengkap dengan Header berhasil diunduh!");
+    } catch (err: any) {
+      toast.error("Gagal mengunduh CSV: " + err.message);
+    }
   };
 
   // Copy WhatsApp Summary
@@ -1063,12 +1125,22 @@ export default function PrintRoundReportModal({
 
                 <button
                   type="button"
-                  onClick={handleExportCSV}
+                  onClick={handleExportExcel}
                   className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95 shadow-sm whitespace-nowrap"
-                  title="Download tabel dalam format Excel (.CSV)"
+                  title="Unduh tabel data master resmi dalam format Excel (.xlsx) dengan kolom sel terpisah"
                 >
                   <FileSpreadsheet className="w-3.5 h-3.5" /> 
-                  <span>Export Excel</span>
+                  <span>Ekspor Excel (.xlsx)</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExportCSV}
+                  className="px-3 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95 shadow-xs whitespace-nowrap"
+                  title="Unduh format teks CSV (.csv)"
+                >
+                  <Download className="w-3.5 h-3.5" /> 
+                  <span>CSV</span>
                 </button>
 
                 <button
