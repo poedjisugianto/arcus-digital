@@ -3,9 +3,8 @@ import {
   Search, Trash2, ArrowLeft, 
   X, Check, UserPlus, Printer, Users as UsersIcon, Image as ImageIcon, FileDown
 } from 'lucide-react';
-import { Archer, CategoryType, TournamentSettings, GlobalSettings, RegistrationStatus, ParticipantRegistration, ArcheryEvent } from '../types';
+import { Archer, CategoryType, TournamentSettings, GlobalSettings, RegistrationStatus, ParticipantRegistration } from '../types';
 import { CATEGORY_LABELS } from '../constants';
-import PrintParticipantListModal from './PrintParticipantListModal';
 
 interface Props {
   officials: ParticipantRegistration[];
@@ -18,7 +17,6 @@ interface Props {
 
 const OfficialList: React.FC<Props> = ({ officials, onUpdate, onRemove, onGoToIdCardEditor, onBack, settings }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [showPrintModal, setShowPrintModal] = useState(false);
 
   const filtered = useMemo(() => {
     return (officials || []).filter(o => 
@@ -31,7 +29,7 @@ const OfficialList: React.FC<Props> = ({ officials, onUpdate, onRemove, onGoToId
   }, [officials, searchTerm]);
 
   const handlePrint = () => {
-    setShowPrintModal(true);
+    window.print();
   };
 
   const handleExportCSV = () => {
@@ -198,28 +196,33 @@ const OfficialList: React.FC<Props> = ({ officials, onUpdate, onRemove, onGoToId
         </div>
       </div>
 
-      {/* Dedicated Clean Printable Official Directory Modal */}
-      {showPrintModal && (
-        <PrintParticipantListModal
-          isOpen={showPrintModal}
-          onClose={() => setShowPrintModal(false)}
-          event={({
-            id: 'OFFICIAL_LIST',
-            name: settings.tournamentName,
-            settings: settings,
-            archers: [],
-            officials: officials,
-            registrations: [],
-            scores: [],
-            scoreLogs: [],
-            matches: {},
-            createdAt: 0,
-            status: 'ACTIVE'
-          } as unknown) as ArcheryEvent}
-          officials={officials}
-          initialCategory="ALL"
-        />
-      )}
+      {/* Hidden Print Content */}
+      <div className="hidden print:block fixed inset-0 bg-white z-[9999] p-8">
+         <div className="text-center mb-8 border-b-2 border-black pb-4">
+            <h1 className="text-2xl font-bold uppercase">{settings.tournamentName}</h1>
+            <h2 className="text-xl font-bold uppercase mt-1">Daftar Akreditasi Official / Manager</h2>
+         </div>
+         <table className="w-full border-collapse border border-black">
+            <thead>
+              <tr className="bg-slate-100">
+                <th className="border border-black p-2 text-sm text-left">Nama Lengkap</th>
+                <th className="border border-black p-2 text-sm text-left">Asal Klub</th>
+                <th className="border border-black p-2 text-sm text-left">Status</th>
+                <th className="border border-black p-2 text-sm text-right">TTD</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(o => (
+                <tr key={o.id}>
+                  <td className="border border-black p-2 text-xs uppercase font-bold">{o.name}</td>
+                  <td className="border border-black p-2 text-xs uppercase">{o.club}</td>
+                  <td className="border border-black p-2 text-xs uppercase">{o.status === 'APPROVED' || o.status === 'CONFIRMED' || o.status === 'PAID' ? 'TERVALIDASI' : 'PENDING'}</td>
+                  <td className="border border-black p-2 text-xs h-12 w-32"></td>
+                </tr>
+              ))}
+            </tbody>
+         </table>
+      </div>
     </div>
   );
 };

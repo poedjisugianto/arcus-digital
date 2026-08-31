@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { ArcheryEvent, CategoryType, Match, Archer, TargetType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
-import { Trophy, GitBranch, User, Save, RefreshCw, ChevronRight, Swords, ArrowLeft, Trash2, Settings2, Zap, Medal, Plus, Minus, Check, FileText, X, AlertTriangle, Bell, Volume2, Target, BarChart3, ListOrdered, Award, Scale } from 'lucide-react';
+import { Trophy, GitBranch, User, Save, RefreshCw, ChevronRight, Swords, ArrowLeft, Trash2, Settings2, Zap, Medal, Plus, Minus, Check, FileText, X, AlertTriangle, Bell, Volume2, Target, BarChart3, ListOrdered, Award, Scale, Printer } from 'lucide-react';
 import { playShootOffAlarm, playVictorySound } from '../lib/soundAlarm';
+import PrintRoundReportModal from './PrintRoundReportModal';
 
 interface Props {
   event: ArcheryEvent;
@@ -18,6 +19,7 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
   const [showSavedFlag, setShowSavedFlag] = useState(false);
   const [flagMessage, setFlagMessage] = useState('');
   const [activeShootOffMatchId, setActiveShootOffMatchId] = useState<string | null>(null);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const [tieBreakTab, setTieBreakTab] = useState<Record<string, 'SHOOT_OFF' | 'COUNTBACK'>>({});
   const config = (event.settings.categoryConfigs || {})[activeCategory as CategoryType];
   const defaultTieBreak = config?.tieBreakMethod === 'COUNTBACK' ? 'COUNTBACK' : 'SHOOT_OFF';
@@ -480,14 +482,25 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
           </div>
         </div>
         
-        <div className="flex gap-2 bg-slate-100 p-1.5 rounded-xl border overflow-x-auto max-w-full no-scrollbar">
-          {(Object.keys(CategoryType) as CategoryType[]).map(cat => (
-            <button key={cat} onClick={() => setActiveCategory(cat)}
-              className={`px-5 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all whitespace-nowrap ${activeCategory === cat ? 'bg-purple-600 text-white shadow-lg' : 'bg-white text-slate-700 border border-slate-100'}`}
-            >
-              {(cat || '').replace('ADULT_', '').replace('_', ' ')}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setShowPrintModal(true)}
+            className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-red-600/20 active:scale-95 transition-all whitespace-nowrap"
+            title="Cetak & Laporan Data Master Skor Babak & Penyaringan"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            <span>Cetak Laporan Resmi</span>
+          </button>
+          
+          <div className="flex gap-2 bg-slate-100 p-1.5 rounded-xl border overflow-x-auto max-w-full no-scrollbar">
+            {(Object.keys(CategoryType) as CategoryType[]).map(cat => (
+              <button key={cat} onClick={() => setActiveCategory(cat)}
+                className={`px-5 py-2.5 rounded-lg text-[10px] font-black uppercase transition-all whitespace-nowrap ${activeCategory === cat ? 'bg-purple-600 text-white shadow-lg' : 'bg-white text-slate-700 border border-slate-100'}`}
+              >
+                {(cat || '').replace('ADULT_', '').replace('_', ' ')}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -1348,6 +1361,15 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
           </div>
         );
       })()}
+
+      {showPrintModal && (
+        <PrintRoundReportModal
+          event={event}
+          initialCategory={activeCategory}
+          initialRound="QUAL_QUALIFIED"
+          onClose={() => setShowPrintModal(false)}
+        />
+      )}
     </div>
   );
 };

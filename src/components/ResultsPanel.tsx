@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Trophy, Medal, Download, Printer, ArrowLeft, Target, Award, Info, Trash2, ChevronRight, BarChart3, FileText } from 'lucide-react';
+import { Trophy, Medal, Download, Printer, ArrowLeft, Target, Award, Info, Trash2, ChevronRight, BarChart3, FileText, FileSpreadsheet } from 'lucide-react';
 import { ArcheryEvent, CategoryType, Archer, TargetType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
 import { toast } from 'sonner';
 import ArcusLogo from './ArcusLogo';
+import PrintRoundReportModal from './PrintRoundReportModal';
 
 interface Props {
   state: ArcheryEvent;
@@ -14,6 +15,7 @@ interface Props {
 export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
   const [activeCategory, setActiveCategory] = useState<CategoryType>(CategoryType.ADULT_PUTRA);
   const [activeSession, setActiveSession] = useState<string>('QUAL');
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   const config = useMemo(() => (state.settings.categoryConfigs || {})[activeCategory], [state.settings, activeCategory]);
 
@@ -227,11 +229,12 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
           </div>
           <div className="flex items-center gap-1 md:gap-4">
             <button 
-              onClick={handlePrint}
-              className="p-1.5 md:p-3 text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-lg md:rounded-2xl transition-all"
-              title="Cetak Halaman Ini"
+              onClick={() => setShowPrintModal(true)}
+              className="bg-red-600 text-white px-3 md:px-5 py-1.5 md:py-2.5 rounded-lg md:rounded-2xl text-[8px] md:text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-md flex items-center gap-1 md:gap-2 whitespace-nowrap"
+              title="Pusat Cetak & Laporan Skor Babak (Data Master)"
             >
-              <Printer className="w-4 h-4 md:w-5 md:h-5" />
+              <Printer className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              <span>CETAK LAPORAN RESMI</span>
             </button>
             <button 
               onClick={handleDownloadCSV}
@@ -430,6 +433,15 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
           </div>
         </div>
       </div>
+
+      {showPrintModal && (
+        <PrintRoundReportModal
+          event={state}
+          initialCategory={activeCategory}
+          initialRound={activeSession === 'QUAL' ? 'QUAL_QUALIFIED' : 'QUAL'}
+          onClose={() => setShowPrintModal(false)}
+        />
+      )}
     </div>
   );
 }

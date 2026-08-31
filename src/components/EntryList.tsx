@@ -1,9 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { Search, ArrowLeft, Users, Trophy, Target, ChevronRight, Filter, CheckCircle2, Info, RefreshCw, QrCode, Printer, FileText } from 'lucide-react';
+import { Search, ArrowLeft, Users, Trophy, Target, ChevronRight, Filter, CheckCircle2, Info, RefreshCw, QrCode, Printer } from 'lucide-react';
 import { ArcheryEvent, CategoryType, Archer } from '../types';
 import { CATEGORY_LABELS } from '../constants';
 import ArcusLogo from './ArcusLogo';
-import PrintParticipantListModal from './PrintParticipantListModal';
 
 interface Props {
   event: ArcheryEvent;
@@ -17,7 +16,6 @@ export default function EntryList({ event, onBack, onRefresh, onPrintIdCards, is
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<CategoryType | 'ALL'>('ALL');
   const [viewMode, setViewMode] = useState<'ARCHERS' | 'OFFICIALS'>('ARCHERS');
-  const [showPrintModal, setShowPrintModal] = useState(false);
 
   const categories = useMemo(() => {
     return (Object.keys(CategoryType) as CategoryType[]).filter(cat => cat !== CategoryType.OFFICIAL);
@@ -111,18 +109,10 @@ export default function EntryList({ event, onBack, onRefresh, onPrintIdCards, is
             </div>
           </div>
           <div className="flex items-center gap-1 md:gap-3">
-            <button 
-              onClick={() => setShowPrintModal(true)}
-              className="p-1 px-2.5 md:p-3 md:px-5 bg-slate-900 text-white rounded-lg md:rounded-2xl text-[7px] md:text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 md:gap-2 hover:bg-arcus-red transition-all shadow-sm active:scale-95"
-              title="Cetak Berkas Daftar Peserta & Bantalan"
-            >
-              <Printer className="w-2.5 h-2.5 md:w-4 md:h-4 text-arcus-red" />
-              <span className="hidden sm:inline">CETAK DAFTAR</span> PESERTA
-            </button>
             {onPrintIdCards && (
               <button 
                 onClick={() => onPrintIdCards()}
-                className="p-1 px-2.5 md:p-3 md:px-5 bg-slate-800 text-white rounded-lg md:rounded-2xl text-[7px] md:text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 md:gap-2 hover:bg-slate-900 transition-all shadow-sm active:scale-95"
+                className="p-1 px-2.5 md:p-3 md:px-5 bg-slate-900 text-white rounded-lg md:rounded-2xl text-[7px] md:text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 md:gap-2 hover:bg-arcus-red transition-all shadow-sm active:scale-95"
                 title="Cetak Kartu Peserta"
               >
                 <QrCode className="w-2.5 h-2.5 md:w-4 md:h-4 text-amber-400" />
@@ -324,17 +314,6 @@ export default function EntryList({ event, onBack, onRefresh, onPrintIdCards, is
           </a>
         </div>
       </div>
-
-      {/* Dedicated Clean Printable Participant List Modal */}
-      {showPrintModal && (
-        <PrintParticipantListModal
-          isOpen={showPrintModal}
-          onClose={() => setShowPrintModal(false)}
-          event={event}
-          initialCategory={activeCategory}
-          officials={officials as any}
-        />
-      )}
     </div>
   );
 }

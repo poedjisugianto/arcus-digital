@@ -16,7 +16,6 @@ import { resolveGoogleDriveUrl } from '../lib/photoService';
 import ArcherList from './ArcherList';
 import OfficialList from './OfficialList';
 import PrintRoundReportModal from './PrintRoundReportModal';
-import PrintParticipantListModal from './PrintParticipantListModal';
 
 interface Props {
   eventId: string;
@@ -82,7 +81,6 @@ const AdminPanel: React.FC<Props> = ({
   isSuperAdmin = false 
 }) => {
   const [showPrintReportModal, setShowPrintReportModal] = useState(false);
-  const [showPrintParticipantModal, setShowPrintParticipantModal] = useState(false);
   const [localSettings, setLocalSettings] = useState<TournamentSettings>(() => {
     const savedDraft = localStorage.getItem(`admin_draft_${eventId}`);
     if (savedDraft) {
@@ -381,7 +379,7 @@ const AdminPanel: React.FC<Props> = ({
         </div>
       )}
 
-      <div className="sticky top-0 z-[100] bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm print:hidden">
+      <div className="sticky top-0 z-[100] bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-3 md:py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-6">
           <div className="flex items-center gap-3">
             <button 
@@ -419,17 +417,6 @@ const AdminPanel: React.FC<Props> = ({
           </div>
           
           <div className="flex items-center gap-2">
-            {!isPractice && (
-              <button 
-                type="button"
-                onClick={() => setShowPrintParticipantModal(true)}
-                className="px-3 md:px-4 py-2.5 bg-slate-900 text-white rounded-xl text-[8px] md:text-[9px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-black transition-all active:scale-95 shadow-sm"
-                title="Cetak Berkas Daftar Peserta & Bantalan"
-              >
-                <Printer className="w-3.5 h-3.5 text-arcus-red" />
-                <span className="hidden sm:inline">CETAK PESERTA</span>
-              </button>
-            )}
             {onShare && !isPractice && (
               <button 
                 type="button"
@@ -2245,38 +2232,19 @@ const AdminPanel: React.FC<Props> = ({
       {/* Official Stage & Round Report Print Modal */}
       {showPrintReportModal && (
         <PrintRoundReportModal 
-          event={event || ({
+          event={({
+            ...(event || {}),
             id: eventId,
-            status: 'ACTIVE',
+            status: event?.status || 'ACTIVE',
             settings: localSettings,
-            archers,
-            officials,
-            scores: [],
-            matches: {},
-            registrations: [],
-            scoreLogs: []
+            archers: archers.length > 0 ? archers : (event?.archers || []),
+            officials: officials.length > 0 ? officials : (event?.officials || []),
+            scores: event?.scores || [],
+            matches: event?.matches || {},
+            registrations: event?.registrations || [],
+            scoreLogs: event?.scoreLogs || []
           } as any)}
           onClose={() => setShowPrintReportModal(false)}
-        />
-      )}
-
-      {/* Official Clean Participant List Print Modal */}
-      {showPrintParticipantModal && (
-        <PrintParticipantListModal
-          isOpen={showPrintParticipantModal}
-          onClose={() => setShowPrintParticipantModal(false)}
-          event={event || ({
-            id: eventId,
-            status: 'ACTIVE',
-            settings: localSettings,
-            archers,
-            officials,
-            scores: [],
-            matches: {},
-            registrations: [],
-            scoreLogs: []
-          } as any)}
-          officials={officials}
         />
       )}
     </div>

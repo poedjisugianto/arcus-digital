@@ -1,8 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Printer, Download, Copy, Check, X, Trophy, Medal, 
   Target, Award, Calendar, MapPin, Users, ChevronRight,
-  FileSpreadsheet, ShieldCheck, Sparkles, Filter
+  FileSpreadsheet, ShieldCheck, Sparkles, Filter, Swords,
+  Search, CheckCircle2, UserCheck, AlertCircle, RefreshCw
 } from 'lucide-react';
 import { ArcheryEvent, CategoryType, Match, Archer, TargetType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
@@ -22,25 +24,48 @@ export default function PrintRoundReportModal({
   onClose,
   event,
   initialCategory = CategoryType.ADULT_PUTRA,
-  initialRound = 'QUAL'
+  initialRound = 'QUAL_QUALIFIED' // Default directly to qualification cutoff & advancing archers
 }: Props) {
   if (isOpen === false) return null;
   const [selectedCategory, setSelectedCategory] = useState<CategoryType>(initialCategory);
   const [selectedRoundType, setSelectedRoundType] = useState<string>(initialRound);
   const [qualifiedCutoff, setQualifiedCutoff] = useState<number>(32); // Default top 32
+  const [onlyQualifiedFilter, setOnlyQualifiedFilter] = useState<boolean>(false);
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const [hasCopiedText, setHasCopiedText] = useState(false);
+  const [isPrintingNow, setIsPrintingNow] = useState(false);
 
   // Sync state if initial props change
-  React.useEffect(() => {
+  useEffect(() => {
     if (initialCategory) setSelectedCategory(initialCategory);
   }, [initialCategory]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (initialRound) setSelectedRoundType(initialRound);
   }, [initialRound]);
 
+  // Handle printing-active body class for perfect print isolation
+  useEffect(() => {
+    const handleBeforePrint = () => {
+      document.body.classList.add('printing-active');
+      setIsPrintingNow(true);
+    };
+    const handleAfterPrint = () => {
+      document.body.classList.remove('printing-active');
+      setIsPrintingNow(false);
+    };
+
+    window.addEventListener('beforeprint', handleBeforePrint);
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => {
+      window.removeEventListener('beforeprint', handleBeforePrint);
+      window.removeEventListener('afterprint', handleAfterPrint);
+      document.body.classList.remove('printing-active');
+    };
+  }, []);
+
   const config = useMemo(() => {
-    return (event.settings.categoryConfigs || {})[selectedCategory];
+    return (event.settings?.categoryConfigs || {})[selectedCategory];
   }, [event.settings, selectedCategory]);
 
   const archersInCategory = useMemo(() => {
@@ -57,7 +82,7 @@ export default function PrintRoundReportModal({
   const isFiveRing = config?.targetType === TargetType.FACE_5_RING;
 
   const tieBreakLabels = useMemo(() => {
-    if (isSmallTarget) return { highest: '2s', second: '1s' };
+    if (isSmallTarget) return { highest: '2s (Hit)', second: '1s (Point)' };
     if (isSixRing) return { highest: '6s', second: '5s' };
     if (isFiveRing) return { highest: '5s', second: '4s' };
     return { highest: '10+X', second: '9s' };
@@ -124,9 +149,15 @@ export default function PrintRoundReportModal({
         tieLabel = String.fromCharCode(65 + posInTie);
         displayRank = firstInTie + 1;
       }
-      return { ...item, tieLabel, displayRank, seed: idx + 1 };
+      return { 
+        ...item, 
+        tieLabel, 
+        displayRank, 
+        seed: idx + 1,
+        isQualified: idx < qualifiedCutoff
+      };
     });
-  }, [archersInCategory, event.scores, isSmallTarget, isSixRing, isFiveRing]);
+  }, [archersInCategory, event.scores, isSmallTarget, isSixRing, isFiveRing, qualifiedCutoff]);
 
   const getArcherById = (id?: string) => {
     if (!id) return null;
@@ -146,29 +177,29 @@ export default function PrintRoundReportModal({
   const getRoundLabel = (roundKey: string) => {
     switch (roundKey) {
       case 'QUAL':
-        return 'Babak Kualifikasi (Leaderboard Lengkap)';
+        return 'Laporan Master Hasil Kualifikasi Lengkap (Seluruh Archer)';
       case 'QUAL_QUALIFIED':
-        return `Daftar Lolos Eliminasi (Top ${qualifiedCutoff} Besar & Bagan Lawan)`;
+        return `Data Peserta Masuk ke Babak Selanjutnya dalam Penyaringan (Top ${qualifiedCutoff} Besar & Bagan Aduan)`;
       case '64':
-        return 'Babak 1/32 Final (64 Besar)';
+        return 'Laporan Pertandingan Babak 1/32 Final (64 Besar)';
       case '32':
-        return 'Babak 1/16 Final (32 Besar)';
+        return 'Laporan Pertandingan Babak 1/16 Final (32 Besar)';
       case '16':
-        return 'Babak 1/8 Final (16 Besar)';
+        return 'Laporan Pertandingan Babak 1/8 Final (16 Besar)';
       case '8':
-        return 'Babak Perempat Final / Quarter Final (8 Besar)';
+        return 'Laporan Pertandingan Babak Perempat Final / Quarter Final (8 Besar)';
       case '4':
-        return 'Babak Semi Final (4 Besar)';
+        return 'Laporan Pertandingan Babak Semi Final (4 Besar)';
       case '1':
-        return 'Babak Perebutan Juara 3 (Bronze Medal Match)';
+        return 'Laporan Pertandingan Babak Perebutan Juara 3 (Bronze Medal Match)';
       case '2':
-        return 'Babak FINAL / Perebutan Medali Emas (Gold Medal Match)';
+        return 'Laporan Pertandingan Babak FINAL (Gold Medal Match)';
       case 'BRACKET_ALL':
-        return 'Bagan Eliminasi Lengkap (Full Tree Bracket)';
+        return 'Rekapitulasi Seluruh Pertandingan Bagan Eliminasi (Master Tree)';
       case 'FINAL_STANDINGS':
         return 'Hasil Akhir Turnamen & Daftar Medalis (Podium Juara)';
       default:
-        return `Babak Round ${roundKey}`;
+        return `Laporan Pertandingan Babak ${roundKey}`;
     }
   };
 
@@ -189,20 +220,77 @@ export default function PrintRoundReportModal({
     };
   }, [finalMatch, bronzeMatch, rankedArchers]);
 
+  // Match Pairings calculation for Qualification Cutoff
+  const matchPairings = useMemo(() => {
+    const numMatches = Math.floor(qualifiedCutoff / 2);
+    const pairs: Array<{
+      matchNo: number;
+      seedA: number;
+      archerA: any;
+      seedB: number;
+      archerB: any;
+      status: string;
+      targetAlloc?: string;
+    }> = [];
+
+    for (let i = 0; i < numMatches; i++) {
+      const seedA = i + 1;
+      const seedB = qualifiedCutoff - i;
+      const archerA = rankedArchers[seedA - 1];
+      const archerB = rankedArchers[seedB - 1];
+
+      let status = 'Pertandingan Langsung';
+      if (!archerA && !archerB) status = 'Kosong';
+      else if (!archerB) status = `Seed ${seedA} Lolos Otomatis (BYE)`;
+      else if (!archerA) status = `Seed ${seedB} Lolos Otomatis (BYE)`;
+
+      pairs.push({
+        matchNo: i + 1,
+        seedA,
+        archerA,
+        seedB,
+        archerB,
+        status,
+        targetAlloc: `TGT ${Math.floor(i / 2) + 1}${i % 2 === 0 ? 'A/B' : 'C/D'}`
+      });
+    }
+    return pairs;
+  }, [rankedArchers, qualifiedCutoff]);
+
+  // Filtered archers list for table display
+  const displayedArchers = useMemo(() => {
+    let list = rankedArchers;
+    if (selectedRoundType === 'QUAL_QUALIFIED' && onlyQualifiedFilter) {
+      list = list.filter(a => a.isQualified);
+    }
+    if (searchTerm.trim()) {
+      const q = searchTerm.toLowerCase();
+      list = list.filter(a => 
+        (a.name || '').toLowerCase().includes(q) ||
+        (a.club || '').toLowerCase().includes(q) ||
+        (a.targetNo || '').toString().includes(q)
+      );
+    }
+    return list;
+  }, [rankedArchers, selectedRoundType, onlyQualifiedFilter, searchTerm]);
+
   // Print Action
   const handlePrint = () => {
-    window.print();
+    document.body.classList.add('printing-active');
+    setTimeout(() => {
+      window.print();
+    }, 50);
   };
 
   // Export CSV
   const handleExportCSV = () => {
     let headers: string[] = [];
     let rows: (string | number)[][] = [];
-    const tournamentName = event.settings.tournamentName || 'Tournament';
+    const tournamentName = event.settings?.tournamentName || 'Tournament';
     const categoryName = CATEGORY_LABELS[selectedCategory] || selectedCategory;
 
     if (selectedRoundType === 'QUAL') {
-      headers = ['Rank', 'Seed', 'Bantalan', 'Nama Atlet', 'Klub', 'Kategori', tieBreakLabels.highest, tieBreakLabels.second, 'Total Skor'];
+      headers = ['Rank', 'Seed', 'Bantalan', 'Nama Atlet', 'Klub / Kontingen', 'Kategori', tieBreakLabels.highest, tieBreakLabels.second, 'Total Skor', 'Status Penyaringan'];
       rows = rankedArchers.map(a => [
         `"${a.displayRank}${a.tieLabel}"`,
         a.seed,
@@ -212,27 +300,33 @@ export default function PrintRoundReportModal({
         `"${categoryName}"`,
         a.sixes,
         a.fives,
-        a.total
+        a.total,
+        a.isQualified ? `LOLOS TOP ${qualifiedCutoff}` : 'TERELIMINASI'
       ]);
     } else if (selectedRoundType === 'QUAL_QUALIFIED') {
-      const topArchers = rankedArchers.slice(0, qualifiedCutoff);
-      headers = ['Seed', 'Rank Kualifikasi', 'Nama Atlet', 'Klub', 'Total Skor Kualifikasi', 'Status', 'Lawan Match 1'];
-      rows = topArchers.map((a, idx) => {
+      headers = ['Seed Eliminasi', 'Rank Kualifikasi', 'Bantalan Kualifikasi', 'Nama Atlet', 'Klub / Kontingen', 'Kategori', tieBreakLabels.highest, tieBreakLabels.second, 'Total Skor Kualifikasi', 'Status Kelulusan', 'Lawan Match Pertama Babak Eliminasi'];
+      rows = rankedArchers.map((a, idx) => {
+        const seedNum = idx + 1;
         const opponentSeed = qualifiedCutoff - idx;
         const opponent = rankedArchers[opponentSeed - 1];
+        const isQual = seedNum <= qualifiedCutoff;
         return [
-          `Seed ${idx + 1}`,
+          isQual ? `Seed ${seedNum}` : '-',
           `"${a.displayRank}${a.tieLabel}"`,
+          `"${a.targetNo || '-'}${a.position || ''}"`,
           `"${a.name}"`,
           `"${a.club || '-'}"`,
+          `"${categoryName}"`,
+          a.sixes,
+          a.fives,
           a.total,
-          'LOLOS ELIMINASI',
-          `"${opponent ? `Seed ${opponentSeed}: ${opponent.name} (${opponent.club || '-'})` : `Seed ${opponentSeed} (BYE)`}"`
+          isQual ? `LOLOS KE BABAK ELIMINASI (TOP ${qualifiedCutoff})` : 'TERELIMINASI (TIDAK LOLOS CUTOFF)',
+          isQual ? `"${opponent ? `Seed ${opponentSeed}: ${opponent.name} (${opponent.club || '-'})` : `Seed ${opponentSeed} (BYE)`}"` : '-'
         ];
       });
     } else if (['64', '32', '16', '8', '4', '2', '1'].includes(selectedRoundType)) {
       const roundMatches = matchesInCategory.filter(m => m.round === selectedRoundType).sort((a, b) => (a.matchNo || 0) - (b.matchNo || 0));
-      headers = ['Match #', 'Seed A', 'Nama Atlet A', 'Klub A', 'Skor A', 'Skor B', 'Nama Atlet B', 'Klub B', 'Seed B', 'Pemenang', 'Keterangan Tie Break'];
+      headers = ['Match #', 'Bantalan A', 'Nama Atlet A', 'Klub A', 'Skor A', 'Skor B', 'Nama Atlet B', 'Klub B', 'Bantalan B', 'Pemenang', 'Keterangan Tie Break'];
       rows = roundMatches.map(m => {
         const archerA = getArcherById(m.archerAId);
         const archerB = getArcherById(m.archerBId);
@@ -254,12 +348,12 @@ export default function PrintRoundReportModal({
         ];
       });
     } else if (selectedRoundType === 'FINAL_STANDINGS') {
-      headers = ['Posisi', 'Medali', 'Nama Atlet', 'Klub / Kontingen', 'Kategori'];
+      headers = ['Posisi', 'Medali / Penghargaan', 'Nama Atlet', 'Klub / Kontingen', 'Kategori'];
       rows = [
-        ['Juara 1', 'Emas (Gold)', `"${winners.juara1?.name || 'TBA'}"`, `"${winners.juara1?.club || '-'}"`, `"${categoryName}"`],
-        ['Juara 2', 'Perak (Silver)', `"${winners.juara2?.name || 'TBA'}"`, `"${winners.juara2?.club || '-'}"`, `"${categoryName}"`],
-        ['Juara 3', 'Perunggu (Bronze)', `"${winners.juara3?.name || 'TBA'}"`, `"${winners.juara3?.club || '-'}"`, `"${categoryName}"`],
-        ['Juara 4', 'Peringkat 4', `"${winners.juara4?.name || 'TBA'}"`, `"${winners.juara4?.club || '-'}"`, `"${categoryName}"`],
+        ['Juara 1', 'Medali Emas (Gold Medal)', `"${winners.juara1?.name || 'TBA'}"`, `"${winners.juara1?.club || '-'}"`, `"${categoryName}"`],
+        ['Juara 2', 'Medali Perak (Silver Medal)', `"${winners.juara2?.name || 'TBA'}"`, `"${winners.juara2?.club || '-'}"`, `"${categoryName}"`],
+        ['Juara 3', 'Medali Perunggu (Bronze Medal)', `"${winners.juara3?.name || 'TBA'}"`, `"${winners.juara3?.club || '-'}"`, `"${categoryName}"`],
+        ['Juara 4', 'Peringkat 4 (Semi-Finalist)', `"${winners.juara4?.name || 'TBA'}"`, `"${winners.juara4?.club || '-'}"`, `"${categoryName}"`],
       ];
     } else {
       // BRACKET_ALL
@@ -285,38 +379,41 @@ export default function PrintRoundReportModal({
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `Hasil_${tournamentName.replace(/\s+/g, '_')}_${selectedCategory}_${selectedRoundType}.csv`);
+    link.setAttribute('download', `MasterData_${tournamentName.replace(/\s+/g, '_')}_${selectedCategory}_${selectedRoundType}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success("File CSV Berhasil Diunduh");
+    toast.success("File CSV Master Data Berhasil Diunduh");
   };
 
   // Copy WhatsApp Summary
   const handleCopySummary = () => {
-    const tournamentName = event.settings.tournamentName || 'Turnamen Panahan';
+    const tournamentName = event.settings?.tournamentName || 'Turnamen Panahan';
     const categoryName = CATEGORY_LABELS[selectedCategory] || selectedCategory;
-    const dateStr = event.settings.eventDate || new Date().toLocaleDateString('id-ID');
+    const dateStr = event.settings?.eventDate || new Date().toLocaleDateString('id-ID');
 
-    let text = `🏹 *HASIL RESMI ${tournamentName.toUpperCase()}*\n`;
+    let text = `🏹 *DOKUMEN RESMI HASIL PENYARINGAN & SKOR*\n`;
+    text += `🏆 *${tournamentName.toUpperCase()}*\n`;
     text += `📂 Kategori: *${categoryName}*\n`;
     text += `📅 Tanggal: ${dateStr}\n`;
-    text += `📍 Babak: *${getRoundLabel(selectedRoundType)}*\n`;
+    text += `📍 Laporan: *${getRoundLabel(selectedRoundType)}*\n`;
     text += `------------------------------------\n\n`;
 
-    if (selectedRoundType === 'QUAL') {
-      text += `🏆 *TOP 10 PERINGKAT KUALIFIKASI:*\n`;
-      rankedArchers.slice(0, 10).forEach((a, i) => {
-        text += `${i + 1}. *${a.name}* (${a.club || '-'}) - Skor: *${a.total}* (${tieBreakLabels.highest}: ${a.sixes})\n`;
-      });
-      text += `\n_Total Peserta Terdaftar: ${rankedArchers.length} Archer_\n`;
-    } else if (selectedRoundType === 'QUAL_QUALIFIED') {
-      text += `🎯 *PESERTA LOLOS BABAK ELIMINASI (TOP ${qualifiedCutoff}):*\n`;
+    if (selectedRoundType === 'QUAL_QUALIFIED') {
+      text += `🎯 *DAFTAR ATLET MASUK KE BABAK ELIMINASI (TOP ${qualifiedCutoff}):*\n\n`;
       rankedArchers.slice(0, qualifiedCutoff).forEach((a, i) => {
         const opponentSeed = qualifiedCutoff - i;
         const opponent = rankedArchers[opponentSeed - 1];
-        text += `• Seed ${i + 1}: *${a.name}* (${a.club || '-'}) [Skor: ${a.total}] ➔ vs Seed ${opponentSeed}: ${opponent ? opponent.name : 'BYE'}\n`;
+        text += `${i + 1}. *Seed ${i + 1}: ${a.name}* (${a.club || '-'})\n`;
+        text += `   ➔ Skor Kualifikasi: *${a.total}* | Rank: ${a.displayRank}${a.tieLabel} | TGT: ${a.targetNo || '-'}${a.position || ''}\n`;
+        text += `   ➔ Lawan Match 1: Seed ${opponentSeed} [${opponent ? opponent.name : 'BYE'}]\n\n`;
+      });
+      text += `_Total Peserta Lolos Penyaringan: ${Math.min(rankedArchers.length, qualifiedCutoff)} atlet_\n`;
+    } else if (selectedRoundType === 'QUAL') {
+      text += `🏆 *PERINGKAT KUALIFIKASI LENGKAP:*\n\n`;
+      rankedArchers.forEach((a, i) => {
+        text += `${i + 1}. *${a.name}* (${a.club || '-'}) - Skor: *${a.total}* (${tieBreakLabels.highest}: ${a.sixes}) [${a.isQualified ? `Lolos Top ${qualifiedCutoff}` : 'Gugur'}]\n`;
       });
     } else if (['64', '32', '16', '8', '4', '2', '1'].includes(selectedRoundType)) {
       const roundMatches = matchesInCategory.filter(m => m.round === selectedRoundType).sort((a, b) => (a.matchNo || 0) - (b.matchNo || 0));
@@ -340,272 +437,357 @@ export default function PrintRoundReportModal({
       }
     }
 
-    text += `\n_Dicetak otomatis via ARCUS Tournament OS_\n`;
+    text += `\n_Dicetak resmi via ARCUS Archery Tournament System_\n`;
     navigator.clipboard.writeText(text);
     setHasCopiedText(true);
     toast.success("Ringkasan hasil berhasil disalin ke clipboard!");
     setTimeout(() => setHasCopiedText(false), 3000);
   };
 
-  if (!isOpen) return null;
+  // Printable Sheet Component
+  const renderPrintableDocument = () => {
+    const tournamentName = event.settings?.tournamentName || 'TURNAMEN PANAHAN RESMI';
+    const categoryLabel = CATEGORY_LABELS[selectedCategory] || selectedCategory;
+    const dateFormatted = event.settings?.eventDate 
+      ? new Date(event.settings.eventDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+      : new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
-  return (
-    <div className="fixed inset-0 z-[300] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 md:p-6 print:p-0 print:bg-white print:static print:overflow-visible print:block">
-      
-      {/* Modal Dialog Window Container */}
-      <div className="w-full max-w-5xl h-full max-h-[92vh] bg-slate-100 rounded-3xl shadow-2xl border border-slate-300 flex flex-col overflow-hidden print:border-0 print:shadow-none print:max-h-none print:overflow-visible print:bg-white print:rounded-none print:h-auto print:max-w-none">
-
-        {/* Modal Top Control Header - Non-scrollable, Fixed at top - Hidden on print */}
-        <div className="shrink-0 bg-white border-b border-slate-200 p-4 sm:p-5 shadow-sm space-y-3.5 print:hidden">
-          
-          {/* Header Row: Title & Action Buttons */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+    return (
+      <div 
+        id="printable-report-sheet"
+        className="w-full bg-white text-slate-900 font-sans p-6 sm:p-8"
+        style={{ colorScheme: 'light' }}
+      >
+        {/* Document Official Header */}
+        <div className="border-b-2 border-slate-900 pb-3 mb-4">
+          <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-arcus-red text-white flex items-center justify-center font-black shadow-md shadow-arcus-red/30 shrink-0">
-                <Printer className="w-5 h-5" />
-              </div>
+              <ArcusLogo className="w-12 h-12 shrink-0" />
               <div>
-                <h2 className="text-base sm:text-xl font-black font-oswald uppercase italic tracking-tight text-slate-900 leading-none">
-                  Pusat Cetak &amp; Laporan Skor Babak
-                </h2>
-                <p className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mt-0.5">
-                  Siap Cetak Kertas A4 / Simpan PDF / Export Excel &amp; WhatsApp
-                </p>
-              </div>
-            </div>
-
-            {/* Action Buttons: Clear, spacious, non-overlapping */}
-            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-              <button
-                type="button"
-                onClick={handleCopySummary}
-                className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95 shadow-sm whitespace-nowrap"
-                title="Salin ringkasan hasil untuk dibagikan ke WhatsApp"
-              >
-                {hasCopiedText ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-indigo-300" />}
-                <span>{hasCopiedText ? 'Tersalin!' : 'Salin Teks WA'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleExportCSV}
-                className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95 shadow-sm whitespace-nowrap"
-                title="Download tabel dalam format Excel (.CSV)"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" /> 
-                <span>Export Excel</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handlePrint}
-                className="px-5 py-2.5 bg-arcus-red hover:bg-red-700 text-white rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-arcus-red/30 transition-all active:scale-95 whitespace-nowrap"
-                title="Cetak berkas atau simpan sebagai PDF"
-              >
-                <Printer className="w-4 h-4" /> 
-                <span>CETAK / SIMPAN PDF</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={onClose}
-                className="p-2.5 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 rounded-xl transition-all border border-slate-200 ml-1"
-                title="Tutup Jendela Cetak"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Filter Selection Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 border-t border-slate-100">
-            {/* Category Selector */}
-            <div>
-              <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest block mb-1 flex items-center gap-1">
-                <Filter className="w-3 h-3 text-arcus-red" /> 1. Kategori Divisi:
-              </label>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value as CategoryType)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-black text-slate-900 outline-none focus:border-arcus-red focus:ring-1 focus:ring-arcus-red shadow-xs"
-              >
-                {(Object.keys(CategoryType) as CategoryType[])
-                  .filter(c => c !== CategoryType.OFFICIAL)
-                  .map(cat => (
-                    <option key={cat} value={cat}>
-                      {CATEGORY_LABELS[cat] || cat}
-                    </option>
-                  ))}
-              </select>
-            </div>
-
-            {/* Round Selector */}
-            <div>
-              <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest block mb-1 flex items-center gap-1">
-                <Target className="w-3 h-3 text-indigo-600" /> 2. Babak / Lembar Dokumen:
-              </label>
-              <select
-                value={selectedRoundType}
-                onChange={(e) => setSelectedRoundType(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-black text-slate-900 outline-none focus:border-arcus-red focus:ring-1 focus:ring-arcus-red shadow-xs"
-              >
-                <optgroup label="Babak Kualifikasi">
-                  <option value="QUAL">Hasil Kualifikasi Lengkap (Semua Archer)</option>
-                  <option value="QUAL_QUALIFIED">Daftar Archer Lolos ke Babak Eliminasi</option>
-                </optgroup>
-                <optgroup label="Babak Eliminasi / Aduan">
-                  {availableRounds.includes("64") && <option value="64">Babak 1/32 Final (64 Besar)</option>}
-                  {availableRounds.includes("32") && <option value="32">Babak 1/16 Final (32 Besar)</option>}
-                  {availableRounds.includes("16") && <option value="16">Babak 1/8 Final (16 Besar)</option>}
-                  {availableRounds.includes("8") && <option value="8">Babak Quarter Final (8 Besar)</option>}
-                  {availableRounds.includes("4") && <option value="4">Babak Semi Final (4 Besar)</option>}
-                  {availableRounds.includes("1") && <option value="1">Babak Perebutan Juara 3 (Bronze Match)</option>}
-                  {availableRounds.includes("2") && <option value="2">Babak FINAL (Gold Medal Match)</option>}
-                  <option value="BRACKET_ALL">Seluruh Pertandingan Bagan Eliminasi</option>
-                </optgroup>
-                <optgroup label="Rekapitulasi Akhir">
-                  <option value="FINAL_STANDINGS">Hasil Akhir &amp; Podium Medalis (Juara 1, 2, 3, 4)</option>
-                </optgroup>
-              </select>
-            </div>
-
-            {/* Qualified Cutoff Setting */}
-            <div>
-              <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest block mb-1 flex items-center gap-1">
-                <Award className="w-3 h-3 text-amber-500" /> 3. Kuota Lolos (Cutoff):
-              </label>
-              <div className="flex items-center gap-1">
-                {[8, 16, 32, 64].map(num => (
-                  <button
-                    key={num}
-                    type="button"
-                    onClick={() => {
-                      setQualifiedCutoff(num);
-                      setSelectedRoundType('QUAL_QUALIFIED');
-                    }}
-                    className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${
-                      selectedRoundType === 'QUAL_QUALIFIED' && qualifiedCutoff === num
-                        ? 'bg-slate-900 text-white shadow-sm'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
-                    }`}
-                  >
-                    Top {num}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Notice */}
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5 text-[9px] font-medium text-amber-900 flex items-center justify-between flex-wrap gap-1">
-            <span>💡 <strong>Petunjuk Simpan PDF:</strong> Klik tombol merah <strong>CETAK / SIMPAN PDF</strong>, lalu pilih <em>Destination: "Save as PDF"</em> pada jendela print browser.</span>
-            <span className="font-bold text-slate-700">Format: Standard A4 / F4 Portrait</span>
-          </div>
-        </div>
-
-        {/* Modal Body / Paper Sheet Container (Scrollable Preview) */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-6 md:p-8 bg-slate-200/70 flex justify-center print:p-0 print:bg-white print:overflow-visible print:block">
-          <div 
-            id="printable-report-sheet"
-            className="w-full max-w-4xl bg-white rounded-2xl p-6 sm:p-10 shadow-xl border border-slate-300 print:shadow-none print:border-0 print:p-0 print:m-0 print:rounded-none print:w-full print:max-w-none text-slate-900 font-sans"
-          >
-            
-            {/* Official Header */}
-            <div className="border-b-4 border-slate-900 pb-4 mb-6">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <ArcusLogo className="w-14 h-14 sm:w-16 sm:h-16 shrink-0" />
-              <div>
-                <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.25em] text-arcus-red block">
-                  OFFICIAL TOURNAMENT SCORE REPORT
+                <span className="text-[9px] font-black uppercase tracking-[0.25em] text-red-600 block">
+                  DOKUMEN RESMI TURNAMEN &amp; REKAPITULASI DATA MASTER
                 </span>
-                <h1 className="text-xl sm:text-3xl font-black font-oswald uppercase italic tracking-tight text-slate-900 leading-none">
-                  {event.settings.tournamentName || 'TURNAMEN PANAHAN RESMI'}
+                <h1 className="text-xl sm:text-2xl font-black font-oswald uppercase italic tracking-tight text-slate-900 leading-tight">
+                  {tournamentName}
                 </h1>
-                <div className="flex items-center gap-4 text-[9px] sm:text-xs font-bold text-slate-700 mt-1 uppercase tracking-wider">
-                  <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-slate-500" /> {event.settings.location || 'Indonesia'}</span>
+                <div className="flex items-center gap-3 text-[10px] font-bold text-slate-700 mt-0.5 uppercase tracking-wider">
+                  <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-slate-500" /> {event.settings?.location || 'Indonesia'}</span>
                   <span>•</span>
-                  <span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-slate-500" /> {event.settings.eventDate ? new Date(event.settings.eventDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}</span>
+                  <span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-slate-500" /> {dateFormatted}</span>
                 </div>
               </div>
             </div>
 
-            <div className="text-right border-2 border-slate-900 p-2 sm:p-3 rounded-2xl bg-slate-50 text-center min-w-[130px]">
-              <p className="text-[8px] sm:text-[9px] font-black uppercase text-slate-700 tracking-widest">Kategori Lomba</p>
-              <p className="text-xs sm:text-base font-black font-oswald uppercase text-slate-900 italic leading-tight">
-                {CATEGORY_LABELS[selectedCategory] || selectedCategory}
+            <div className="text-right border border-slate-900 px-3 py-2 rounded-xl bg-slate-50 text-center shrink-0 min-w-[140px]">
+              <p className="text-[8px] font-black uppercase text-slate-600 tracking-widest">Kategori Lomba</p>
+              <p className="text-sm font-black font-oswald uppercase text-slate-900 leading-tight">
+                {categoryLabel}
               </p>
-              <p className="text-[8px] font-black text-arcus-red uppercase mt-0.5">
-                Jarak: {config?.distance || 'Standard'}
+              <p className="text-[8px] font-bold text-red-600 uppercase mt-0.5">
+                Jarak: {config?.distance || 'Standard'} • Target: {config?.targetType || 'Standard'}
               </p>
             </div>
           </div>
 
-          {/* Sub-Header / Round Indicator */}
-          <div className="mt-4 pt-3 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          {/* Sub Header Title Bar */}
+          <div className="mt-3 pt-2 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 bg-arcus-red rounded-full" />
-              <h2 className="text-sm sm:text-lg font-black font-oswald uppercase italic text-slate-900 tracking-wide">
+              <span className="w-2.5 h-2.5 bg-red-600 rounded-full" />
+              <h2 className="text-sm sm:text-base font-black font-oswald uppercase italic text-slate-900 tracking-wide">
                 {getRoundLabel(selectedRoundType)}
               </h2>
             </div>
-            <div className="text-[9px] sm:text-[10px] font-bold text-slate-700 uppercase tracking-widest">
-              Total Atlet: <span className="text-slate-950 font-black">{archersInCategory.length}</span> | Status: <span className="text-emerald-700 font-black">RESMI (VERIFIED)</span>
+            <div className="text-[9px] font-bold text-slate-700 uppercase tracking-widest flex items-center gap-3">
+              <span>Total Terdaftar: <strong className="text-slate-950">{archersInCategory.length}</strong></span>
+              <span>•</span>
+              <span>Lolos Eliminasi: <strong className="text-emerald-700">Top {qualifiedCutoff}</strong></span>
+              <span>•</span>
+              <span className="px-1.5 py-0.5 bg-slate-900 text-white rounded text-[8px] font-black">OFFICIAL VERIFIED</span>
             </div>
           </div>
         </div>
 
-        {/* Content Body Based on Selected Round */}
+        {/* SECTION 1: DATA MASTER PESERTA MASUK KE BABAK SELANJUTNYA (PENYARINGAN / QUAL_QUALIFIED) */}
+        {selectedRoundType === 'QUAL_QUALIFIED' && (
+          <div className="space-y-6">
+            
+            {/* Table 1: Master Data Archers Advancing to Elimination */}
+            <div>
+              <div className="bg-slate-900 text-white px-3 py-1.5 rounded-t-lg flex items-center justify-between text-[9px] font-black uppercase tracking-wider">
+                <span className="flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                  TABEL 1: DATA MASTER ATLET LOLOS KE BABAK ELIMINASI (TOP {qualifiedCutoff} BESAR)
+                </span>
+                <span>TOTAL LOLOS: {Math.min(rankedArchers.length, qualifiedCutoff)} ATLET</span>
+              </div>
 
-        {/* 1. Full Qualification Leaderboard */}
+              <table className="w-full text-left text-xs border-collapse border border-slate-300">
+                <thead>
+                  <tr className="bg-slate-100 text-slate-900 text-[9px] font-black uppercase tracking-wider border-b border-slate-300">
+                    <th className="py-2 px-2 text-center w-14 border-r border-slate-300">Seed</th>
+                    <th className="py-2 px-2 text-center w-12 border-r border-slate-300">Rank</th>
+                    <th className="py-2 px-2 text-center w-14 border-r border-slate-300">Bantalan</th>
+                    <th className="py-2 px-3 border-r border-slate-300">Nama Lengkap Atlet</th>
+                    <th className="py-2 px-3 border-r border-slate-300">Klub / Kontingen</th>
+                    <th className="py-2 px-2 text-center w-14 border-r border-slate-300">{tieBreakLabels.highest}</th>
+                    <th className="py-2 px-2 text-center w-14 border-r border-slate-300">{tieBreakLabels.second}</th>
+                    <th className="py-2 px-3 text-right w-20 border-r border-slate-300">Skor Kual.</th>
+                    <th className="py-2 px-3 text-center border-r border-slate-300">Status Penyaringan</th>
+                    <th className="py-2 px-3">Lawan Putaran 1 Eliminasi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {rankedArchers.slice(0, qualifiedCutoff).map((archer, index) => {
+                    const seedNum = index + 1;
+                    const opponentSeed = qualifiedCutoff - index;
+                    const opponent = rankedArchers[opponentSeed - 1];
+
+                    return (
+                      <tr key={archer.id} className={index % 2 === 1 ? 'bg-slate-50' : 'bg-white'}>
+                        <td className="py-1.5 px-2 text-center font-black font-oswald text-xs border-r border-slate-200">
+                          <span className="inline-block px-2 py-0.5 bg-slate-900 text-white rounded text-[10px] font-black">
+                            #{seedNum}
+                          </span>
+                        </td>
+                        <td className="py-1.5 px-2 text-center font-bold text-slate-800 text-xs border-r border-slate-200">
+                          {archer.displayRank}{archer.tieLabel}
+                        </td>
+                        <td className="py-1.5 px-2 text-center font-black font-oswald text-slate-900 text-xs border-r border-slate-200">
+                          {archer.targetNo || '-'}{archer.position || ''}
+                        </td>
+                        <td className="py-1.5 px-3 font-black text-slate-900 uppercase font-oswald text-xs border-r border-slate-200">
+                          {archer.name}
+                        </td>
+                        <td className="py-1.5 px-3 font-bold text-slate-700 uppercase text-[10px] border-r border-slate-200">
+                          {archer.club || '-'}
+                        </td>
+                        <td className="py-1.5 px-2 text-center font-bold text-slate-800 text-xs border-r border-slate-200">
+                          {archer.sixes}
+                        </td>
+                        <td className="py-1.5 px-2 text-center font-bold text-slate-800 text-xs border-r border-slate-200">
+                          {archer.fives}
+                        </td>
+                        <td className="py-1.5 px-3 text-right font-black font-oswald text-sm text-slate-950 border-r border-slate-200">
+                          {archer.total}
+                        </td>
+                        <td className="py-1.5 px-3 text-center border-r border-slate-200">
+                          <span className="inline-block px-2 py-0.5 bg-emerald-100 text-emerald-900 border border-emerald-300 rounded font-black text-[9px] uppercase tracking-wide">
+                            LOLOS ELIMINASI
+                          </span>
+                        </td>
+                        <td className="py-1.5 px-3 text-xs font-bold text-slate-800">
+                          {opponent ? (
+                            <span>vs <strong>Seed {opponentSeed}</strong>: {opponent.name} ({opponent.club || '-'})</span>
+                          ) : (
+                            <span className="text-emerald-700 font-black italic">BYE (Lolos Otomatis)</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Table 2: Elimination Match Pairings Matrix */}
+            <div>
+              <div className="bg-slate-900 text-white px-3 py-1.5 rounded-t-lg flex items-center justify-between text-[9px] font-black uppercase tracking-wider">
+                <span className="flex items-center gap-1.5">
+                  <Swords className="w-3.5 h-3.5 text-amber-400" />
+                  TABEL 2: BAGAN PASANGAN PERTANDINGAN BABAK PERTAMA ELIMINASI (ROUND OF {qualifiedCutoff})
+                </span>
+                <span>{matchPairings.length} PERTANDINGAN</span>
+              </div>
+
+              <table className="w-full text-left text-xs border-collapse border border-slate-300">
+                <thead>
+                  <tr className="bg-slate-100 text-slate-900 text-[9px] font-black uppercase tracking-wider border-b border-slate-300">
+                    <th className="py-2 px-2 text-center w-12 border-r border-slate-300">Match</th>
+                    <th className="py-2 px-3 border-r border-slate-300">Posisi A (Unggulan Atas)</th>
+                    <th className="py-2 px-2 text-center w-14 border-r border-slate-300">Skor A</th>
+                    <th className="py-2 px-2 text-center w-10 border-r border-slate-300">VS</th>
+                    <th className="py-2 px-2 text-center w-14 border-r border-slate-300">Skor B</th>
+                    <th className="py-2 px-3 border-r border-slate-300">Posisi B (Unggulan Bawah)</th>
+                    <th className="py-2 px-3 text-center border-r border-slate-300 w-24">Bantalan</th>
+                    <th className="py-2 px-3">Status Pertandingan</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {matchPairings.map((pair) => {
+                    const archerA = pair.archerA;
+                    const archerB = pair.archerB;
+
+                    return (
+                      <tr key={pair.matchNo} className={pair.matchNo % 2 === 1 ? 'bg-slate-50' : 'bg-white'}>
+                        <td className="py-1.5 px-2 text-center font-black font-oswald text-slate-900 text-xs border-r border-slate-200">
+                          #{pair.matchNo}
+                        </td>
+                        
+                        {/* Archer A */}
+                        <td className="py-1.5 px-3 border-r border-slate-200">
+                          <p className="font-black font-oswald text-xs uppercase text-slate-900">
+                            Seed {pair.seedA}: {archerA ? archerA.name : 'TBA'}
+                          </p>
+                          <p className="text-[9px] font-bold text-slate-600 uppercase">
+                            {archerA ? `${archerA.club || '-'} • Bantalan ${archerA.targetNo || '-'}${archerA.position || ''}` : '-'}
+                          </p>
+                        </td>
+                        <td className="py-1.5 px-2 text-center font-black font-oswald text-slate-900 text-xs border-r border-slate-200 bg-slate-100/60">
+                          {archerA ? archerA.total : '-'}
+                        </td>
+
+                        {/* VS Divider */}
+                        <td className="py-1.5 px-2 text-center font-black font-oswald text-slate-500 text-[10px] border-r border-slate-200">
+                          VS
+                        </td>
+
+                        {/* Archer B */}
+                        <td className="py-1.5 px-2 text-center font-black font-oswald text-slate-900 text-xs border-r border-slate-200 bg-slate-100/60">
+                          {archerB ? archerB.total : '-'}
+                        </td>
+                        <td className="py-1.5 px-3 border-r border-slate-200">
+                          <p className="font-black font-oswald text-xs uppercase text-slate-900">
+                            Seed {pair.seedB}: {archerB ? archerB.name : 'BYE (KOSONG)'}
+                          </p>
+                          <p className="text-[9px] font-bold text-slate-600 uppercase">
+                            {archerB ? `${archerB.club || '-'} • Bantalan ${archerB.targetNo || '-'}${archerB.position || ''}` : 'Lolos Otomatis'}
+                          </p>
+                        </td>
+
+                        {/* Target Allocation */}
+                        <td className="py-1.5 px-3 text-center font-black font-oswald text-slate-900 text-xs border-r border-slate-200">
+                          {pair.targetAlloc || '-'}
+                        </td>
+
+                        {/* Status */}
+                        <td className="py-1.5 px-3 text-xs font-bold text-slate-800">
+                          <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-black uppercase ${
+                            !archerB ? 'bg-amber-100 text-amber-900' : 'bg-slate-100 text-slate-900'
+                          }`}>
+                            {pair.status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Table 3: Non-Qualified Archers (If not filtered out) */}
+            {rankedArchers.length > qualifiedCutoff && (
+              <div>
+                <div className="bg-slate-700 text-white px-3 py-1.5 rounded-t-lg flex items-center justify-between text-[9px] font-black uppercase tracking-wider">
+                  <span>TABEL 3: DAFTAR ATLET TIDAK LOLOS CUTOFF PENYARINGAN (PERINGKAT {qualifiedCutoff + 1} S/D {rankedArchers.length})</span>
+                  <span>TOTAL GUGUR: {rankedArchers.length - qualifiedCutoff} ATLET</span>
+                </div>
+                <table className="w-full text-left text-xs border-collapse border border-slate-300">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-700 text-[9px] font-black uppercase tracking-wider border-b border-slate-300">
+                      <th className="py-1.5 px-2 text-center w-12 border-r border-slate-300">Rank</th>
+                      <th className="py-1.5 px-2 text-center w-14 border-r border-slate-300">Bantalan</th>
+                      <th className="py-1.5 px-3 border-r border-slate-300">Nama Lengkap Atlet</th>
+                      <th className="py-1.5 px-3 border-r border-slate-300">Klub / Kontingen</th>
+                      <th className="py-1.5 px-2 text-center w-14 border-r border-slate-300">{tieBreakLabels.highest}</th>
+                      <th className="py-1.5 px-2 text-center w-14 border-r border-slate-300">{tieBreakLabels.second}</th>
+                      <th className="py-1.5 px-3 text-right w-20 border-r border-slate-300">Total Skor</th>
+                      <th className="py-1.5 px-3 text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {rankedArchers.slice(qualifiedCutoff).map((archer, index) => (
+                      <tr key={archer.id} className={index % 2 === 1 ? 'bg-slate-50' : 'bg-white'}>
+                        <td className="py-1 px-2 text-center font-bold text-slate-600 text-xs border-r border-slate-200">
+                          {archer.displayRank}{archer.tieLabel}
+                        </td>
+                        <td className="py-1 px-2 text-center font-bold text-slate-600 text-xs border-r border-slate-200">
+                          {archer.targetNo || '-'}{archer.position || ''}
+                        </td>
+                        <td className="py-1 px-3 font-bold text-slate-800 uppercase text-xs border-r border-slate-200">
+                          {archer.name}
+                        </td>
+                        <td className="py-1 px-3 font-medium text-slate-600 uppercase text-[10px] border-r border-slate-200">
+                          {archer.club || '-'}
+                        </td>
+                        <td className="py-1 px-2 text-center font-medium text-slate-600 text-xs border-r border-slate-200">
+                          {archer.sixes}
+                        </td>
+                        <td className="py-1 px-2 text-center font-medium text-slate-600 text-xs border-r border-slate-200">
+                          {archer.fives}
+                        </td>
+                        <td className="py-1 px-3 text-right font-bold text-slate-700 text-xs border-r border-slate-200">
+                          {archer.total}
+                        </td>
+                        <td className="py-1 px-3 text-center text-[9px] font-bold text-slate-500 uppercase">
+                          Tereliminasi di Babak Kualifikasi
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+          </div>
+        )}
+
+        {/* SECTION 2: FULL QUALIFICATION LEADERBOARD (QUAL) */}
         {selectedRoundType === 'QUAL' && (
           <div className="space-y-4">
-            <table className="w-full text-left text-xs border-collapse">
+            <div className="bg-slate-900 text-white px-3 py-1.5 rounded-t-lg flex items-center justify-between text-[9px] font-black uppercase tracking-wider">
+              <span>LEADERBOARD RESMI KUALIFIKASI LENGKAP</span>
+              <span>TOTAL: {rankedArchers.length} ATLET</span>
+            </div>
+
+            <table className="w-full text-left text-xs border-collapse border border-slate-300">
               <thead>
-                <tr className="bg-slate-900 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider">
-                  <th className="py-2.5 px-3 text-center w-12 rounded-l-lg">Rank</th>
-                  <th className="py-2.5 px-2 text-center w-12">Seed</th>
-                  <th className="py-2.5 px-2 text-center w-16">Bantalan</th>
-                  <th className="py-2.5 px-3">Nama Atlet</th>
-                  <th className="py-2.5 px-3">Klub / Kontingen</th>
-                  <th className="py-2.5 px-3 text-center">{tieBreakLabels.highest}</th>
-                  <th className="py-2.5 px-3 text-center">{tieBreakLabels.second}</th>
-                  <th className="py-2.5 px-4 text-right rounded-r-lg">Total Skor</th>
+                <tr className="bg-slate-100 text-slate-900 text-[9px] font-black uppercase tracking-wider border-b border-slate-300">
+                  <th className="py-2 px-2 text-center w-12 border-r border-slate-300">Rank</th>
+                  <th className="py-2 px-2 text-center w-12 border-r border-slate-300">Seed</th>
+                  <th className="py-2 px-2 text-center w-14 border-r border-slate-300">Bantalan</th>
+                  <th className="py-2 px-3 border-r border-slate-300">Nama Lengkap Atlet</th>
+                  <th className="py-2 px-3 border-r border-slate-300">Klub / Kontingen</th>
+                  <th className="py-2 px-2 text-center w-14 border-r border-slate-300">{tieBreakLabels.highest}</th>
+                  <th className="py-2 px-2 text-center w-14 border-r border-slate-300">{tieBreakLabels.second}</th>
+                  <th className="py-2 px-3 text-right w-20 border-r border-slate-300">Total Skor</th>
+                  <th className="py-2 px-3 text-center">Status Penyaringan</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
                 {rankedArchers.map((archer, index) => (
-                  <tr key={archer.id} className={index % 2 === 1 ? 'bg-slate-50/60' : 'bg-white'}>
-                    <td className="py-2 px-3 text-center font-black font-oswald text-xs sm:text-sm">
-                      <span className={`inline-block w-6 h-6 rounded-md text-center leading-6 ${
-                        index === 0 ? 'bg-amber-400 text-slate-950 font-black' :
-                        index === 1 ? 'bg-slate-300 text-slate-950 font-black' :
-                        index === 2 ? 'bg-orange-300 text-slate-950 font-black' :
-                        'text-slate-800'
-                      }`}>
-                        {archer.displayRank}{archer.tieLabel}
-                      </span>
+                  <tr key={archer.id} className={index % 2 === 1 ? 'bg-slate-50' : 'bg-white'}>
+                    <td className="py-1.5 px-2 text-center font-black font-oswald text-xs border-r border-slate-200">
+                      {archer.displayRank}{archer.tieLabel}
                     </td>
-                    <td className="py-2 px-2 text-center font-bold text-slate-700 text-[10px]">
+                    <td className="py-1.5 px-2 text-center font-bold text-slate-700 text-xs border-r border-slate-200">
                       #{archer.seed}
                     </td>
-                    <td className="py-2 px-2 text-center font-black font-oswald text-slate-900 text-xs">
+                    <td className="py-1.5 px-2 text-center font-black font-oswald text-slate-900 text-xs border-r border-slate-200">
                       {archer.targetNo || '-'}{archer.position || ''}
                     </td>
-                    <td className="py-2 px-3 font-black text-slate-900 uppercase font-oswald text-sm">
+                    <td className="py-1.5 px-3 font-black text-slate-900 uppercase font-oswald text-xs border-r border-slate-200">
                       {archer.name}
                     </td>
-                    <td className="py-2 px-3 font-bold text-slate-700 uppercase text-[10px]">
+                    <td className="py-1.5 px-3 font-bold text-slate-700 uppercase text-[10px] border-r border-slate-200">
                       {archer.club || '-'}
                     </td>
-                    <td className="py-2 px-3 text-center font-bold text-slate-800">
+                    <td className="py-1.5 px-2 text-center font-bold text-slate-800 text-xs border-r border-slate-200">
                       {archer.sixes}
                     </td>
-                    <td className="py-2 px-3 text-center font-bold text-slate-800">
+                    <td className="py-1.5 px-2 text-center font-bold text-slate-800 text-xs border-r border-slate-200">
                       {archer.fives}
                     </td>
-                    <td className="py-2 px-4 text-right font-black font-oswald text-base sm:text-lg text-slate-950">
+                    <td className="py-1.5 px-3 text-right font-black font-oswald text-sm text-slate-950 border-r border-slate-200">
                       {archer.total}
+                    </td>
+                    <td className="py-1.5 px-3 text-center">
+                      <span className={`inline-block px-2 py-0.5 rounded font-black text-[9px] uppercase ${
+                        archer.isQualified 
+                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' 
+                          : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {archer.isQualified ? `Lolos Top ${qualifiedCutoff}` : 'Gugur'}
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -614,98 +796,28 @@ export default function PrintRoundReportModal({
           </div>
         )}
 
-        {/* 2. Qualification Cutoff & Match Pairing (e.g. Top 32 Lolos Eliminasi) */}
-        {selectedRoundType === 'QUAL_QUALIFIED' && (
-          <div className="space-y-6">
-            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-emerald-950 text-xs flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-5 h-5 text-emerald-600" />
-                <span className="font-bold">
-                  Daftar {qualifiedCutoff} atlet terbaik dengan peringkat kualifikasi tertinggi yang resmi berhak maju ke Babak Eliminasi.
-                </span>
-              </div>
-              <span className="font-black px-3 py-1 bg-emerald-600 text-white rounded-lg text-[10px] uppercase tracking-wider">
-                Bagan Top {qualifiedCutoff}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Array.from({ length: qualifiedCutoff / 2 }).map((_, matchIdx) => {
-                const seedA = matchIdx + 1;
-                const seedB = qualifiedCutoff - matchIdx;
-                const archerA = rankedArchers[seedA - 1];
-                const archerB = rankedArchers[seedB - 1];
-
-                return (
-                  <div key={matchIdx} className="border-2 border-slate-200 rounded-2xl p-3 bg-white space-y-2">
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-1 text-[9px] font-black uppercase text-slate-700">
-                      <span>Match #{matchIdx + 1}</span>
-                      <span className="text-arcus-red">Seed {seedA} vs Seed {seedB}</span>
-                    </div>
-
-                    {/* Slot A */}
-                    <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="w-6 h-6 rounded bg-slate-900 text-white text-center text-[10px] font-black leading-6 shrink-0">
-                          {seedA}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="font-black font-oswald text-xs uppercase italic truncate text-slate-900">
-                            {archerA ? archerA.name : 'TBA'}
-                          </p>
-                          <p className="text-[8px] font-bold text-slate-700 uppercase truncate">
-                            {archerA ? archerA.club || '-' : '-'}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="text-xs font-black font-oswald text-slate-900 shrink-0">
-                        {archerA ? `Skor: ${archerA.total}` : '-'}
-                      </span>
-                    </div>
-
-                    {/* Slot B */}
-                    <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="w-6 h-6 rounded bg-slate-700 text-white text-center text-[10px] font-black leading-6 shrink-0">
-                          {seedB}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="font-black font-oswald text-xs uppercase italic truncate text-slate-900">
-                            {archerB ? archerB.name : 'BYE / KOSONG'}
-                          </p>
-                          <p className="text-[8px] font-bold text-slate-700 uppercase truncate">
-                            {archerB ? archerB.club || '-' : '-'}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="text-xs font-black font-oswald text-slate-900 shrink-0">
-                        {archerB ? `Skor: ${archerB.total}` : '-'}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* 3. Specific Elimination Round (64, 32, 16, 8, 4, 1, 2) */}
-        {['64', '32', '16', '8', '4', '1', '2'].includes(selectedRoundType) && (
+        {/* SECTION 3: SPECIFIC ELIMINATION ROUND */}
+        {['64', '32', '16', '8', '4', '2', '1'].includes(selectedRoundType) && (
           <div className="space-y-4">
+            <div className="bg-slate-900 text-white px-3 py-1.5 rounded-t-lg flex items-center justify-between text-[9px] font-black uppercase tracking-wider">
+              <span>{getRoundLabel(selectedRoundType).toUpperCase()}</span>
+              <span>{matchesInCategory.filter(m => m.round === selectedRoundType).length} PERTANDINGAN</span>
+            </div>
+
             {matchesInCategory.filter(m => m.round === selectedRoundType).length === 0 ? (
-              <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-slate-600 text-xs">
-                Belum ada data bagan eliminasi untuk babak ini. Silakan buat atau input skor di panel Eliminasi.
+              <div className="p-8 text-center bg-slate-50 border border-slate-200 text-slate-600 text-xs">
+                Belum ada data pertandingan eliminasi untuk babak ini.
               </div>
             ) : (
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full text-left text-xs border-collapse border border-slate-300">
                 <thead>
-                  <tr className="bg-slate-900 text-white text-[9px] sm:text-[10px] font-black uppercase tracking-wider">
-                    <th className="py-2.5 px-3 text-center w-12 rounded-l-lg">Match</th>
-                    <th className="py-2.5 px-3">Archer A (Seed / Klub)</th>
-                    <th className="py-2.5 px-3 text-center w-16">Skor A</th>
-                    <th className="py-2.5 px-3 text-center w-16">Skor B</th>
-                    <th className="py-2.5 px-3">Archer B (Seed / Klub)</th>
-                    <th className="py-2.5 px-3 rounded-r-lg">Pemenang &amp; Catatan Tie-Break</th>
+                  <tr className="bg-slate-100 text-slate-900 text-[9px] font-black uppercase tracking-wider border-b border-slate-300">
+                    <th className="py-2 px-2 text-center w-12 border-r border-slate-300">Match</th>
+                    <th className="py-2 px-3 border-r border-slate-300">Archer A (Seed &amp; Klub)</th>
+                    <th className="py-2 px-2 text-center w-14 border-r border-slate-300">Skor A</th>
+                    <th className="py-2 px-2 text-center w-14 border-r border-slate-300">Skor B</th>
+                    <th className="py-2 px-3 border-r border-slate-300">Archer B (Seed &amp; Klub)</th>
+                    <th className="py-2 px-3">Pemenang &amp; Catatan Tie-Break</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -721,44 +833,36 @@ export default function PrintRoundReportModal({
 
                       return (
                         <tr key={m.id} className="hover:bg-slate-50">
-                          <td className="py-3 px-3 text-center font-black font-oswald text-slate-700">
+                          <td className="py-2 px-2 text-center font-black font-oswald text-slate-800 text-xs border-r border-slate-200">
                             #{m.matchNo}
                           </td>
-                          <td className="py-3 px-3">
-                            <p className={`font-black font-oswald text-xs sm:text-sm uppercase italic ${isWinA ? 'text-purple-700 font-black' : 'text-slate-900'}`}>
+                          <td className="py-2 px-3 border-r border-slate-200">
+                            <p className={`font-black font-oswald text-xs uppercase ${isWinA ? 'text-purple-700' : 'text-slate-900'}`}>
                               {archerA?.name || 'TBA'}
                             </p>
-                            <p className="text-[8px] font-bold text-slate-700 uppercase">
-                              {archerA?.targetNo ? `TGT ${archerA.targetNo}${archerA.position || ''} • ` : ''}{archerA?.club || '-'}
+                            <p className="text-[9px] font-bold text-slate-600 uppercase">
+                              {archerA?.club || '-'}
                             </p>
                           </td>
-                          <td className="py-3 px-3 text-center">
-                            <span className={`inline-block px-2.5 py-1 rounded-lg text-sm font-black font-oswald ${
-                              isWinA ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-800'
-                            }`}>
-                              {m.scoreA}
-                            </span>
+                          <td className="py-2 px-2 text-center font-black font-oswald text-sm text-slate-900 border-r border-slate-200 bg-slate-100/60">
+                            {m.scoreA}
                           </td>
-                          <td className="py-3 px-3 text-center">
-                            <span className={`inline-block px-2.5 py-1 rounded-lg text-sm font-black font-oswald ${
-                              isWinB ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-800'
-                            }`}>
-                              {m.scoreB}
-                            </span>
+                          <td className="py-2 px-2 text-center font-black font-oswald text-sm text-slate-900 border-r border-slate-200 bg-slate-100/60">
+                            {m.scoreB}
                           </td>
-                          <td className="py-3 px-3">
-                            <p className={`font-black font-oswald text-xs sm:text-sm uppercase italic ${isWinB ? 'text-purple-700 font-black' : 'text-slate-900'}`}>
+                          <td className="py-2 px-3 border-r border-slate-200">
+                            <p className={`font-black font-oswald text-xs uppercase ${isWinB ? 'text-purple-700' : 'text-slate-900'}`}>
                               {archerB?.name || 'TBA'}
                             </p>
-                            <p className="text-[8px] font-bold text-slate-700 uppercase">
-                              {archerB?.targetNo ? `TGT ${archerB.targetNo}${archerB.position || ''} • ` : ''}{archerB?.club || '-'}
+                            <p className="text-[9px] font-bold text-slate-600 uppercase">
+                              {archerB?.club || '-'}
                             </p>
                           </td>
-                          <td className="py-3 px-3">
+                          <td className="py-2 px-3">
                             {winner ? (
                               <div>
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-black text-[10px] uppercase">
-                                  <Check className="w-3 h-3" /> {winner.name}
+                                <span className="inline-block px-2 py-0.5 bg-emerald-100 text-emerald-900 border border-emerald-300 rounded font-black text-[9px] uppercase">
+                                  Menang: {winner.name}
                                 </span>
                                 {m.tieBreakWinnerReason && (
                                   <p className="text-[8px] font-bold text-purple-700 mt-0.5 italic">
@@ -767,7 +871,7 @@ export default function PrintRoundReportModal({
                                 )}
                               </div>
                             ) : (
-                              <span className="text-[10px] text-slate-600 italic">Belum Selesai</span>
+                              <span className="text-[10px] text-slate-500 italic">Belum Selesai</span>
                             )}
                           </td>
                         </tr>
@@ -779,152 +883,99 @@ export default function PrintRoundReportModal({
           </div>
         )}
 
-        {/* 4. Full Elimination Tree / Bracket */}
+        {/* SECTION 4: FULL BRACKET TREE */}
         {selectedRoundType === 'BRACKET_ALL' && (
           <div className="space-y-6">
-            <div className="space-y-6">
-              {availableRounds.map(roundNum => {
-                const roundMatches = matchesInCategory.filter(m => m.round === roundNum).sort((a, b) => (a.matchNo || 0) - (b.matchNo || 0));
-                return (
-                  <div key={roundNum} className="border border-slate-200 rounded-2xl overflow-hidden">
-                    <div className="bg-slate-900 text-white px-4 py-2 text-[10px] font-black uppercase tracking-wider flex items-center justify-between">
-                      <span>{getRoundLabel(roundNum)}</span>
-                      <span>{roundMatches.length} Matches</span>
-                    </div>
-                    <div className="p-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {availableRounds.map(roundNum => {
+              const roundMatches = matchesInCategory.filter(m => m.round === roundNum).sort((a, b) => (a.matchNo || 0) - (b.matchNo || 0));
+              return (
+                <div key={roundNum} className="border border-slate-300 rounded-lg overflow-hidden">
+                  <div className="bg-slate-900 text-white px-3 py-1 text-[9px] font-black uppercase tracking-wider flex items-center justify-between">
+                    <span>{getRoundLabel(roundNum)}</span>
+                    <span>{roundMatches.length} Pertandingan</span>
+                  </div>
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 text-slate-700 text-[8px] font-black uppercase tracking-wider border-b border-slate-200">
+                        <th className="py-1 px-2 text-center w-12 border-r border-slate-200">Match</th>
+                        <th className="py-1 px-3 border-r border-slate-200">Archer A</th>
+                        <th className="py-1 px-2 text-center w-12 border-r border-slate-200">Skor</th>
+                        <th className="py-1 px-3 border-r border-slate-200">Archer B</th>
+                        <th className="py-1 px-2 text-center w-12 border-r border-slate-200">Skor</th>
+                        <th className="py-1 px-3">Pemenang</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
                       {roundMatches.map(m => {
                         const archerA = getArcherById(m.archerAId);
                         const archerB = getArcherById(m.archerBId);
                         const winner = getArcherById(m.winnerId);
                         return (
-                          <div key={m.id} className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-xs">
-                            <div className="flex justify-between text-[8px] font-bold text-slate-700 mb-1">
-                              <span>Match #{m.matchNo}</span>
-                              <span className="text-purple-700 font-black">{winner ? `Menang: ${winner.name}` : 'TBA'}</span>
-                            </div>
-                            <div className="flex justify-between items-center py-0.5">
-                              <span className={`truncate font-bold ${m.winnerId === m.archerAId ? 'text-purple-700 font-black' : 'text-slate-800'}`}>
-                                {archerA?.name || 'TBA'}
-                              </span>
-                              <span className="font-oswald font-black ml-2">{m.scoreA}</span>
-                            </div>
-                            <div className="flex justify-between items-center py-0.5">
-                              <span className={`truncate font-bold ${m.winnerId === m.archerBId ? 'text-purple-700 font-black' : 'text-slate-800'}`}>
-                                {archerB?.name || 'TBA'}
-                              </span>
-                              <span className="font-oswald font-black ml-2">{m.scoreB}</span>
-                            </div>
-                          </div>
+                          <tr key={m.id}>
+                            <td className="py-1 px-2 text-center font-bold text-slate-700 border-r border-slate-200">#{m.matchNo}</td>
+                            <td className="py-1 px-3 font-bold text-slate-900 border-r border-slate-200">{archerA?.name || 'TBA'}</td>
+                            <td className="py-1 px-2 text-center font-bold text-slate-900 border-r border-slate-200">{m.scoreA}</td>
+                            <td className="py-1 px-3 font-bold text-slate-900 border-r border-slate-200">{archerB?.name || 'TBA'}</td>
+                            <td className="py-1 px-2 text-center font-bold text-slate-900 border-r border-slate-200">{m.scoreB}</td>
+                            <td className="py-1 px-3 font-black text-purple-800">{winner ? winner.name : '-'}</td>
+                          </tr>
                         );
                       })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
           </div>
         )}
 
-        {/* 5. Final Standings & Medallists (Podium) */}
+        {/* SECTION 5: FINAL STANDINGS & MEDALLISTS */}
         {selectedRoundType === 'FINAL_STANDINGS' && (
-          <div className="space-y-8">
-            {/* Podium Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-              {/* Silver (2nd) */}
-              <div className="border-2 border-slate-300 rounded-3xl p-6 bg-slate-50 flex flex-col items-center justify-between order-2 sm:order-1">
-                <div className="w-14 h-14 rounded-full bg-slate-200 flex items-center justify-center text-slate-700 mb-3">
-                  <Medal className="w-8 h-8" />
-                </div>
-                <div>
-                  <span className="px-3 py-1 bg-slate-700 text-white rounded-full text-[9px] font-black uppercase tracking-wider">
-                    JUARA 2 / PERAK (SILVER)
-                  </span>
-                  <h3 className="text-lg font-black font-oswald uppercase italic text-slate-900 mt-2">
-                    {winners.juara2?.name || 'TBA'}
-                  </h3>
-                  <p className="text-[10px] font-bold text-slate-700 uppercase">
-                    {winners.juara2?.club || '-'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Gold (1st) */}
-              <div className="border-4 border-amber-400 rounded-3xl p-6 bg-amber-50/50 flex flex-col items-center justify-between order-1 sm:order-2 shadow-lg scale-105">
-                <div className="w-16 h-16 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center mb-3 shadow-md">
-                  <Trophy className="w-9 h-9" />
-                </div>
-                <div>
-                  <span className="px-4 py-1 bg-amber-500 text-slate-950 rounded-full text-[10px] font-black uppercase tracking-wider">
-                    JUARA 1 / EMAS (GOLD)
-                  </span>
-                  <h3 className="text-xl font-black font-oswald uppercase italic text-slate-950 mt-2">
-                    {winners.juara1?.name || 'TBA'}
-                  </h3>
-                  <p className="text-[10px] font-bold text-slate-700 uppercase">
-                    {winners.juara1?.club || '-'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Bronze (3rd) */}
-              <div className="border-2 border-orange-300 rounded-3xl p-6 bg-orange-50/50 flex flex-col items-center justify-between order-3">
-                <div className="w-14 h-14 rounded-full bg-orange-200 text-orange-700 flex items-center justify-center mb-3">
-                  <Medal className="w-8 h-8" />
-                </div>
-                <div>
-                  <span className="px-3 py-1 bg-orange-600 text-white rounded-full text-[9px] font-black uppercase tracking-wider">
-                    JUARA 3 / PERUNGGU (BRONZE)
-                  </span>
-                  <h3 className="text-lg font-black font-oswald uppercase italic text-slate-900 mt-2">
-                    {winners.juara3?.name || 'TBA'}
-                  </h3>
-                  <p className="text-[10px] font-bold text-slate-700 uppercase">
-                    {winners.juara3?.club || '-'}
-                  </p>
-                </div>
-              </div>
+          <div className="space-y-6">
+            <div className="bg-slate-900 text-white px-3 py-1.5 rounded-t-lg flex items-center justify-between text-[9px] font-black uppercase tracking-wider">
+              <span>DAFTAR JUARA &amp; MEDALIS RESMI</span>
+              <span>PODIUM FINAL</span>
             </div>
 
-            {/* Standings Table */}
-            <table className="w-full text-left text-xs border-collapse">
+            <table className="w-full text-left text-xs border-collapse border border-slate-300">
               <thead>
-                <tr className="bg-slate-900 text-white text-[9px] font-black uppercase tracking-wider">
-                  <th className="py-2.5 px-3 text-center w-16 rounded-l-lg">Peringkat</th>
-                  <th className="py-2.5 px-3">Medali / Penghargaan</th>
-                  <th className="py-2.5 px-4">Nama Archer</th>
-                  <th className="py-2.5 px-4">Klub / Kontingen</th>
-                  <th className="py-2.5 px-4 text-right rounded-r-lg">Kategori</th>
+                <tr className="bg-slate-100 text-slate-900 text-[9px] font-black uppercase tracking-wider border-b border-slate-300">
+                  <th className="py-2 px-3 text-center w-16 border-r border-slate-300">Peringkat</th>
+                  <th className="py-2 px-3 border-r border-slate-300">Medali / Penghargaan</th>
+                  <th className="py-2 px-4 border-r border-slate-300">Nama Archer</th>
+                  <th className="py-2 px-4 border-r border-slate-300">Klub / Kontingen</th>
+                  <th className="py-2 px-4 text-right">Kategori</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                <tr className="bg-amber-50/70 font-black">
-                  <td className="py-2.5 px-3 text-center font-oswald text-base text-amber-900">1</td>
-                  <td className="py-2.5 px-3 text-amber-800">Medali Emas (Gold Medalist)</td>
-                  <td className="py-2.5 px-4 font-oswald text-sm text-slate-950">{winners.juara1?.name || 'TBA'}</td>
-                  <td className="py-2.5 px-4 text-slate-700 uppercase">{winners.juara1?.club || '-'}</td>
-                  <td className="py-2.5 px-4 text-right text-slate-700">{CATEGORY_LABELS[selectedCategory]}</td>
+                <tr className="bg-amber-50 font-black">
+                  <td className="py-2 px-3 text-center font-oswald text-base text-amber-900 border-r border-slate-300">1</td>
+                  <td className="py-2 px-3 text-amber-900 border-r border-slate-300">MEDALI EMAS (GOLD MEDALIST)</td>
+                  <td className="py-2 px-4 font-oswald text-sm text-slate-950 border-r border-slate-300">{winners.juara1?.name || 'TBA'}</td>
+                  <td className="py-2 px-4 text-slate-700 uppercase border-r border-slate-300">{winners.juara1?.club || '-'}</td>
+                  <td className="py-2 px-4 text-right text-slate-700">{categoryLabel}</td>
                 </tr>
                 <tr className="bg-slate-50 font-bold">
-                  <td className="py-2.5 px-3 text-center font-oswald text-base text-slate-900">2</td>
-                  <td className="py-2.5 px-3 text-slate-700">Medali Perak (Silver Medalist)</td>
-                  <td className="py-2.5 px-4 font-oswald text-sm text-slate-950 font-black">{winners.juara2?.name || 'TBA'}</td>
-                  <td className="py-2.5 px-4 text-slate-700 uppercase">{winners.juara2?.club || '-'}</td>
-                  <td className="py-2.5 px-4 text-right text-slate-700">{CATEGORY_LABELS[selectedCategory]}</td>
+                  <td className="py-2 px-3 text-center font-oswald text-base text-slate-900 border-r border-slate-300">2</td>
+                  <td className="py-2 px-3 text-slate-800 border-r border-slate-300">MEDALI PERAK (SILVER MEDALIST)</td>
+                  <td className="py-2 px-4 font-oswald text-sm text-slate-950 font-black border-r border-slate-300">{winners.juara2?.name || 'TBA'}</td>
+                  <td className="py-2 px-4 text-slate-700 uppercase border-r border-slate-300">{winners.juara2?.club || '-'}</td>
+                  <td className="py-2 px-4 text-right text-slate-700">{categoryLabel}</td>
                 </tr>
-                <tr className="bg-orange-50/50 font-bold">
-                  <td className="py-2.5 px-3 text-center font-oswald text-base text-orange-900">3</td>
-                  <td className="py-2.5 px-3 text-orange-800">Medali Perunggu (Bronze Medalist)</td>
-                  <td className="py-2.5 px-4 font-oswald text-sm text-slate-950 font-black">{winners.juara3?.name || 'TBA'}</td>
-                  <td className="py-2.5 px-4 text-slate-700 uppercase">{winners.juara3?.club || '-'}</td>
-                  <td className="py-2.5 px-4 text-right text-slate-700">{CATEGORY_LABELS[selectedCategory]}</td>
+                <tr className="bg-orange-50 font-bold">
+                  <td className="py-2 px-3 text-center font-oswald text-base text-orange-900 border-r border-slate-300">3</td>
+                  <td className="py-2 px-3 text-orange-900 border-r border-slate-300">MEDALI PERUNGGU (BRONZE MEDALIST)</td>
+                  <td className="py-2 px-4 font-oswald text-sm text-slate-950 font-black border-r border-slate-300">{winners.juara3?.name || 'TBA'}</td>
+                  <td className="py-2 px-4 text-slate-700 uppercase border-r border-slate-300">{winners.juara3?.club || '-'}</td>
+                  <td className="py-2 px-4 text-right text-slate-700">{categoryLabel}</td>
                 </tr>
                 {winners.juara4 && (
                   <tr className="bg-white">
-                    <td className="py-2.5 px-3 text-center font-oswald text-base text-slate-700">4</td>
-                    <td className="py-2.5 px-3 text-slate-600">Peringkat 4 (Semi-Finalist)</td>
-                    <td className="py-2.5 px-4 font-oswald text-sm text-slate-900 font-black">{winners.juara4.name}</td>
-                    <td className="py-2.5 px-4 text-slate-700 uppercase">{winners.juara4.club || '-'}</td>
-                    <td className="py-2.5 px-4 text-right text-slate-700">{CATEGORY_LABELS[selectedCategory]}</td>
+                    <td className="py-2 px-3 text-center font-oswald text-base text-slate-700 border-r border-slate-300">4</td>
+                    <td className="py-2 px-3 text-slate-600 border-r border-slate-300">PERINGKAT 4 (SEMI-FINALIST)</td>
+                    <td className="py-2 px-4 font-oswald text-sm text-slate-900 font-black border-r border-slate-300">{winners.juara4.name}</td>
+                    <td className="py-2 px-4 text-slate-700 uppercase border-r border-slate-300">{winners.juara4.club || '-'}</td>
+                    <td className="py-2 px-4 text-right text-slate-700">{categoryLabel}</td>
                   </tr>
                 )}
               </tbody>
@@ -933,34 +984,34 @@ export default function PrintRoundReportModal({
         )}
 
         {/* Official Signatures & Verification Stamp */}
-        <div className="mt-12 pt-8 border-t-2 border-slate-900 text-xs">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-8 text-center sm:text-left">
+        <div className="mt-8 pt-4 border-t-2 border-slate-900 text-xs">
+          <div className="flex items-center justify-between gap-8 text-left">
             <div className="space-y-1">
               <p className="text-[9px] font-black uppercase text-slate-700 tracking-widest">Tempat &amp; Tanggal Pengesahan</p>
               <p className="font-bold text-slate-900">
-                {event.settings.location || 'Indonesia'}, {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                {event.settings?.location || 'Indonesia'}, {dateFormatted}
               </p>
-              <p className="text-[8px] text-slate-600 italic">
-                Dicetak via ARCUS Smart Archery Tournament OS • Waktu: {new Date().toLocaleTimeString('id-ID')}
+              <p className="text-[8px] text-slate-500 italic">
+                Dicetak resmi via ARCUS Archery Tournament OS • Waktu: {new Date().toLocaleTimeString('id-ID')}
               </p>
             </div>
 
             <div className="flex items-center gap-12 text-center">
               <div>
-                <p className="text-[9px] font-black uppercase text-slate-700 tracking-widest mb-14">
+                <p className="text-[9px] font-black uppercase text-slate-700 tracking-widest mb-10">
                   Ketua Wasit / Chief Judge (CJ)
                 </p>
                 <div className="border-t border-slate-400 w-36 mx-auto pt-1">
-                  <p className="font-black uppercase text-[10px] text-slate-900">( ....................................... )</p>
+                  <p className="font-black uppercase text-[9px] text-slate-900">( ....................................... )</p>
                 </div>
               </div>
 
               <div>
-                <p className="text-[9px] font-black uppercase text-slate-700 tracking-widest mb-14">
+                <p className="text-[9px] font-black uppercase text-slate-700 tracking-widest mb-10">
                   Technical Delegate (TD)
                 </p>
                 <div className="border-t border-slate-400 w-36 mx-auto pt-1">
-                  <p className="font-black uppercase text-[10px] text-slate-900">( ....................................... )</p>
+                  <p className="font-black uppercase text-[9px] text-slate-900">( ....................................... )</p>
                 </div>
               </div>
             </div>
@@ -968,8 +1019,188 @@ export default function PrintRoundReportModal({
         </div>
 
       </div>
-    </div>
-  </div>
-</div>
+    );
+  };
+
+  return (
+    <>
+      {/* 1. Modal Preview Window - For Screen View */}
+      <div className="fixed inset-0 z-[300] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 md:p-6 print:hidden">
+        
+        {/* Modal Dialog Window Container */}
+        <div className="w-full max-w-6xl h-full max-h-[94vh] bg-slate-100 rounded-3xl shadow-2xl border border-slate-300 flex flex-col overflow-hidden">
+
+          {/* Modal Top Control Header - Non-scrollable, Fixed at top */}
+          <div className="shrink-0 bg-white border-b border-slate-200 p-4 sm:p-5 shadow-sm space-y-3.5">
+            
+            {/* Header Row: Title & Action Buttons */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center font-black shadow-md shadow-red-600/30 shrink-0">
+                  <Printer className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-xl font-black font-oswald uppercase italic tracking-tight text-slate-900 leading-none">
+                    Pusat Cetak &amp; Laporan Skor Babak
+                  </h2>
+                  <p className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mt-0.5">
+                    Data Master Penyaringan, Lolos Eliminasi &amp; Rekapitulasi Skor Resmi
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                <button
+                  type="button"
+                  onClick={handleCopySummary}
+                  className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95 shadow-sm whitespace-nowrap"
+                  title="Salin ringkasan hasil untuk dibagikan ke WhatsApp"
+                >
+                  {hasCopiedText ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-indigo-300" />}
+                  <span>{hasCopiedText ? 'Tersalin!' : 'Salin Teks WA'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExportCSV}
+                  className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95 shadow-sm whitespace-nowrap"
+                  title="Download tabel dalam format Excel (.CSV)"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" /> 
+                  <span>Export Excel</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePrint}
+                  className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-red-600/30 transition-all active:scale-95 whitespace-nowrap"
+                  title="Cetak berkas atau simpan sebagai PDF"
+                >
+                  <Printer className="w-4 h-4" /> 
+                  <span>CETAK / SIMPAN PDF</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="p-2.5 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 rounded-xl transition-all border border-slate-200 ml-1"
+                  title="Tutup Jendela Cetak"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Filter Selection Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1 border-t border-slate-100">
+              
+              {/* 1. Category Selector */}
+              <div>
+                <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest block mb-1 flex items-center gap-1">
+                  <Filter className="w-3 h-3 text-red-600" /> 1. Kategori Divisi:
+                </label>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value as CategoryType)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-black text-slate-900 outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 shadow-xs"
+                >
+                  {(Object.keys(CategoryType) as CategoryType[])
+                    .filter(c => c !== CategoryType.OFFICIAL)
+                    .map(cat => (
+                      <option key={cat} value={cat}>
+                        {CATEGORY_LABELS[cat] || cat}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {/* 2. Round / Document Type */}
+              <div className="lg:col-span-2">
+                <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest block mb-1 flex items-center gap-1">
+                  <Target className="w-3 h-3 text-indigo-600" /> 2. Jenis Dokumen / Babak Laporan:
+                </label>
+                <select
+                  value={selectedRoundType}
+                  onChange={(e) => setSelectedRoundType(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-black text-slate-900 outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 shadow-xs font-sans"
+                >
+                  <optgroup label="⭐ Penyaringan &amp; Lolos Eliminasi (Utama)">
+                    <option value="QUAL_QUALIFIED">
+                      🎯 DATA MASTER: Peserta Masuk Babak Selanjutnya (Top Cutoff &amp; Lawan Eliminasi)
+                    </option>
+                    <option value="QUAL">
+                      📊 DATA MASTER: Hasil Kualifikasi Lengkap (Leaderboard Semua Peserta)
+                    </option>
+                  </optgroup>
+                  <optgroup label="Babak Eliminasi / Aduan">
+                    {availableRounds.includes("64") && <option value="64">Babak 1/32 Final (64 Besar)</option>}
+                    {availableRounds.includes("32") && <option value="32">Babak 1/16 Final (32 Besar)</option>}
+                    {availableRounds.includes("16") && <option value="16">Babak 1/8 Final (16 Besar)</option>}
+                    {availableRounds.includes("8") && <option value="8">Babak Quarter Final (8 Besar)</option>}
+                    {availableRounds.includes("4") && <option value="4">Babak Semi Final (4 Besar)</option>}
+                    {availableRounds.includes("1") && <option value="1">Babak Perebutan Juara 3 (Bronze Match)</option>}
+                    {availableRounds.includes("2") && <option value="2">Babak FINAL (Gold Medal Match)</option>}
+                    <option value="BRACKET_ALL">Seluruh Pertandingan Bagan Eliminasi</option>
+                  </optgroup>
+                  <optgroup label="Rekapitulasi Akhir">
+                    <option value="FINAL_STANDINGS">Hasil Akhir &amp; Podium Medalis (Juara 1, 2, 3, 4)</option>
+                  </optgroup>
+                </select>
+              </div>
+
+              {/* 3. Qualified Cutoff Setting */}
+              <div>
+                <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest block mb-1 flex items-center gap-1">
+                  <Award className="w-3 h-3 text-amber-500" /> 3. Kuota Lolos (Cutoff):
+                </label>
+                <div className="flex items-center gap-1">
+                  {[8, 16, 32, 64].map(num => (
+                    <button
+                      key={num}
+                      type="button"
+                      onClick={() => {
+                        setQualifiedCutoff(num);
+                        setSelectedRoundType('QUAL_QUALIFIED');
+                      }}
+                      className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${
+                        selectedRoundType === 'QUAL_QUALIFIED' && qualifiedCutoff === num
+                          ? 'bg-slate-900 text-white shadow-sm'
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                      }`}
+                    >
+                      Top {num}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
+            {/* Quick Notice */}
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-1.5 text-[9px] font-medium text-emerald-950 flex items-center justify-between flex-wrap gap-1">
+              <span>✅ <strong>Fokus Data Master:</strong> Dokumen cetak bersih khusus data resmi kualifikasi, eliminasi, dan penyaringan. Tanpa tombol dashboard.</span>
+              <span className="font-bold text-slate-700">Format: Standard A4 Portrait</span>
+            </div>
+          </div>
+
+          {/* Modal Body / Paper Sheet Preview (Scrollable) */}
+          <div className="flex-1 overflow-y-auto p-3 sm:p-6 md:p-8 bg-slate-200/80 flex justify-center">
+            <div className="w-full max-w-4xl bg-white rounded-2xl shadow-xl border border-slate-300 overflow-hidden">
+              {renderPrintableDocument()}
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      {/* 2. Pure Print Portal in document.body - ONLY rendered for browser print dialog */}
+      {typeof document !== 'undefined' && createPortal(
+        <div className="print-area-portal">
+          {renderPrintableDocument()}
+        </div>,
+        document.body
+      )}
+    </>
   );
 }

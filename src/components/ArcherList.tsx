@@ -36,7 +36,6 @@ import { CATEGORY_LABELS } from "../constants";
 import { compressPhoto, uploadPhotoToStorage } from "../lib/photoService";
 import ScoringSheet from "./ScoringSheet";
 import ParticipantScannerModal from "./ParticipantScannerModal";
-import PrintParticipantListModal from "./PrintParticipantListModal";
 
 interface Props {
   archers: Archer[];
@@ -87,8 +86,6 @@ const ArcherList: React.FC<Props> = ({
   const [filterClub, setFilterClub] = useState<string>("ALL");
   const [filterCheckIn, setFilterCheckIn] = useState<"ALL" | "CHECKED_IN" | "NOT_CHECKED_IN">("ALL");
   const [showScannerModal, setShowScannerModal] = useState(false);
-  const [showPrintModal, setShowPrintModal] = useState(false);
-  const [printModalCategory, setPrintModalCategory] = useState<string>("ALL");
   const [initialScanQuery, setInitialScanQuery] = useState("");
   const [printAllCategories, setPrintAllCategories] = useState(false);
   const [showPrintOptions, setShowPrintOptions] = useState(false);
@@ -502,10 +499,9 @@ const ArcherList: React.FC<Props> = ({
           <div className="relative">
             <button
               onClick={() => setShowPrintOptions(!showPrintOptions)}
-              className="bg-slate-900 text-white px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-2 hover:bg-black transition-all active:scale-95 shadow-sm"
-              title="Cetak Berkas Daftar Peserta & Penempatan Bantalan"
+              className="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-2 hover:bg-slate-200 transition-all active:scale-95"
             >
-              <Printer className="w-3.5 h-3.5 text-arcus-red" />
+              <Printer className="w-3.5 h-3.5" />
               Cetak Daftar
             </button>
             <button
@@ -521,32 +517,24 @@ const ArcherList: React.FC<Props> = ({
                   className="fixed inset-0 z-40"
                   onClick={() => setShowPrintOptions(false)}
                 ></div>
-                <div className="absolute top-full right-0 mt-2 w-52 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
                   <button
                     onClick={() => {
-                      setPrintModalCategory(activeCategory as string);
-                      setShowPrintModal(true);
+                      handlePrint(false);
                       setShowPrintOptions(false);
                     }}
-                    className="w-full text-left px-4 py-2.5 text-[10px] font-bold text-slate-700 hover:bg-slate-50 border-b border-slate-100 flex items-center justify-between"
+                    className="w-full text-left px-4 py-3 text-[10px] font-bold text-slate-600 hover:bg-slate-50 border-b border-slate-50"
                   >
-                    <span>Kategori Aktif</span>
-                    <span className="text-[9px] bg-slate-100 px-2 py-0.5 rounded font-black text-slate-600">
-                      {activeCategory === 'ALL' ? 'Semua' : (CATEGORY_LABELS[activeCategory as CategoryType] || activeCategory).substring(0, 10)}
-                    </span>
+                    Kategori Aktif
                   </button>
                   <button
                     onClick={() => {
-                      setPrintModalCategory('ALL');
-                      setShowPrintModal(true);
+                      handlePrint(true);
                       setShowPrintOptions(false);
                     }}
-                    className="w-full text-left px-4 py-2.5 text-[10px] font-bold text-slate-700 hover:bg-slate-50 flex items-center justify-between"
+                    className="w-full text-left px-4 py-3 text-[10px] font-bold text-slate-600 hover:bg-slate-50"
                   >
-                    <span>Semua Kategori (Rekap Lengkap)</span>
-                    <span className="text-[9px] bg-red-50 text-arcus-red px-2 py-0.5 rounded font-black">
-                      {archers.length}
-                    </span>
+                    Semua Kategori
                   </button>
                 </div>
               </>
@@ -799,26 +787,201 @@ const ArcherList: React.FC<Props> = ({
           ))}
       </div>
 
-      {/* Dedicated Clean Printable Participant List Modal */}
-      {showPrintModal && (
-        <PrintParticipantListModal
-          isOpen={showPrintModal}
-          onClose={() => setShowPrintModal(false)}
-          event={({
-            id: eventId,
-            name: settings.tournamentName,
-            settings: settings,
-            archers: archers,
-            officials: [],
-            registrations: [],
-            scores: [],
-            scoreLogs: [],
-            matches: {},
-            createdAt: 0,
-            status: 'ACTIVE'
-          } as unknown) as ArcheryEvent}
-          initialCategory={printModalCategory}
-        />
+      {/* Printable Area (Hidden in UI, visible in Print) */}
+      {isPrintingList && createPortal(
+        <div className="print-area-portal bg-white p-4 min-h-screen">
+          {printAllCategories ? (
+            (Object.keys(CategoryType) as CategoryType[]).map((cat, idx) => {
+              const catArchers = archers
+                .filter((a) => a.category === cat)
+                .sort((a, b) => {
+                  const wA = a.wave || 1;
+                  const wB = b.wave || 1;
+                  if (wA !== wB) return wA - wB;
+                  const tA = a.targetNo || 999;
+                  const tB = b.targetNo || 999;
+                  if (tA !== tB) return tA - tB;
+                  return a.position.localeCompare(b.position);
+                });
+
+              if (catArchers.length === 0) return null;
+
+              return (
+                <div
+                  key={cat}
+                  className={idx > 0 ? "page-break-before-always mt-10" : ""}
+                >
+                  <div className="text-center mb-8 border-b-2 border-black pb-4">
+                    <h1 className="text-2xl font-bold uppercase">
+                      {settings.tournamentName}
+                    </h1>
+                    <h2 className="text-xl font-bold uppercase mt-1">
+                      Daftar Peserta & Penempatan Bantalan
+                    </h2>
+                    <p className="text-lg font-bold uppercase mt-2 bg-slate-100 inline-block px-4 py-1 rounded">
+                      Kategori: {CATEGORY_LABELS[cat]}
+                    </p>
+                  </div>
+
+                  <table className="w-full border-collapse border border-black">
+                    <thead>
+                      <tr className="bg-slate-100">
+                        <th className="border border-black py-2 px-1 text-[10px] font-bold uppercase w-8">
+                          No
+                        </th>
+                        <th className="border border-black py-2 px-2 text-[10px] font-bold uppercase w-20">
+                          Bantalan
+                        </th>
+                        <th className="border border-black py-2 px-2 text-[10px] font-bold uppercase">
+                          Nama Pemanah
+                        </th>
+                        <th className="border border-black py-2 px-2 text-[10px] font-bold uppercase">
+                          Klub / Kota
+                        </th>
+                        <th className="border border-black py-2 px-1 text-[10px] font-bold uppercase w-16">
+                          Sesi
+                        </th>
+                        <th className="border border-black py-2 px-2 text-[10px] font-bold uppercase w-24">
+                          Tanda Tangan
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {catArchers.map((a: Archer, aIdx: number) => (
+                        <tr key={a.id}>
+                          <td className="border border-black py-2 px-1 text-center text-[10px]">
+                            {aIdx + 1}
+                          </td>
+                          <td className="border border-black py-1 px-1 text-center font-bold text-base">
+                            {a.targetNo}
+                            {a.position}
+                          </td>
+                          <td className="border border-black py-1 px-2 text-[11px] font-bold uppercase">
+                            {a.name}
+                          </td>
+                          <td className="border border-black py-1 px-2 text-[10px] uppercase">
+                            {a.club}
+                          </td>
+                          <td className="border border-black py-1 px-1 text-center text-[10px] font-bold">
+                            {a.wave}
+                          </td>
+                          <td className="border border-black py-1 px-2 text-center text-[9px] text-slate-600 italic min-h-[30px]">
+                            ....................
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  <div className="mt-12 flex justify-between items-end">
+                    <div className="text-center w-48">
+                      <p className="text-[10px] mb-12">
+                        Dicetak: {new Date().toLocaleDateString("id-ID")}
+                      </p>
+                      <div className="border-b border-black mb-1"></div>
+                      <p className="font-bold uppercase text-[10px]">
+                        Koordinator Lapangan
+                      </p>
+                    </div>
+                    <div className="text-center w-48">
+                      <p className="text-[10px] mb-12">
+                        {settings.location || "Panitia Pelaksana"}
+                      </p>
+                      <div className="border-b border-black mb-1"></div>
+                      <p className="font-bold uppercase text-[10px]">
+                        Ketua Panitia
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <div>
+              <div className="text-center mb-8 border-b-2 border-black pb-4">
+                <h1 className="text-2xl font-bold uppercase">
+                  {settings.tournamentName}
+                </h1>
+                <h2 className="text-xl font-bold uppercase mt-1">
+                  Daftar Peserta & Penempatan Bantalan
+                </h2>
+                <p className="text-lg font-bold uppercase mt-2 bg-slate-100 inline-block px-4 py-1 rounded">
+                  Kategori: {CATEGORY_LABELS[activeCategory]}
+                </p>
+              </div>
+
+              <table className="w-full border-collapse border border-black">
+                <thead>
+                  <tr className="bg-slate-100">
+                    <th className="border border-black py-2 px-1 text-[10px] font-bold uppercase w-8">
+                      No
+                    </th>
+                    <th className="border border-black py-2 px-2 text-[10px] font-bold uppercase w-20">
+                      Bantalan
+                    </th>
+                    <th className="border border-black py-2 px-2 text-[10px] font-bold uppercase">
+                      Nama Pemanah
+                    </th>
+                    <th className="border border-black py-2 px-2 text-[10px] font-bold uppercase">
+                      Klub / Kota
+                    </th>
+                    <th className="border border-black py-2 px-1 text-[10px] font-bold uppercase w-16">
+                      Sesi
+                    </th>
+                    <th className="border border-black py-2 px-2 text-[10px] font-bold uppercase w-24">
+                      Tanda Tangan
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((a: Archer, aIdx: number) => (
+                    <tr key={a.id}>
+                      <td className="border border-black py-2 px-1 text-center text-[10px]">
+                        {aIdx + 1}
+                      </td>
+                      <td className="border border-black py-1 px-1 text-center font-bold text-base">
+                        {a.targetNo}
+                        {a.position}
+                      </td>
+                      <td className="border border-black py-1 px-2 text-[11px] font-bold uppercase">
+                        {a.name}
+                      </td>
+                      <td className="border border-black py-1 px-2 text-[10px] uppercase">
+                        {a.club}
+                      </td>
+                      <td className="border border-black py-1 px-1 text-center text-[10px] font-bold">
+                        {a.wave}
+                      </td>
+                      <td className="border border-black py-1 px-2 text-center text-[9px] text-slate-600 italic min-h-[30px]">
+                        ....................
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="mt-12 flex justify-between items-end">
+                <div className="text-center w-48">
+                  <p className="text-[10px] mb-12">
+                    Dicetak: {new Date().toLocaleDateString("id-ID")}
+                  </p>
+                  <div className="border-b border-black mb-1"></div>
+                  <p className="font-bold uppercase text-[10px]">
+                    Koordinator Lapangan
+                  </p>
+                </div>
+                <div className="text-center w-48">
+                  <p className="text-[10px] mb-12">
+                    {settings.location || "Panitia Pelaksana"}
+                  </p>
+                  <div className="border-b border-black mb-1"></div>
+                  <p className="font-bold uppercase text-[10px]">Ketua Panitia</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>,
+        document.body
       )}
 
       {/* Scoring Sheet Print View */}
