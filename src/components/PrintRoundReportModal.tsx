@@ -350,142 +350,168 @@ export default function PrintRoundReportModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[300] bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-2 sm:p-4 overflow-y-auto print:p-0 print:bg-white print:static">
+    <div className="fixed inset-0 z-[300] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 md:p-6 print:p-0 print:bg-white print:static print:overflow-visible print:block">
       
-      {/* Control Bar - Hidden on print */}
-      <div className="w-full max-w-5xl bg-white border border-slate-200 rounded-3xl p-4 sm:p-6 mb-4 shadow-2xl flex flex-col gap-4 print:hidden shrink-0">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-arcus-red/10 text-arcus-red flex items-center justify-center font-black">
-              <Printer className="w-5 h-5" />
+      {/* Modal Dialog Window Container */}
+      <div className="w-full max-w-5xl h-full max-h-[92vh] bg-slate-100 rounded-3xl shadow-2xl border border-slate-300 flex flex-col overflow-hidden print:border-0 print:shadow-none print:max-h-none print:overflow-visible print:bg-white print:rounded-none print:h-auto print:max-w-none">
+
+        {/* Modal Top Control Header - Non-scrollable, Fixed at top - Hidden on print */}
+        <div className="shrink-0 bg-white border-b border-slate-200 p-4 sm:p-5 shadow-sm space-y-3.5 print:hidden">
+          
+          {/* Header Row: Title & Action Buttons */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-arcus-red text-white flex items-center justify-center font-black shadow-md shadow-arcus-red/30 shrink-0">
+                <Printer className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-base sm:text-xl font-black font-oswald uppercase italic tracking-tight text-slate-900 leading-none">
+                  Pusat Cetak &amp; Laporan Skor Babak
+                </h2>
+                <p className="text-[10px] font-bold text-slate-700 uppercase tracking-wider mt-0.5">
+                  Siap Cetak Kertas A4 / Simpan PDF / Export Excel &amp; WhatsApp
+                </p>
+              </div>
             </div>
+
+            {/* Action Buttons: Clear, spacious, non-overlapping */}
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              <button
+                type="button"
+                onClick={handleCopySummary}
+                className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95 shadow-sm whitespace-nowrap"
+                title="Salin ringkasan hasil untuk dibagikan ke WhatsApp"
+              >
+                {hasCopiedText ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-indigo-300" />}
+                <span>{hasCopiedText ? 'Tersalin!' : 'Salin Teks WA'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95 shadow-sm whitespace-nowrap"
+                title="Download tabel dalam format Excel (.CSV)"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" /> 
+                <span>Export Excel</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePrint}
+                className="px-5 py-2.5 bg-arcus-red hover:bg-red-700 text-white rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-arcus-red/30 transition-all active:scale-95 whitespace-nowrap"
+                title="Cetak berkas atau simpan sebagai PDF"
+              >
+                <Printer className="w-4 h-4" /> 
+                <span>CETAK / SIMPAN PDF</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-2.5 bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 rounded-xl transition-all border border-slate-200 ml-1"
+                title="Tutup Jendela Cetak"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Filter Selection Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 border-t border-slate-100">
+            {/* Category Selector */}
             <div>
-              <h2 className="text-lg sm:text-xl font-black font-oswald uppercase italic tracking-tight text-slate-900 leading-none">
-                Pusat Cetak &amp; Laporan Skor Babak
-              </h2>
-              <p className="text-[10px] sm:text-xs font-bold text-slate-700 uppercase tracking-widest mt-1">
-                Cetak Lembar Resmi Kualifikasi, 32 Besar, 16 Besar, Perempat Final, Semi Final hingga Podium
-              </p>
+              <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest block mb-1 flex items-center gap-1">
+                <Filter className="w-3 h-3 text-arcus-red" /> 1. Kategori Divisi:
+              </label>
+              <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value as CategoryType)}
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-black text-slate-900 outline-none focus:border-arcus-red focus:ring-1 focus:ring-arcus-red shadow-xs"
+              >
+                {(Object.keys(CategoryType) as CategoryType[])
+                  .filter(c => c !== CategoryType.OFFICIAL)
+                  .map(cat => (
+                    <option key={cat} value={cat}>
+                      {CATEGORY_LABELS[cat] || cat}
+                    </option>
+                  ))}
+              </select>
             </div>
-          </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={handleCopySummary}
-              className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all"
-            >
-              {hasCopiedText ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-              {hasCopiedText ? 'Tersalin' : 'Salin Teks WA'}
-            </button>
-            <button
-              onClick={handleExportCSV}
-              className="px-3.5 py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all"
-            >
-              <FileSpreadsheet className="w-4 h-4" /> Download CSV
-            </button>
-            <button
-              onClick={handlePrint}
-              className="px-5 py-2.5 bg-arcus-red hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-arcus-red/30 transition-all active:scale-95"
-            >
-              <Printer className="w-4 h-4" /> CETAK SEKARANG / PDF
-            </button>
-            <button
-              onClick={onClose}
-              className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 rounded-xl transition-all ml-1"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
+            {/* Round Selector */}
+            <div>
+              <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest block mb-1 flex items-center gap-1">
+                <Target className="w-3 h-3 text-indigo-600" /> 2. Babak / Lembar Dokumen:
+              </label>
+              <select
+                value={selectedRoundType}
+                onChange={(e) => setSelectedRoundType(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-xs font-black text-slate-900 outline-none focus:border-arcus-red focus:ring-1 focus:ring-arcus-red shadow-xs"
+              >
+                <optgroup label="Babak Kualifikasi">
+                  <option value="QUAL">Hasil Kualifikasi Lengkap (Semua Archer)</option>
+                  <option value="QUAL_QUALIFIED">Daftar Archer Lolos ke Babak Eliminasi</option>
+                </optgroup>
+                <optgroup label="Babak Eliminasi / Aduan">
+                  {availableRounds.includes("64") && <option value="64">Babak 1/32 Final (64 Besar)</option>}
+                  {availableRounds.includes("32") && <option value="32">Babak 1/16 Final (32 Besar)</option>}
+                  {availableRounds.includes("16") && <option value="16">Babak 1/8 Final (16 Besar)</option>}
+                  {availableRounds.includes("8") && <option value="8">Babak Quarter Final (8 Besar)</option>}
+                  {availableRounds.includes("4") && <option value="4">Babak Semi Final (4 Besar)</option>}
+                  {availableRounds.includes("1") && <option value="1">Babak Perebutan Juara 3 (Bronze Match)</option>}
+                  {availableRounds.includes("2") && <option value="2">Babak FINAL (Gold Medal Match)</option>}
+                  <option value="BRACKET_ALL">Seluruh Pertandingan Bagan Eliminasi</option>
+                </optgroup>
+                <optgroup label="Rekapitulasi Akhir">
+                  <option value="FINAL_STANDINGS">Hasil Akhir &amp; Podium Medalis (Juara 1, 2, 3, 4)</option>
+                </optgroup>
+              </select>
+            </div>
 
-        {/* Filter Selection Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
-          {/* Category Dropdown */}
-          <div>
-            <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest block mb-1.5">
-              1. Pilih Kategori:
-            </label>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value as CategoryType)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-black text-slate-900 outline-none focus:border-arcus-red"
-            >
-              {(Object.keys(CategoryType) as CategoryType[])
-                .filter(c => c !== CategoryType.OFFICIAL)
-                .map(cat => (
-                  <option key={cat} value={cat}>
-                    {CATEGORY_LABELS[cat] || cat}
-                  </option>
+            {/* Qualified Cutoff Setting */}
+            <div>
+              <label className="text-[9px] font-black text-slate-700 uppercase tracking-widest block mb-1 flex items-center gap-1">
+                <Award className="w-3 h-3 text-amber-500" /> 3. Kuota Lolos (Cutoff):
+              </label>
+              <div className="flex items-center gap-1">
+                {[8, 16, 32, 64].map(num => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => {
+                      setQualifiedCutoff(num);
+                      setSelectedRoundType('QUAL_QUALIFIED');
+                    }}
+                    className={`flex-1 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${
+                      selectedRoundType === 'QUAL_QUALIFIED' && qualifiedCutoff === num
+                        ? 'bg-slate-900 text-white shadow-sm'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                    }`}
+                  >
+                    Top {num}
+                  </button>
                 ))}
-            </select>
-          </div>
-
-          {/* Round Selector */}
-          <div>
-            <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest block mb-1.5">
-              2. Pilih Babak / Dokumen yang Dicetak:
-            </label>
-            <select
-              value={selectedRoundType}
-              onChange={(e) => setSelectedRoundType(e.target.value)}
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-black text-slate-900 outline-none focus:border-arcus-red"
-            >
-              <optgroup label="Babak Kualifikasi">
-                <option value="QUAL">Hasil Kualifikasi Lengkap (Semua Archer)</option>
-                <option value="QUAL_QUALIFIED">Daftar Archer Lolos ke Babak Eliminasi</option>
-              </optgroup>
-              <optgroup label="Babak Eliminasi / Aduan">
-                {availableRounds.includes("64") && <option value="64">Babak 1/32 Final (64 Besar)</option>}
-                {availableRounds.includes("32") && <option value="32">Babak 1/16 Final (32 Besar)</option>}
-                {availableRounds.includes("16") && <option value="16">Babak 1/8 Final (16 Besar)</option>}
-                {availableRounds.includes("8") && <option value="8">Babak Quarter Final (8 Besar)</option>}
-                {availableRounds.includes("4") && <option value="4">Babak Semi Final (4 Besar)</option>}
-                {availableRounds.includes("1") && <option value="1">Babak Perebutan Juara 3 (Bronze Match)</option>}
-                {availableRounds.includes("2") && <option value="2">Babak FINAL (Gold Medal Match)</option>}
-                <option value="BRACKET_ALL">Seluruh Pertandingan Bagan Eliminasi</option>
-              </optgroup>
-              <optgroup label="Rekapitulasi Akhir">
-                <option value="FINAL_STANDINGS">Hasil Akhir &amp; Podium Medalis (Juara 1, 2, 3, 4)</option>
-              </optgroup>
-            </select>
-          </div>
-
-          {/* Qualified Cutoff Setting (if in QUAL_QUALIFIED mode) */}
-          <div>
-            <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest block mb-1.5">
-              3. Batas Kuota Lolos (Cutoff):
-            </label>
-            <div className="flex items-center gap-2">
-              {[8, 16, 32, 64].map(num => (
-                <button
-                  key={num}
-                  type="button"
-                  onClick={() => {
-                    setQualifiedCutoff(num);
-                    setSelectedRoundType('QUAL_QUALIFIED');
-                  }}
-                  className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${
-                    selectedRoundType === 'QUAL_QUALIFIED' && qualifiedCutoff === num
-                      ? 'bg-slate-900 text-white shadow-md'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  Top {num}
-                </button>
-              ))}
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Printable Sheet Container (Standard A4 Paper Styling) */}
-      <div 
-        id="printable-report-sheet"
-        className="w-full max-w-5xl bg-white rounded-3xl p-6 sm:p-12 shadow-2xl border border-slate-200 print:shadow-none print:border-0 print:p-0 print:m-0 print:rounded-none print:w-full print:max-w-none text-slate-900 font-sans"
-      >
-        
-        {/* Official Header */}
-        <div className="border-b-4 border-slate-900 pb-4 mb-6">
+          {/* Quick Notice */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-1.5 text-[9px] font-medium text-amber-900 flex items-center justify-between flex-wrap gap-1">
+            <span>💡 <strong>Petunjuk Simpan PDF:</strong> Klik tombol merah <strong>CETAK / SIMPAN PDF</strong>, lalu pilih <em>Destination: "Save as PDF"</em> pada jendela print browser.</span>
+            <span className="font-bold text-slate-700">Format: Standard A4 / F4 Portrait</span>
+          </div>
+        </div>
+
+        {/* Modal Body / Paper Sheet Container (Scrollable Preview) */}
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 md:p-8 bg-slate-200/70 flex justify-center print:p-0 print:bg-white print:overflow-visible print:block">
+          <div 
+            id="printable-report-sheet"
+            className="w-full max-w-4xl bg-white rounded-2xl p-6 sm:p-10 shadow-xl border border-slate-300 print:shadow-none print:border-0 print:p-0 print:m-0 print:rounded-none print:w-full print:max-w-none text-slate-900 font-sans"
+          >
+            
+            {/* Official Header */}
+            <div className="border-b-4 border-slate-900 pb-4 mb-6">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <ArcusLogo className="w-14 h-14 sm:w-16 sm:h-16 shrink-0" />
@@ -943,5 +969,7 @@ export default function PrintRoundReportModal({
 
       </div>
     </div>
+  </div>
+</div>
   );
 }

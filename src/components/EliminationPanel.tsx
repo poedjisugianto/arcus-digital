@@ -1,9 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { ArcheryEvent, CategoryType, Match, Archer, TargetType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
-import { Trophy, GitBranch, User, Save, RefreshCw, ChevronRight, Swords, ArrowLeft, Trash2, Settings2, Zap, Medal, Plus, Minus, Check, FileText, X, AlertTriangle, Bell, Volume2, Target, BarChart3, ListOrdered, Award, Scale, Printer } from 'lucide-react';
+import { Trophy, GitBranch, User, Save, RefreshCw, ChevronRight, Swords, ArrowLeft, Trash2, Settings2, Zap, Medal, Plus, Minus, Check, FileText, X, AlertTriangle, Bell, Volume2, Target, BarChart3, ListOrdered, Award, Scale } from 'lucide-react';
 import { playShootOffAlarm, playVictorySound } from '../lib/soundAlarm';
-import PrintRoundReportModal from './PrintRoundReportModal';
 
 interface Props {
   event: ArcheryEvent;
@@ -20,8 +19,6 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
   const [flagMessage, setFlagMessage] = useState('');
   const [activeShootOffMatchId, setActiveShootOffMatchId] = useState<string | null>(null);
   const [tieBreakTab, setTieBreakTab] = useState<Record<string, 'SHOOT_OFF' | 'COUNTBACK'>>({});
-  const [printModalOpen, setPrintModalOpen] = useState(false);
-  const [selectedPrintRound, setSelectedPrintRound] = useState<string>('ALL');
   const config = (event.settings.categoryConfigs || {})[activeCategory as CategoryType];
   const defaultTieBreak = config?.tieBreakMethod === 'COUNTBACK' ? 'COUNTBACK' : 'SHOOT_OFF';
   const [modalTieBreakTab, setModalTieBreakTab] = useState<'SHOOT_OFF' | 'COUNTBACK'>('SHOOT_OFF');
@@ -572,12 +569,6 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
              
              <div className="flex flex-wrap items-center gap-3">
                <button 
-                 onClick={() => { setSelectedPrintRound('ALL'); setPrintModalOpen(true); }}
-                 className="flex items-center gap-2 px-5 py-3 bg-arcus-red hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md transition-all active:scale-95"
-               >
-                 <Printer className="w-4 h-4" /> Cetak Hasil Skor Babak
-               </button>
-               <button 
                  onClick={() => { if(window.confirm('Hapus seluruh bagan untuk kategori ini?')) { onUpdateMatches({ ...event.matches, [activeCategory]: [] }); triggerFlag("Bagan Berhasil Direset"); } }}
                  className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all"
                >
@@ -590,22 +581,10 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
           <div ref={scrollContainerRef} className="flex gap-12 overflow-x-auto pb-12 pt-4 px-4 no-scrollbar scroll-smooth">
             {roundsData.map((round, rIndex) => (
               <div key={round.round} className="flex flex-col gap-8 min-w-[370px]">
-                <div className="text-center space-y-2">
-                  <div>
-                    <span className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] italic border-2 shadow-lg inline-block ${round.round === 1 ? 'bg-orange-600 border-orange-400 text-white' : 'bg-slate-900 border-purple-500 text-white'}`}>
-                      {round.label}
-                    </span>
-                  </div>
-                  <button 
-                    onClick={() => {
-                      setSelectedPrintRound(round.round === 1 ? 'FINAL' : `ELIM_${round.round}`);
-                      setPrintModalOpen(true);
-                    }}
-                    className="inline-flex items-center gap-1 px-3 py-1 bg-white hover:bg-slate-100 text-slate-700 hover:text-arcus-red border border-slate-200 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all shadow-xs active:scale-95"
-                    title={`Cetak rekap skor ${round.label}`}
-                  >
-                    <Printer className="w-3 h-3" /> Cetak Babak Ini
-                  </button>
+                <div className="text-center">
+                  <span className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] italic border-2 shadow-lg inline-block ${round.round === 1 ? 'bg-orange-600 border-orange-400 text-white' : 'bg-slate-900 border-purple-500 text-white'}`}>
+                    {round.label}
+                  </span>
                 </div>
                 
                 <div className="flex flex-col h-full justify-around gap-8">
@@ -1369,16 +1348,6 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
           </div>
         );
       })()}
-
-      {/* Round & Elimination Stage Print Report Modal */}
-      {printModalOpen && (
-        <PrintRoundReportModal 
-          event={event}
-          initialCategory={activeCategory}
-          initialRound={selectedPrintRound}
-          onClose={() => setPrintModalOpen(false)}
-        />
-      )}
     </div>
   );
 };

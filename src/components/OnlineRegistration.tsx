@@ -176,11 +176,11 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
 
   useEffect(() => {
     if (categories.length > 0) {
-      if (!formData.category || !categories.includes(formData.category)) {
-        setFormData(prev => ({ ...prev, category: categories[0] }));
+      if (formData.category && !categories.includes(formData.category)) {
+        setFormData(prev => ({ ...prev, category: '' }));
       }
-      if (!newMember.category || !categories.includes(newMember.category)) {
-        setNewMember(prev => ({ ...prev, category: categories[0] }));
+      if (newMember.category && newMember.category !== 'OFFICIAL' && !categories.includes(newMember.category)) {
+        setNewMember(prev => ({ ...prev, category: '' }));
       }
     }
   }, [categories, formData.category, newMember.category]);
@@ -328,6 +328,10 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
 
     if (regMode === 'INDIVIDUAL') {
       if (formData.regType === 'ARCHER') {
+        if (!formData.category) {
+          toast.error("Silakan pilih kategori divisi lomba terlebih dahulu.");
+          return;
+        }
         const quota = getCategoryQuota(formData.category);
         if (quota !== undefined && quota !== null && quota > 0) {
           const count = getCategoryRegisteredCount(formData.category);
@@ -416,7 +420,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
       ].includes(formData.category as CategoryType);
 
       const platformFee = isKids ? globalSettings.feeKids : globalSettings.feeAdult;
-      const totalPaid = regFee + platformFee;
+      const totalPaid = regFee;
 
       registrations.push({
         id: 'reg_' + Math.random().toString(36).substr(2, 9),
@@ -461,7 +465,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
         ].includes(member.category as CategoryType);
 
         const platformFee = isKids ? globalSettings.feeKids : globalSettings.feeAdult;
-        const totalPaid = regFee + platformFee;
+        const totalPaid = regFee;
 
         registrations.push({
           id: 'reg_' + Math.random().toString(36).substr(2, 9),
@@ -819,6 +823,28 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                         <span className="text-[7.5px] font-black text-slate-700 uppercase ml-2 italic">Nama Peserta</span>
                         <input required type="text" placeholder="NAMA LENGKAP" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value.toUpperCase()})} className="w-full p-2.5 bg-slate-50 rounded-xl font-black italic border border-slate-100 outline-none focus:border-arcus-red text-[11px]" />
                       </div>
+                      {formData.regType === 'ARCHER' && (
+                        <div className="md:col-span-2 space-y-0.5">
+                          <span className="text-[7.5px] font-black text-slate-700 uppercase ml-2 italic">Kategori</span>
+                          <select required value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full p-2.5 bg-slate-50 rounded-xl font-black italic border border-slate-100 outline-none appearance-none text-[11px]">
+                            <option value="">PILIH KATEGORI</option>
+                            {categories.map(cat => {
+                              const count = getCategoryRegisteredCount(cat);
+                              const quota = getCategoryQuota(cat);
+                              const isFull = quota !== undefined && quota !== null && quota > 0 && count >= quota;
+                              const label = CATEGORY_LABELS[cat as CategoryType] || cat;
+                              const quotaStr = quota !== undefined && quota !== null && quota > 0 
+                                ? ` (Sisa Slot: ${quota - count}/${quota}${isFull ? ' - PENUH' : ''})` 
+                                : '';
+                              return (
+                                <option key={cat} value={cat} disabled={isFull}>
+                                  {label}{quotaStr}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                      )}
                       <div className="md:col-span-2 flex flex-col items-center justify-center p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                         <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-2">Foto Peserta (Untuk Kartu ID Card)</span>
                         <div className="flex items-center gap-4">
@@ -843,28 +869,6 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                           </div>
                         </div>
                       </div>
-                      {formData.regType === 'ARCHER' && (
-                        <div className="md:col-span-2 space-y-0.5">
-                          <span className="text-[7.5px] font-black text-slate-700 uppercase ml-2 italic">Kategori</span>
-                          <select required value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})} className="w-full p-2.5 bg-slate-50 rounded-xl font-black italic border border-slate-100 outline-none appearance-none text-[11px]">
-                            <option value="">PILIH KATEGORI</option>
-                            {categories.map(cat => {
-                              const count = getCategoryRegisteredCount(cat);
-                              const quota = getCategoryQuota(cat);
-                              const isFull = quota !== undefined && quota !== null && quota > 0 && count >= quota;
-                              const label = CATEGORY_LABELS[cat as CategoryType] || cat;
-                              const quotaStr = quota !== undefined && quota !== null && quota > 0 
-                                ? ` (Sisa Slot: ${quota - count}/${quota}${isFull ? ' - PENUH' : ''})` 
-                                : '';
-                              return (
-                                <option key={cat} value={cat} disabled={isFull}>
-                                  {label}{quotaStr}
-                                </option>
-                              );
-                            })}
-                          </select>
-                        </div>
-                      )}
                     </>
                   ) : (
                     <div className="md:col-span-2 space-y-4 pt-4 border-t border-slate-100">
@@ -992,18 +996,12 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                         <div className="space-y-0.5">
                           <p className="font-bold text-slate-800 leading-tight">{formData.name || 'Pendaftar'}</p>
                           <p className="text-[8px] font-black text-slate-700 uppercase tracking-wider leading-none">
-                            {formData.regType === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (CATEGORY_LABELS[formData.category as CategoryType] || formData.category)}
+                            {formData.regType === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (formData.category ? (CATEGORY_LABELS[formData.category as CategoryType] || formData.category) : 'BELUM PILIH KATEGORI')}
                           </p>
                         </div>
                         <div className="text-right space-y-0.5">
                           <p className="font-extrabold text-slate-900">
                             Rp {((formData.regType === 'OFFICIAL' ? event.settings?.officialFee : event.settings?.categoryConfigs?.[formData.category as CategoryType]?.registrationFee) || 0).toLocaleString()}
-                          </p>
-                          <p className="text-[8px] font-medium text-slate-800 leading-none">
-                            Platform: Rp {([
-                              CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
-                              CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
-                            ].includes(formData.category as CategoryType) ? globalSettings.feeKids : globalSettings.feeAdult).toLocaleString()}
                           </p>
                         </div>
                       </div>
@@ -1012,12 +1010,6 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                         const regFee = (member.category === 'OFFICIAL' || member.category === CategoryType.OFFICIAL) 
                           ? (event.settings?.officialFee || 0) 
                           : (event.settings?.categoryConfigs?.[member.category as CategoryType]?.registrationFee || 0);
-                          
-                        const isKids = [
-                          CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
-                          CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
-                        ].includes(member.category as CategoryType);
-                        const pFee = isKids ? globalSettings.feeKids : globalSettings.feeAdult;
 
                         return (
                           <div key={idx} className="flex items-start justify-between text-[11px] md:text-xs border-b border-slate-100 pb-2 last:border-0 last:pb-0">
@@ -1029,7 +1021,6 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                             </div>
                             <div className="text-right space-y-0.5">
                               <p className="font-extrabold text-slate-900">Rp {regFee.toLocaleString()}</p>
-                              <p className="text-[8px] font-medium text-slate-800 leading-none">Platform: Rp {pFee.toLocaleString()}</p>
                             </div>
                           </div>
                         );
@@ -1039,7 +1030,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
 
                   <div className="border-t border-dashed border-slate-200 pt-2.5 space-y-1.5 text-[10px] md:text-xs">
                     <div className="flex justify-between items-center text-slate-800 font-bold">
-                      <span>Subtotal Biaya Pendaftaran:</span>
+                      <span>Total Biaya Pendaftaran:</span>
                       <span>
                         Rp {(() => {
                           if (regMode === 'INDIVIDUAL') {
@@ -1055,59 +1046,21 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                         })()}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center text-slate-800 font-bold">
-                      <span>Subtotal Biaya Platform:</span>
-                      <span>
-                        Rp {(() => {
-                          if (regMode === 'INDIVIDUAL') {
-                            const isKids = [
-                              CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
-                              CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
-                            ].includes(formData.category as CategoryType);
-                            return (isKids ? globalSettings.feeKids : globalSettings.feeAdult).toLocaleString();
-                          } else {
-                            return collectiveMembers.reduce((sum, member) => {
-                              const isKids = [
-                                CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
-                                CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
-                              ].includes(member.category as CategoryType);
-                              const pFee = isKids ? globalSettings.feeKids : globalSettings.feeAdult;
-                              return sum + pFee;
-                            }, 0).toLocaleString();
-                          }
-                        })()}
-                      </span>
-                    </div>
 
                     <div className="flex justify-between items-center border-t border-slate-200 pt-2 text-slate-900">
                       <span className="font-extrabold uppercase text-[9px] md:text-[10px] tracking-wide">TOTAL YANG HARUS DIBAYAR:</span>
                       <span className="font-black text-xs md:text-sm text-arcus-red font-mono italic">
                         Rp {(() => {
-                          let regTotal = 0;
-                          let platTotal = 0;
                           if (regMode === 'INDIVIDUAL') {
-                            regTotal = (formData.regType === 'OFFICIAL' ? event.settings?.officialFee : event.settings?.categoryConfigs?.[formData.category as CategoryType]?.registrationFee) || 0;
-                            const isKids = [
-                              CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
-                              CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
-                            ].includes(formData.category as CategoryType);
-                            platTotal = isKids ? globalSettings.feeKids : globalSettings.feeAdult;
+                            return ((formData.regType === 'OFFICIAL' ? event.settings?.officialFee : event.settings?.categoryConfigs?.[formData.category as CategoryType]?.registrationFee) || 0).toLocaleString();
                           } else {
-                            regTotal = collectiveMembers.reduce((sum, member) => {
+                            return collectiveMembers.reduce((sum, member) => {
                               const regFee = (member.category === 'OFFICIAL' || member.category === CategoryType.OFFICIAL) 
                                 ? (event.settings?.officialFee || 0) 
                                 : (event.settings?.categoryConfigs?.[member.category as CategoryType]?.registrationFee || 0);
                               return sum + regFee;
-                            }, 0);
-                            platTotal = collectiveMembers.reduce((sum, member) => {
-                              const isKids = [
-                                CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
-                                CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
-                              ].includes(member.category as CategoryType);
-                              return sum + (isKids ? globalSettings.feeKids : globalSettings.feeAdult);
-                            }, 0);
+                            }, 0).toLocaleString();
                           }
-                          return (regTotal + platTotal).toLocaleString();
                         })()}
                       </span>
                     </div>
@@ -1464,8 +1417,6 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                       <th className="p-3">Nama</th>
                       <th className="p-3">Kategori</th>
                       <th className="p-3 text-right">Biaya Registrasi</th>
-                      <th className="p-3 text-right">Biaya Platform</th>
-                      <th className="p-3 text-right">Subtotal</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -1478,10 +1429,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                                 name: formData.name || 'Pendaftar',
                                 category: formData.regType === 'OFFICIAL' ? 'OFFICIAL' : formData.category,
                                 club: formData.club || '-',
-                                totalPaid: ((formData.regType === 'OFFICIAL' ? event.settings?.officialFee : event.settings?.categoryConfigs?.[formData.category as CategoryType]?.registrationFee) || 0) + ([
-                                  CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
-                                  CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
-                                ].includes(formData.category as CategoryType) ? globalSettings.feeKids : globalSettings.feeAdult),
+                                totalPaid: ((formData.regType === 'OFFICIAL' ? event.settings?.officialFee : event.settings?.categoryConfigs?.[formData.category as CategoryType]?.registrationFee) || 0),
                                 platformFee: [
                                   CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
                                   CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
@@ -1504,7 +1452,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                                   name: m.name,
                                   category: m.category,
                                   club: formData.club || '-',
-                                  totalPaid: regFee + pFee,
+                                  totalPaid: regFee,
                                   platformFee: pFee,
                                   status: formData.paymentType === 'GATEWAY' ? RegistrationStatus.APPROVED : RegistrationStatus.PENDING,
                                   paymentType: formData.paymentType,
@@ -1514,15 +1462,12 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                           );
 
                       return items.map((item, idx) => {
-                        const baseFee = item.totalPaid - (item.platformFee || 0);
                         return (
                           <tr key={idx} className="hover:bg-slate-50/50">
                             <td className="p-3 font-bold text-slate-800">{item.name}</td>
                             <td className="p-3 text-slate-700 font-extrabold uppercase text-[9px] tracking-wide">
                               {item.category === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (CATEGORY_LABELS[item.category as CategoryType] || item.category)}
                             </td>
-                            <td className="p-3 text-right font-bold text-slate-600">Rp {baseFee.toLocaleString()}</td>
-                            <td className="p-3 text-right font-medium text-slate-800">Rp {(item.platformFee || 0).toLocaleString()}</td>
                             <td className="p-3 text-right font-extrabold text-slate-900">Rp {item.totalPaid.toLocaleString()}</td>
                           </tr>
                         );
@@ -1536,7 +1481,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
             {/* Total Calculation */}
             <div className="border-t border-dashed border-slate-200 pt-4 flex flex-col items-end text-xs space-y-1">
               <div className="flex justify-between w-full max-w-xs text-slate-800 font-semibold">
-                <span>Subtotal Biaya Pendaftaran:</span>
+                <span>Total Biaya Pendaftaran:</span>
                 <span>
                   Rp {(() => {
                     if (regMode === 'INDIVIDUAL') {
@@ -1552,58 +1497,20 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                   })()}
                 </span>
               </div>
-              <div className="flex justify-between w-full max-w-xs text-slate-800 font-semibold">
-                <span>Subtotal Biaya Platform:</span>
-                <span>
-                  Rp {(() => {
-                    if (regMode === 'INDIVIDUAL') {
-                      const isKids = [
-                        CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
-                        CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
-                      ].includes(formData.category as CategoryType);
-                      return (isKids ? globalSettings.feeKids : globalSettings.feeAdult).toLocaleString();
-                    } else {
-                      return collectiveMembers.reduce((sum, member) => {
-                        const isKids = [
-                          CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
-                          CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
-                        ].includes(member.category as CategoryType);
-                        const pFee = isKids ? globalSettings.feeKids : globalSettings.feeAdult;
-                        return sum + pFee;
-                      }, 0).toLocaleString();
-                    }
-                  })()}
-                </span>
-              </div>
               <div className="flex justify-between w-full max-w-xs border-t border-slate-200 pt-2 text-slate-900 font-black">
                 <span className="uppercase text-[9px] tracking-wide">TOTAL PEMBAYARAN:</span>
                 <span className="text-arcus-red text-sm font-mono italic">
                   Rp {(() => {
-                    let regTotal = 0;
-                    let platTotal = 0;
                     if (regMode === 'INDIVIDUAL') {
-                      regTotal = (formData.regType === 'OFFICIAL' ? event.settings?.officialFee : event.settings?.categoryConfigs?.[formData.category as CategoryType]?.registrationFee) || 0;
-                      const isKids = [
-                        CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
-                        CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
-                      ].includes(formData.category as CategoryType);
-                      platTotal = isKids ? globalSettings.feeKids : globalSettings.feeAdult;
+                      return ((formData.regType === 'OFFICIAL' ? event.settings?.officialFee : event.settings?.categoryConfigs?.[formData.category as CategoryType]?.registrationFee) || 0).toLocaleString();
                     } else {
-                      regTotal = collectiveMembers.reduce((sum, member) => {
+                      return collectiveMembers.reduce((sum, member) => {
                         const regFee = (member.category === 'OFFICIAL' || member.category === CategoryType.OFFICIAL) 
                           ? (event.settings?.officialFee || 0) 
                           : (event.settings?.categoryConfigs?.[member.category as CategoryType]?.registrationFee || 0);
                         return sum + regFee;
-                      }, 0);
-                      platTotal = collectiveMembers.reduce((sum, member) => {
-                        const isKids = [
-                          CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
-                          CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
-                        ].includes(member.category as CategoryType);
-                        return sum + (isKids ? globalSettings.feeKids : globalSettings.feeAdult);
-                      }, 0);
+                      }, 0).toLocaleString();
                     }
-                    return (regTotal + platTotal).toLocaleString();
                   })()}
                 </span>
               </div>

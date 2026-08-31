@@ -53,9 +53,9 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   bankAccountName: '',
   dataRetentionDays: 90, 
   practiceRetentionDays: 7,
-  paymentGatewayProvider: 'MIDTRANS',
-  paymentGatewayServerKey: 'Mid-server-7mVgq0OHQSBIBVUm8Z-N9P55',
-  paymentGatewayClientKey: 'Mid-client-dZqaZ7wEUS4n0Cxc',
+  paymentGatewayProvider: 'NONE',
+  paymentGatewayServerKey: '',
+  paymentGatewayClientKey: '',
   paymentGatewayIsProduction: false,
   platformFeePercentage: 0
 };
