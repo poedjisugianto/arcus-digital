@@ -23,7 +23,9 @@ import {
   UserCheck,
   CheckCircle2,
   XCircle,
-  ScanLine
+  ScanLine,
+  Layers,
+  Sparkles
 } from "lucide-react";
 import {
   Archer,
@@ -38,6 +40,7 @@ import { compressPhoto, uploadPhotoToStorage } from "../lib/photoService";
 import { exportToExcel, exportToCSV } from "../lib/excelHelper";
 import ScoringSheet from "./ScoringSheet";
 import ParticipantScannerModal from "./ParticipantScannerModal";
+import AutoTargetAllocationModal from "./AutoTargetAllocationModal";
 
 interface Props {
   archers: Archer[];
@@ -88,6 +91,7 @@ const ArcherList: React.FC<Props> = ({
   const [filterClub, setFilterClub] = useState<string>("ALL");
   const [filterCheckIn, setFilterCheckIn] = useState<"ALL" | "CHECKED_IN" | "NOT_CHECKED_IN">("ALL");
   const [showScannerModal, setShowScannerModal] = useState(false);
+  const [showAutoAllocationModal, setShowAutoAllocationModal] = useState(false);
   const [initialScanQuery, setInitialScanQuery] = useState("");
   const [printAllCategories, setPrintAllCategories] = useState(false);
   const [showPrintOptions, setShowPrintOptions] = useState(false);
@@ -624,22 +628,31 @@ const ArcherList: React.FC<Props> = ({
           </div>
           <button
             onClick={() => setShowAddForm(true)}
-            className="bg-arcus-red text-white px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-2 hover:bg-red-700 transition-all active:scale-95"
+            className="bg-arcus-red text-white px-3.5 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 hover:bg-red-700 transition-all active:scale-95 shadow-md shadow-arcus-red/20"
           >
             <Plus className="w-3.5 h-3.5" />
             Tambah
           </button>
           <button
+            onClick={() => setShowAutoAllocationModal(true)}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 transition-all active:scale-95 shadow-md shadow-purple-600/20"
+            title="Tata nomor bantalan otomatis dan menerus per kategori (U9 -> U12 -> U18 -> Dewasa) dengan opsi sebar klub"
+          >
+            <Layers className="w-3.5 h-3.5 text-purple-200" />
+            Alokasi Otomatis
+          </button>
+          <button
             onClick={handleSmartRandomize}
             disabled={isShuffling}
-            className="bg-arcus-dark text-white px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-2 hover:bg-black transition-all active:scale-95 disabled:opacity-50"
+            className="bg-arcus-dark text-white px-3.5 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 hover:bg-black transition-all active:scale-95 disabled:opacity-50"
+            title="Acak posisi pemanah untuk kategori yang sedang aktif"
           >
             {isShuffling ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
             ) : (
               <Shuffle className="w-3.5 h-3.5 text-arcus-red" />
             )}
-            Acak Bantalan
+            Acak Kategori
           </button>
         </div>
       </div>
@@ -1425,6 +1438,17 @@ const ArcherList: React.FC<Props> = ({
         }}
         eventTitle={settings.tournamentName}
         initialQuery={initialScanQuery}
+      />
+
+      {/* Auto Target Allocation Modal */}
+      <AutoTargetAllocationModal
+        isOpen={showAutoAllocationModal}
+        onClose={() => setShowAutoAllocationModal(false)}
+        archers={archers}
+        settings={settings}
+        onApplyAllocation={(updatedArchers) => {
+          onBulkUpdate(updatedArchers);
+        }}
       />
     </div>
   );
