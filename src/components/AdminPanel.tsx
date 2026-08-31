@@ -7,7 +7,7 @@ import {
   Link as LinkIcon, Info, Hash, Repeat, Compass, Layers, 
   Users as UsersIcon, AlertTriangle, AlertCircle, ShieldCheck, Zap, ToggleRight, ToggleLeft,
   FileDown, ExternalLink, HelpCircle, Check, ChevronLeft, Smartphone, Clock, Swords, Monitor,
-  Heart, Youtube, Video, Crosshair, Scale, Sliders, Award, Printer, GitBranch
+  Heart, Youtube, Video, Crosshair, Scale, Sliders, Award, Printer, GitBranch, Share2
 } from 'lucide-react';
 import { TournamentSettings, CategoryType, TargetType, PaymentMethod, ScorerAccess, CategoryConfig, Sponsorship, Archer, ParticipantRegistration, GlobalSettings, RundownItem, ArcheryEvent } from '../types';
 import { CATEGORY_LABELS, TARGET_LABELS } from '../constants';
@@ -16,6 +16,7 @@ import { resolveGoogleDriveUrl } from '../lib/photoService';
 import ArcherList from './ArcherList';
 import OfficialList from './OfficialList';
 import PrintRoundReportModal from './PrintRoundReportModal';
+import PrintParticipantListModal from './PrintParticipantListModal';
 
 interface Props {
   eventId: string;
@@ -34,6 +35,7 @@ interface Props {
   onBulkUpdateArchers?: (updated: Archer[]) => void;
   onBack: () => void;
   onOpenTV?: () => void;
+  onShare?: () => void;
   onManageElimination?: () => void;
   onManageResults?: () => void;
   onManageFinance?: () => void;
@@ -65,6 +67,7 @@ const AdminPanel: React.FC<Props> = ({
   onBulkUpdateArchers,
   onBack, 
   onOpenTV, 
+  onShare,
   onManageElimination,
   onManageResults,
   onManageFinance,
@@ -79,6 +82,7 @@ const AdminPanel: React.FC<Props> = ({
   isSuperAdmin = false 
 }) => {
   const [showPrintReportModal, setShowPrintReportModal] = useState(false);
+  const [showPrintParticipantModal, setShowPrintParticipantModal] = useState(false);
   const [localSettings, setLocalSettings] = useState<TournamentSettings>(() => {
     const savedDraft = localStorage.getItem(`admin_draft_${eventId}`);
     if (savedDraft) {
@@ -377,7 +381,7 @@ const AdminPanel: React.FC<Props> = ({
         </div>
       )}
 
-      <div className="sticky top-0 z-[100] bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm">
+      <div className="sticky top-0 z-[100] bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-sm print:hidden">
         <div className="max-w-7xl mx-auto px-4 md:px-8 py-3 md:py-4 flex flex-col md:flex-row md:items-center justify-between gap-3 md:gap-6">
           <div className="flex items-center gap-3">
             <button 
@@ -415,6 +419,28 @@ const AdminPanel: React.FC<Props> = ({
           </div>
           
           <div className="flex items-center gap-2">
+            {!isPractice && (
+              <button 
+                type="button"
+                onClick={() => setShowPrintParticipantModal(true)}
+                className="px-3 md:px-4 py-2.5 bg-slate-900 text-white rounded-xl text-[8px] md:text-[9px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-black transition-all active:scale-95 shadow-sm"
+                title="Cetak Berkas Daftar Peserta & Bantalan"
+              >
+                <Printer className="w-3.5 h-3.5 text-arcus-red" />
+                <span className="hidden sm:inline">CETAK PESERTA</span>
+              </button>
+            )}
+            {onShare && !isPractice && (
+              <button 
+                type="button"
+                onClick={onShare}
+                className="px-3.5 md:px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-[8px] md:text-[9px] font-black uppercase tracking-widest flex items-center gap-2 text-slate-700 hover:text-arcus-red hover:border-red-200 transition-all active:scale-95 shadow-sm"
+                title="Bagikan Event"
+              >
+                <Share2 className="w-3.5 h-3.5 text-arcus-red" />
+                <span className="hidden sm:inline">BAGIKAN</span>
+              </button>
+            )}
             {onOpenTV && (
               <button 
                 onClick={onOpenTV}
@@ -2231,6 +2257,26 @@ const AdminPanel: React.FC<Props> = ({
             scoreLogs: []
           } as any)}
           onClose={() => setShowPrintReportModal(false)}
+        />
+      )}
+
+      {/* Official Clean Participant List Print Modal */}
+      {showPrintParticipantModal && (
+        <PrintParticipantListModal
+          isOpen={showPrintParticipantModal}
+          onClose={() => setShowPrintParticipantModal(false)}
+          event={event || ({
+            id: eventId,
+            status: 'ACTIVE',
+            settings: localSettings,
+            archers,
+            officials,
+            scores: [],
+            matches: {},
+            registrations: [],
+            scoreLogs: []
+          } as any)}
+          officials={officials}
         />
       )}
     </div>

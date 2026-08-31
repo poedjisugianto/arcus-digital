@@ -1912,7 +1912,8 @@ export default function App() {
             setShareData({
               isOpen: true,
               url: window.location.origin + '?event=' + id,
-              name: ev?.settings.tournamentName || 'Turnamen Panahan'
+              name: ev?.settings.tournamentName || 'Turnamen Panahan',
+              registerUrl: window.location.origin + '?event=' + id + '&view=REGISTER_PARTICIPANT'
             });
           }}
           onLogout={handleLogout}
@@ -2139,7 +2140,8 @@ export default function App() {
             setShareData({
               isOpen: true,
               url: window.location.origin + '?event=' + id,
-              name: name || 'Turnamen Panahan'
+              name: name || 'Turnamen Panahan',
+              registerUrl: window.location.origin + '?event=' + id + '&view=REGISTER_PARTICIPANT'
             });
           }}
           onLogout={handleLogout}
@@ -2225,6 +2227,14 @@ export default function App() {
           onGoToOperatorCenter={() => setView('OPERATOR_CENTER')}
           onGoToQuickScoring={() => setView('QUICK_SCORING_PANEL')}
           onGoToFieldScoring={() => setView('SCORER_PANEL')}
+          onShare={() => {
+            setShareData({
+              isOpen: true,
+              url: window.location.origin + '?event=' + activeEvent.id,
+              name: activeEvent.settings?.tournamentName || 'Turnamen Panahan',
+              registerUrl: window.location.origin + '?event=' + activeEvent.id + '&view=REGISTER_PARTICIPANT'
+            });
+          }}
           event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           globalSettings={appState.globalSettings}
           isSuperAdmin={
@@ -2405,7 +2415,8 @@ export default function App() {
              setShareData({
               isOpen: true,
               url: window.location.origin + '?event=' + activeEvent.id,
-              name: activeEvent.settings.tournamentName || 'Turnamen Panahan'
+              name: activeEvent.settings.tournamentName || 'Turnamen Panahan',
+              registerUrl: window.location.origin + '?event=' + activeEvent.id + '&view=REGISTER_PARTICIPANT'
             });
           }}
           onViewParticipants={() => setView('ENTRY_LIST')}
@@ -2487,7 +2498,8 @@ export default function App() {
             setShareData({
               isOpen: true,
               url: window.location.origin + '?event=' + id,
-              name: ev?.settings.tournamentName || 'Turnamen Panahan'
+              name: ev?.settings.tournamentName || 'Turnamen Panahan',
+              registerUrl: window.location.origin + '?event=' + id + '&view=REGISTER_PARTICIPANT'
             });
           }}
           onLogout={handleLogout}
@@ -2530,6 +2542,15 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* Share Modal Dialog */}
+      <ShareModal 
+        isOpen={shareData.isOpen}
+        onClose={() => setShareData(prev => ({ ...prev, isOpen: false }))}
+        tournamentName={shareData.name}
+        url={shareData.url}
+        registerUrl={shareData.registerUrl}
+      />
 
       {notifications.length > 0 && (
         <div className="fixed top-6 right-6 z-[1000] flex flex-col gap-3 max-w-sm w-full print:hidden">

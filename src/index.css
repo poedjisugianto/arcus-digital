@@ -99,7 +99,7 @@
   }
 
   @media print {
-    .print-hidden, .print\:hidden {
+    .print-hidden, .print\:hidden, nav, header, aside, .no-print {
       display: none !important;
     }
     body.printing-active #root {
@@ -118,11 +118,12 @@
     }
     body {
       background-color: white !important;
-      margin: 0;
-      padding: 0;
+      margin: 0 !important;
+      padding: 0 !important;
     }
     @page {
       margin: 1cm;
+      size: auto;
     }
     * {
       -webkit-print-color-adjust: exact !important;
@@ -130,9 +131,14 @@
     }
     table {
       border-collapse: collapse !important;
+      width: 100% !important;
     }
-    th, td {
-      border: 1pt solid black !important;
+    thead {
+      display: table-header-group !important;
+    }
+    tr {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
     }
   }
 }
