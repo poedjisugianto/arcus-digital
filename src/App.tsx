@@ -88,22 +88,114 @@ import SelfServiceIdCardPortal from './components/SelfServiceIdCardPortal';
 import { auth, db } from './firebase';
 const googleProvider = new GoogleAuthProvider();
 
-export default function App() {
-  const [view, setView] = useState<string>('LANDING');
-  // @ts-ignore
-  const dummy: 'ACTIVATE_TOURNAMENT' | 'MEMBER_DASHBOARD' = 'ACTIVATE_TOURNAMENT';
-  const [isSplashVisible, setIsSplashVisible] = useState(true);
-  const [selfServiceClub, setSelfServiceClub] = useState<string>('');
-  const [selfServiceSearch, setSelfServiceSearch] = useState<string>('');
-  const [appState, setAppState] = useState<AppState>({
+// Helper to parse route from URL search params & session storage
+const parseRouteFromUrl = (): { view: string; eventId: string | null; club: string; search: string } => {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const viewParam = params.get('view');
+    const eventParam = params.get('event') || params.get('eventId');
+    const clubParam = params.get('club') || '';
+    const searchParam = params.get('search') || '';
+
+    if (viewParam) {
+      return {
+        view: viewParam,
+        eventId: eventParam || null,
+        club: clubParam,
+        search: searchParam
+      };
+    }
+    if (eventParam) {
+      return {
+        view: 'PUBLIC_EVENT_INFO',
+        eventId: eventParam,
+        club: clubParam,
+        search: searchParam
+      };
+    }
+
+    // Fallback to sessionStorage in case query string was empty on refresh
+    const saved = sessionStorage.getItem('arcus_active_route');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed?.view) {
+        return {
+          view: parsed.view,
+          eventId: parsed.eventId || null,
+          club: parsed.club || '',
+          search: parsed.search || ''
+        };
+      }
+    }
+  } catch (e) {
+    console.warn("Could not parse route from URL:", e);
+  }
+  return { view: 'LANDING', eventId: null, club: '', search: '' };
+};
+
+// Helper to construct URL from current route
+const buildRouteUrl = (v: string, eventId?: string | null, club?: string, search?: string) => {
+  const params = new URLSearchParams();
+  if (v === 'LANDING') {
+    return window.location.pathname || '/';
+  }
+  if (v === 'PUBLIC_EVENT_INFO' && eventId) {
+    params.set('event', eventId);
+  } else {
+    params.set('view', v);
+    if (eventId) {
+      params.set('event', eventId);
+    }
+    if (club) {
+      params.set('club', club);
+    }
+    if (search) {
+      params.set('search', search);
+    }
+  }
+  const qs = params.toString();
+  return qs ? `${window.location.pathname}?${qs}` : (window.location.pathname || '/');
+};
+
+const getInitialAppState = (initialEventId: string | null): AppState => {
+  try {
+    const localData = localStorage.getItem(STORAGE_KEY);
+    if (localData) {
+      const parsed = JSON.parse(localData);
+      return {
+        events: parsed.events || [],
+        users: parsed.users || [],
+        notifications: parsed.notifications || [],
+        globalSettings: parsed.globalSettings || DEFAULT_GLOBAL_SETTINGS,
+        currentUser: parsed.currentUser || null,
+        activeEventId: initialEventId || parsed.activeEventId || null,
+        activeScorer: parsed.activeScorer || null,
+        isDataLoaded: true
+      };
+    }
+  } catch (e) {
+    console.error("Local storage read error:", e);
+  }
+  return {
     events: [],
     users: [],
     notifications: [],
     globalSettings: DEFAULT_GLOBAL_SETTINGS,
     currentUser: null,
-    activeEventId: null,
+    activeEventId: initialEventId || null,
     isDataLoaded: false
-  });
+  };
+};
+
+export default function App() {
+  const initialRoute = useMemo(() => parseRouteFromUrl(), []);
+  const [view, setView] = useState<string>(initialRoute.view);
+  // @ts-ignore
+  const dummy: 'ACTIVATE_TOURNAMENT' | 'MEMBER_DASHBOARD' = 'ACTIVATE_TOURNAMENT';
+  const [isSplashVisible, setIsSplashVisible] = useState(true);
+  const [selfServiceClub, setSelfServiceClub] = useState<string>(initialRoute.club || '');
+  const [selfServiceSearch, setSelfServiceSearch] = useState<string>(initialRoute.search || '');
+  const [appState, setAppState] = useState<AppState>(() => getInitialAppState(initialRoute.eventId));
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -127,6 +219,81 @@ export default function App() {
   const isSyncingFromCloud = useRef(false);
   const isCurrentlySyncing = useRef(false);
   const [deletedEventIds, setDeletedEventIds] = useState<Set<string>>(new Set());
+
+  const isPopStateRef = useRef(false);
+  const isInitialMountRef = useRef(true);
+
+  // Synchronize state with Browser History and URL
+  useEffect(() => {
+    if (isPopStateRef.current) {
+      isPopStateRef.current = false;
+      return;
+    }
+
+    const newUrl = buildRouteUrl(view, appState.activeEventId, selfServiceClub, selfServiceSearch);
+    const currentFullUrl = window.location.pathname + window.location.search;
+
+    const stateObj = {
+      view,
+      eventId: appState.activeEventId,
+      club: selfServiceClub,
+      search: selfServiceSearch
+    };
+
+    // Save to sessionStorage for refresh persistence
+    try {
+      sessionStorage.setItem('arcus_active_route', JSON.stringify(stateObj));
+    } catch (e) {}
+
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      window.history.replaceState(stateObj, '', newUrl);
+    } else if (newUrl !== currentFullUrl) {
+      window.history.pushState(stateObj, '', newUrl);
+    }
+  }, [view, appState.activeEventId, selfServiceClub, selfServiceSearch]);
+
+  // Synchronize browser Back and Forward navigation buttons
+  useEffect(() => {
+    const handlePopState = (e: PopStateEvent) => {
+      isPopStateRef.current = true;
+
+      let targetView = 'LANDING';
+      let targetEventId: string | null = null;
+      let targetClub = '';
+      let targetSearch = '';
+
+      if (e.state && typeof e.state === 'object' && e.state.view) {
+        targetView = e.state.view;
+        targetEventId = e.state.eventId || null;
+        targetClub = e.state.club || '';
+        targetSearch = e.state.search || '';
+      } else {
+        const parsed = parseRouteFromUrl();
+        targetView = parsed.view;
+        targetEventId = parsed.eventId;
+        targetClub = parsed.club || '';
+        targetSearch = parsed.search || '';
+      }
+
+      setView(targetView);
+      setAppState(prev => ({ ...prev, activeEventId: targetEventId }));
+      setSelfServiceClub(targetClub);
+      setSelfServiceSearch(targetSearch);
+
+      try {
+        sessionStorage.setItem('arcus_active_route', JSON.stringify({
+          view: targetView,
+          eventId: targetEventId,
+          club: targetClub,
+          search: targetSearch
+        }));
+      } catch (err) {}
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const appStateRef = useRef(appState);
   useEffect(() => {
@@ -238,15 +405,6 @@ export default function App() {
       setAppState(prev => ({ ...prev, isDataLoaded: true }));
       setIsCheckingLink(false);
 
-      // 3. Process Tournaments/Event link from URL query params (e.g., ?event=EVENT_ID)
-      const params = new URLSearchParams(window.location.search);
-      const urlEventId = params.get('event');
-      if (urlEventId) {
-        console.log(`[URL-ROUTING] Menemukan parameter event=${urlEventId} di URL, melompat ke info turnamen...`);
-        setAppState(prev => ({ ...prev, activeEventId: urlEventId }));
-        setView('PUBLIC_EVENT_INFO');
-      }
-      
       // Force hide splash screen after a small delay to allow initial render
       setTimeout(() => {
         setIsSplashVisible(false);
@@ -899,7 +1057,10 @@ export default function App() {
       try {
         const stateToSave = {
           globalSettings: appState.globalSettings,
-          events: appState.events
+          events: appState.events,
+          currentUser: appState.currentUser,
+          activeEventId: appState.activeEventId,
+          activeScorer: appState.activeScorer
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
         localStorage.setItem(`${STORAGE_KEY}_timestamp`, Date.now().toString());
@@ -907,7 +1068,7 @@ export default function App() {
         console.warn("Could not save state to localStorage", err);
       }
     }
-  }, [appState.events, appState.globalSettings, appState.isDataLoaded]);
+  }, [appState.events, appState.globalSettings, appState.currentUser, appState.activeEventId, appState.activeScorer, appState.isDataLoaded]);
 
   const fetchCloudData = async (userOverride?: User) => {
     if (!db || !isOnline || quotaExceeded) return;
@@ -1169,6 +1330,9 @@ export default function App() {
   const handleLogout = async () => {
     if (auth) await signOut(auth);
     setAppState(prev => ({ ...prev, currentUser: null, activeEventId: null, activeScorer: null }));
+    try {
+      sessionStorage.removeItem('arcus_active_route');
+    } catch (e) {}
     setView('LANDING');
   };
 
@@ -1689,6 +1853,30 @@ export default function App() {
       );
     }
 
+    const renderEventNotFoundOrLoading = () => {
+      if (!appState.isDataLoaded || isCheckingLink) {
+        return (
+          <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8 text-center">
+            <div className="w-10 h-10 border-4 border-arcus-red border-t-transparent rounded-full animate-spin mb-4" />
+            <p className="text-slate-600 font-bold uppercase tracking-wider text-xs">Memuat Data Turnamen...</p>
+          </div>
+        );
+      }
+      return (
+        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8 text-center">
+          <AlertCircle className="w-12 h-12 text-slate-400 mb-3" />
+          <h2 className="text-lg font-bold text-slate-800 mb-1">Turnamen Tidak Ditemukan</h2>
+          <p className="text-slate-500 mb-5 text-xs max-w-sm">Turnamen yang Anda tuju belum tersedia atau tautan salah.</p>
+          <button 
+            onClick={() => setView('LANDING')} 
+            className="px-5 py-2 bg-arcus-red text-white rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-red-700 transition-all shadow-md"
+          >
+            Kembali ke Beranda
+          </button>
+        </div>
+      );
+    };
+
     switch(view) {
       case 'LANDING':
         return <LandingPage 
@@ -1734,7 +1922,7 @@ export default function App() {
         />;
       
       case 'REGISTER_PARTICIPANT':
-        if (!activeEvent) return null;
+        if (!activeEvent) return renderEventNotFoundOrLoading();
         return <RegistrationPanel 
           event={activeEvent}
           globalSettings={appState.globalSettings}
@@ -2010,7 +2198,7 @@ export default function App() {
         />;
 
       case 'EVENT_ADMIN':
-        if (!activeEvent) return null;
+        if (!activeEvent) return renderEventNotFoundOrLoading();
         return <AdminPanel 
           eventId={activeEvent.id}
           settings={activeEvent.settings}
@@ -2048,7 +2236,7 @@ export default function App() {
         />;
 
       case 'ELIMINATION_PANEL':
-        if (!activeEvent) return null;
+        if (!activeEvent) return renderEventNotFoundOrLoading();
         return <EliminationPanel 
           event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           onUpdateMatches={(updatedMatches) => {
@@ -2059,7 +2247,7 @@ export default function App() {
         />;
 
       case 'RESULTS_PANEL':
-        if (!activeEvent) return null;
+        if (!activeEvent) return renderEventNotFoundOrLoading();
         return <ResultsPanel 
           state={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           onResetScores={() => {
@@ -2070,7 +2258,7 @@ export default function App() {
         />;
 
       case 'FINANCE_PANEL':
-        if (!activeEvent) return null;
+        if (!activeEvent) return renderEventNotFoundOrLoading();
         return <FinancePanel 
           event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           globalSettings={appState.globalSettings}
@@ -2091,7 +2279,7 @@ export default function App() {
         />;
 
       case 'ID_CARD_EDITOR':
-        if (!activeEvent) return null;
+        if (!activeEvent) return renderEventNotFoundOrLoading();
         return <IdCardEditor 
           archers={activeEventArchers}
           settings={activeEvent.settings}
@@ -2099,7 +2287,7 @@ export default function App() {
         />;
 
       case 'OPERATOR_CENTER':
-        if (!activeEvent) return null;
+        if (!activeEvent) return renderEventNotFoundOrLoading();
         return <OperatorCenter 
           event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           onSaveScore={async (score, log) => {
@@ -2115,7 +2303,7 @@ export default function App() {
         />;
 
       case 'QUICK_SCORING_PANEL':
-        if (!activeEvent) return null;
+        if (!activeEvent) return renderEventNotFoundOrLoading();
         return <QuickScoringPanel 
           event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           currentScorer={appState.activeScorer}
@@ -2208,7 +2396,7 @@ export default function App() {
         />;
 
       case 'PUBLIC_EVENT_INFO':
-        if (!activeEvent) return null;
+        if (!activeEvent) return renderEventNotFoundOrLoading();
         return <EventInfo 
           event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           onRegister={() => setView('REGISTER_PARTICIPANT')}
@@ -2230,7 +2418,7 @@ export default function App() {
         />;
 
       case 'LIVE_SCOREBOARD':
-        if (!activeEvent) return null;
+        if (!activeEvent) return renderEventNotFoundOrLoading();
         return <LiveScoreboard 
           state={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           onBack={() => {
@@ -2243,7 +2431,7 @@ export default function App() {
         />;
 
       case 'ENTRY_LIST':
-        if (!activeEvent) return null;
+        if (!activeEvent) return renderEventNotFoundOrLoading();
         return <EntryList 
           event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           onBack={() => setView('PUBLIC_EVENT_INFO')}
@@ -2257,10 +2445,7 @@ export default function App() {
         />;
 
       case 'SELF_SERVICE_ID_CARD':
-        if (!activeEvent) {
-          setView('LANDING');
-          return null;
-        }
+        if (!activeEvent) return renderEventNotFoundOrLoading();
         return <SelfServiceIdCardPortal 
           event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           initialClub={selfServiceClub}
