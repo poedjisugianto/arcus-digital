@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Trophy, Medal, Download, Printer, ArrowLeft, Target, Award, Info, Trash2, ChevronRight, BarChart3 } from 'lucide-react';
+import { Trophy, Medal, Download, Printer, ArrowLeft, Target, Award, Info, Trash2, ChevronRight, BarChart3, FileText } from 'lucide-react';
 import { ArcheryEvent, CategoryType, Archer, TargetType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
 import { toast } from 'sonner';
 import ArcusLogo from './ArcusLogo';
+import PrintRoundReportModal from './PrintRoundReportModal';
 
 interface Props {
   state: ArcheryEvent;
@@ -14,6 +15,7 @@ interface Props {
 export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
   const [activeCategory, setActiveCategory] = useState<CategoryType>(CategoryType.ADULT_PUTRA);
   const [activeSession, setActiveSession] = useState<string>('QUAL');
+  const [showRoundReportModal, setShowRoundReportModal] = useState(false);
 
   const config = useMemo(() => (state.settings.categoryConfigs || {})[activeCategory], [state.settings, activeCategory]);
 
@@ -227,8 +229,18 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
           </div>
           <div className="flex items-center gap-1 md:gap-4">
             <button 
+              onClick={() => setShowRoundReportModal(true)}
+              className="bg-arcus-red text-white px-3 md:px-6 py-1.5 md:py-3 rounded-lg md:rounded-2xl text-[8px] md:text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-all shadow-md flex items-center gap-1.5 whitespace-nowrap active:scale-95"
+              title="Cetak Rekap Babak Kualifikasi, 32 Besar, s/d Final"
+            >
+              <Printer className="w-3.5 h-3.5 md:w-4 md:h-4" />
+              <span className="hidden sm:inline">CETAK SKOR BABAK</span>
+              <span className="sm:hidden">CETAK BABAK</span>
+            </button>
+            <button 
               onClick={handlePrint}
               className="p-1.5 md:p-3 text-slate-700 hover:text-slate-900 hover:bg-slate-50 rounded-lg md:rounded-2xl transition-all"
+              title="Cetak Halaman Ini"
             >
               <Printer className="w-4 h-4 md:w-5 md:h-5" />
             </button>
@@ -429,6 +441,14 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
           </div>
         </div>
       </div>
+
+      {showRoundReportModal && (
+        <PrintRoundReportModal 
+          event={state}
+          initialCategory={activeCategory}
+          onClose={() => setShowRoundReportModal(false)}
+        />
+      )}
     </div>
   );
 }

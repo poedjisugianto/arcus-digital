@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Save, Calendar, ImageIcon, FileText, Trophy, Target as TargetIcon, 
@@ -7,14 +7,15 @@ import {
   Link as LinkIcon, Info, Hash, Repeat, Compass, Layers, 
   Users as UsersIcon, AlertTriangle, AlertCircle, ShieldCheck, Zap, ToggleRight, ToggleLeft,
   FileDown, ExternalLink, HelpCircle, Check, ChevronLeft, Smartphone, Clock, Swords, Monitor,
-  Heart, Youtube, Video, Crosshair, Scale, Sliders, Award
+  Heart, Youtube, Video, Crosshair, Scale, Sliders, Award, Printer, GitBranch
 } from 'lucide-react';
-import { TournamentSettings, CategoryType, TargetType, PaymentMethod, ScorerAccess, CategoryConfig, Sponsorship, Archer, ParticipantRegistration, GlobalSettings, RundownItem } from '../types';
+import { TournamentSettings, CategoryType, TargetType, PaymentMethod, ScorerAccess, CategoryConfig, Sponsorship, Archer, ParticipantRegistration, GlobalSettings, RundownItem, ArcheryEvent } from '../types';
 import { CATEGORY_LABELS, TARGET_LABELS } from '../constants';
 import { tryRecoverJSON } from '../lib/firestoreUtils';
 import { resolveGoogleDriveUrl } from '../lib/photoService';
 import ArcherList from './ArcherList';
 import OfficialList from './OfficialList';
+import PrintRoundReportModal from './PrintRoundReportModal';
 
 interface Props {
   eventId: string;
@@ -22,6 +23,7 @@ interface Props {
   scorerAccess?: ScorerAccess[];
   archers: Archer[];
   officials: ParticipantRegistration[];
+  event?: ArcheryEvent;
   onSave: (settings: TournamentSettings) => void;
   onUpdateScorers?: (scorers: ScorerAccess[]) => void;
   onClear: () => void;
@@ -33,6 +35,7 @@ interface Props {
   onBack: () => void;
   onOpenTV?: () => void;
   onManageElimination?: () => void;
+  onManageResults?: () => void;
   onManageFinance?: () => void;
   onManageIdCards?: () => void;
   onGoToOperatorCenter?: () => void;
@@ -51,6 +54,7 @@ const AdminPanel: React.FC<Props> = ({
   scorerAccess = [], 
   archers = [],
   officials = [],
+  event,
   onSave, 
   onUpdateScorers, 
   onClear, 
@@ -62,6 +66,7 @@ const AdminPanel: React.FC<Props> = ({
   onBack, 
   onOpenTV, 
   onManageElimination,
+  onManageResults,
   onManageFinance,
   onManageIdCards,
   onGoToOperatorCenter,
@@ -73,6 +78,7 @@ const AdminPanel: React.FC<Props> = ({
   globalSettings,
   isSuperAdmin = false 
 }) => {
+  const [showPrintReportModal, setShowPrintReportModal] = useState(false);
   const [localSettings, setLocalSettings] = useState<TournamentSettings>(() => {
     const savedDraft = localStorage.getItem(`admin_draft_${eventId}`);
     if (savedDraft) {
@@ -564,7 +570,7 @@ const AdminPanel: React.FC<Props> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Option 1: Quick Grid Scoring */}
               <div className="bg-white hover:bg-slate-50 border border-slate-100 rounded-[2.5rem] p-8 md:p-10 flex flex-col justify-between shadow-sm transition-all hover:shadow-md hover:-translate-y-1 duration-300">
                 <div className="space-y-6">
@@ -628,7 +634,7 @@ const AdminPanel: React.FC<Props> = ({
                       3. Field Scorer Panel
                     </h4>
                     <p className="text-slate-800 text-xs font-semibold leading-relaxed">
-                      Tampilan persis dengan gadget yang digunakan oleh Tim Scorer di lapangan atau Atlet di bantalan untuk mencatat skor anak panah (arrow-by-arrow).
+                      Tampilan persis dengan gadget yang digunakan oleh Tim Scorer di lapangan atau Atlet di bantalan untuk mencatat skor anak panah.
                     </p>
                   </div>
                 </div>
@@ -643,7 +649,88 @@ const AdminPanel: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* Option 4: Tournament Timer & Shooting Clock */}
+              {/* Option 4: Cetak Laporan Skor & Babak (NEW) */}
+              <div className="bg-white hover:bg-slate-50 border-2 border-arcus-red/30 rounded-[2.5rem] p-8 md:p-10 flex flex-col justify-between shadow-md transition-all hover:shadow-xl hover:-translate-y-1 duration-300 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 bg-arcus-red text-white text-[8px] font-black uppercase tracking-widest px-4 py-1.5 rounded-bl-2xl">
+                  FITUR CETAK RESMI
+                </div>
+                <div className="space-y-6">
+                  <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center text-arcus-red group-hover:scale-110 transition-transform">
+                    <Printer className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">
+                      4. Cetak Skor &amp; Hasil Babak
+                    </h4>
+                    <p className="text-slate-800 text-xs font-semibold leading-relaxed">
+                      Cetak hasil kualifikasi (lolos 32/16/8 besar), hasil per babak eliminasi, rekap skor aduan, hingga daftar juara &amp; podium final lomba.
+                    </p>
+                  </div>
+                </div>
+                <div className="pt-8">
+                  <button
+                    type="button"
+                    onClick={() => setShowPrintReportModal(true)}
+                    className="w-full py-4 text-center bg-arcus-red hover:bg-red-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <Printer className="w-4 h-4" /> Buka Menu Cetak
+                  </button>
+                </div>
+              </div>
+
+              {/* Option 5: Bagan Eliminasi & Aduan */}
+              <div className="bg-white hover:bg-slate-50 border border-slate-100 rounded-[2.5rem] p-8 md:p-10 flex flex-col justify-between shadow-sm transition-all hover:shadow-md hover:-translate-y-1 duration-300">
+                <div className="space-y-6">
+                  <div className="w-14 h-14 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                    <Swords className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">
+                      5. Bagan Eliminasi &amp; Aduan
+                    </h4>
+                    <p className="text-slate-800 text-xs font-semibold leading-relaxed">
+                      Kelola bagan gugur (bracket), shoot-off, countback, pemenang pertandingan aduan, hingga perebutan medali emas dan perunggu.
+                    </p>
+                  </div>
+                </div>
+                <div className="pt-8">
+                  <button
+                    type="button"
+                    onClick={onManageElimination}
+                    className="w-full py-4 text-center bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
+                  >
+                    Kelola Eliminasi
+                  </button>
+                </div>
+              </div>
+
+              {/* Option 6: Rekapitulasi Hasil Lomba */}
+              <div className="bg-white hover:bg-slate-50 border border-slate-100 rounded-[2.5rem] p-8 md:p-10 flex flex-col justify-between shadow-sm transition-all hover:shadow-md hover:-translate-y-1 duration-300">
+                <div className="space-y-6">
+                  <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                    <Trophy className="w-7 h-7" />
+                  </div>
+                  <div className="space-y-2">
+                    <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">
+                      6. Hasil Lomba &amp; Podium
+                    </h4>
+                    <p className="text-slate-800 text-xs font-semibold leading-relaxed">
+                      Lihat klasemen akhir, peringkat kualifikasi lengkap dengan tie-break (6/5/X), serta daftar pemenang medali turnamen.
+                    </p>
+                  </div>
+                </div>
+                <div className="pt-8">
+                  <button
+                    type="button"
+                    onClick={onManageResults}
+                    className="w-full py-4 text-center bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
+                  >
+                    Lihat Hasil &amp; Podium
+                  </button>
+                </div>
+              </div>
+
+              {/* Option 7: Tournament Timer & Shooting Clock */}
               <div className="bg-white hover:bg-slate-50 border border-slate-100 rounded-[2.5rem] p-8 md:p-10 flex flex-col justify-between shadow-sm transition-all hover:shadow-md hover:-translate-y-1 duration-300">
                 <div className="space-y-6">
                   <div className="w-14 h-14 rounded-2xl bg-teal-50 flex items-center justify-center text-teal-600">
@@ -651,7 +738,7 @@ const AdminPanel: React.FC<Props> = ({
                   </div>
                   <div className="space-y-2">
                     <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">
-                      4. Timer &amp; Shooting Clock
+                      7. Timer &amp; Shooting Clock
                     </h4>
                     <p className="text-slate-800 text-xs font-semibold leading-relaxed">
                       Akses stopwatch terintegrasi &amp; timer official turnamen untuk menghitung durasi tembak atlet (240s / 120s) secara sinkron.
@@ -2127,6 +2214,24 @@ const AdminPanel: React.FC<Props> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Official Stage & Round Report Print Modal */}
+      {showPrintReportModal && (
+        <PrintRoundReportModal 
+          event={event || ({
+            id: eventId,
+            status: 'ACTIVE',
+            settings: localSettings,
+            archers,
+            officials,
+            scores: [],
+            matches: {},
+            registrations: [],
+            scoreLogs: []
+          } as any)}
+          onClose={() => setShowPrintReportModal(false)}
+        />
       )}
     </div>
   );

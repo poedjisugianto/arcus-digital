@@ -2031,17 +2031,62 @@ export default function App() {
           onBulkUpdateArchers={onBulkUpdateArchers}
           onBack={() => setView('MEMBER_DASHBOARD')}
           onManageElimination={() => setView('ELIMINATION_PANEL')}
+          onManageResults={() => setView('RESULTS_PANEL')}
           onManageFinance={() => setView('FINANCE_PANEL')}
           onManageIdCards={() => setView('ID_CARD_EDITOR')}
           onGoToOperatorCenter={() => setView('OPERATOR_CENTER')}
           onGoToQuickScoring={() => setView('QUICK_SCORING_PANEL')}
           onGoToFieldScoring={() => setView('SCORER_PANEL')}
+          event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           globalSettings={appState.globalSettings}
           isSuperAdmin={
             appState.currentUser?.role === UserRole.SUPERADMIN || 
             appState.currentUser?.role === UserRole.ADMIN || 
             appState.currentUser?.role === UserRole.MASTER_ADMIN ||
             ['poedji.sugianto@gmail.com', 'poedjisugianto@gmail.com', 'admin@arcus.id', 'arcus.id@gmail.com'].includes(appState.currentUser?.email || '')
+          }
+        />;
+
+      case 'ELIMINATION_PANEL':
+        if (!activeEvent) return null;
+        return <EliminationPanel 
+          event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
+          onUpdateMatches={(updatedMatches) => {
+            handleUpdateEvent(activeEvent.id, { matches: updatedMatches });
+            pushNotification("Bagan Diperbarui", "Data eliminasi & aduan berhasil disimpan.", "SUCCESS");
+          }}
+          onBack={() => setView('EVENT_ADMIN')}
+        />;
+
+      case 'RESULTS_PANEL':
+        if (!activeEvent) return null;
+        return <ResultsPanel 
+          state={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
+          onResetScores={() => {
+            handleUpdateEvent(activeEvent.id, { scores: [] });
+            pushNotification("Skor Direset", "Seluruh data skor event berhasil direset.", "WARNING");
+          }}
+          onBack={() => setView('EVENT_ADMIN')}
+        />;
+
+      case 'FINANCE_PANEL':
+        if (!activeEvent) return null;
+        return <FinancePanel 
+          event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
+          globalSettings={appState.globalSettings}
+          onApproveRegistration={(regId) => {
+            const updatedRegs = (activeEvent.registrations || []).map(r => r.id === regId ? { ...r, status: RegistrationStatus.CONFIRMED } : r);
+            handleUpdateEvent(activeEvent.id, { registrations: updatedRegs });
+            pushNotification("Status Peserta Diperbarui", "Pendaftaran berhasil dikonfirmasi.", "SUCCESS");
+          }}
+          onPayPlatformFee={(evtId) => {
+            pushNotification("Pembayaran Fee", "Konfirmasi pembayaran platform fee telah diajukan.", "INFO");
+          }}
+          onBack={() => setView('EVENT_ADMIN')}
+          isSuperAdmin={
+            appState.currentUser?.role === UserRole.SUPERADMIN || 
+            appState.currentUser?.role === UserRole.ADMIN || 
+            appState.currentUser?.role === UserRole.MASTER_ADMIN
           }
         />;
 
