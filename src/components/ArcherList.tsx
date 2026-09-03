@@ -467,11 +467,12 @@ const ArcherList: React.FC<Props> = ({
 
   return (
     <div className="space-y-6">
-      <div className="bg-[#FBFBFD] p-4 flex flex-col md:flex-row items-center justify-between gap-4 print:hidden">
+      <div className="bg-[#FBFBFD] p-4 sm:p-5 rounded-3xl border border-slate-200/80 flex flex-col xl:flex-row xl:items-center justify-between gap-4 print:hidden shadow-xs">
         <div className="flex items-center gap-4">
           <button
             onClick={onBack}
-            className="p-2.5 bg-white rounded-lg border border-slate-100 shadow-sm"
+            className="p-2.5 bg-white rounded-xl border border-slate-200/80 shadow-xs hover:bg-slate-50 transition-all active:scale-95"
+            title="Kembali"
           >
             <ArrowLeft className="w-5 h-5 text-slate-800" />
           </button>
@@ -516,163 +517,175 @@ const ArcherList: React.FC<Props> = ({
             </div>
           )}
         </div>
-        <div className="flex flex-wrap items-center justify-center md:justify-end gap-2">
-          <button
-            onClick={() => setShowScannerModal(true)}
-            className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-2 hover:bg-emerald-700 transition-all active:scale-95 shadow-xl shadow-emerald-600/20"
-          >
-            <BarcodeIcon className="w-4 h-4" />
-            Scan / Registrasi Ulang
-          </button>
-          <button
-            onClick={onGoToIdCardEditor}
-            className="bg-blue-600 text-white px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-2 hover:bg-blue-700 transition-all active:scale-95 shadow-xl shadow-blue-600/20"
-          >
-            <ImageIcon className="w-3.5 h-3.5" />
-            Kartu Peserta
-          </button>
-          <div className="relative">
+
+        {/* Action Buttons Toolbar - Grouped & Tidied */}
+        <div className="flex flex-col items-stretch xl:items-end gap-2.5">
+          {/* Baris 1: Aksi Utama Peserta (Tambah Peserta, Import Peserta, Alokasi, Acak) */}
+          <div className="flex flex-wrap items-center justify-start xl:justify-end gap-2">
             <button
-              onClick={() => setShowScoringSheetOptions(!showScoringSheetOptions)}
-              className="bg-purple-100 text-purple-600 px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-2 hover:bg-purple-200 transition-all active:scale-95"
+              onClick={() => setShowAddForm(true)}
+              className="bg-arcus-red text-white px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 hover:bg-red-700 transition-all active:scale-95 shadow-md shadow-arcus-red/25"
+              title="Tambah Peserta Manual"
             >
-              <QrCode className="w-3.5 h-3.5" />
-              Scoring Sheet
+              <Plus className="w-3.5 h-3.5" />
+              Tambah Peserta
             </button>
-            {showScoringSheetOptions && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setShowScoringSheetOptions(false)}
-                ></div>
-                <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 py-3 px-4 z-50 animate-in fade-in slide-in-from-top-2 space-y-3 font-sans">
-                  <div className="space-y-1">
-                    <span className="text-[8px] font-black uppercase text-slate-700 tracking-wider">Ukuran & Format Cetak</span>
-                    <div className="grid grid-cols-2 gap-1.5">
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 transition-all active:scale-95 shadow-md shadow-emerald-600/25"
+              title="Import Peserta dari File Excel (.xlsx / .xls / .csv)"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              Import Peserta
+            </button>
+            <button
+              onClick={() => setShowAutoAllocationModal(true)}
+              className="bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 transition-all active:scale-95 shadow-md shadow-purple-600/20"
+              title="Tata nomor bantalan otomatis dan menerus per kategori (U9 -> U12 -> U18 -> Dewasa) dengan opsi sebar klub"
+            >
+              <Layers className="w-3.5 h-3.5 text-purple-200" />
+              Alokasi Otomatis
+            </button>
+            <button
+              onClick={handleSmartRandomize}
+              disabled={isShuffling}
+              className="bg-slate-900 text-white px-3.5 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 hover:bg-black transition-all active:scale-95 disabled:opacity-50"
+              title="Acak posisi pemanah untuk kategori yang sedang aktif"
+            >
+              {isShuffling ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Shuffle className="w-3.5 h-3.5 text-arcus-red" />
+              )}
+              Acak Kategori
+            </button>
+          </div>
+
+          {/* Baris 2: Operasional Lapangan & Dokumen Cetak */}
+          <div className="flex flex-wrap items-center justify-start xl:justify-end gap-1.5 sm:gap-2 pt-1 border-t border-slate-100 xl:border-t-0 xl:pt-0">
+            <button
+              onClick={() => setShowScannerModal(true)}
+              className="bg-emerald-600 text-white px-3.5 py-2 rounded-xl text-[10px] font-black flex items-center gap-2 hover:bg-emerald-700 transition-all active:scale-95 shadow-sm"
+              title="Scan Barcode / QR Code Kehadiran"
+            >
+              <BarcodeIcon className="w-4 h-4" />
+              Scan / Registrasi Ulang
+            </button>
+            <button
+              onClick={onGoToIdCardEditor}
+              className="bg-blue-600 text-white px-3.5 py-2 rounded-xl text-[10px] font-black flex items-center gap-2 hover:bg-blue-700 transition-all active:scale-95 shadow-sm"
+              title="Cetak & Desain Kartu Peserta"
+            >
+              <ImageIcon className="w-3.5 h-3.5" />
+              Kartu Peserta
+            </button>
+            <div className="relative">
+              <button
+                onClick={() => setShowScoringSheetOptions(!showScoringSheetOptions)}
+                className="bg-purple-100 text-purple-700 px-3.5 py-2 rounded-xl text-[10px] font-black flex items-center gap-2 hover:bg-purple-200 transition-all active:scale-95"
+              >
+                <QrCode className="w-3.5 h-3.5" />
+                Scoring Sheet
+              </button>
+              {showScoringSheetOptions && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowScoringSheetOptions(false)}
+                  ></div>
+                  <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 py-3 px-4 z-50 animate-in fade-in slide-in-from-top-2 space-y-3 font-sans">
+                    <div className="space-y-1">
+                      <span className="text-[8px] font-black uppercase text-slate-700 tracking-wider">Ukuran & Format Cetak</span>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setScoringSheetSize('A4')}
+                          className={`text-[9px] font-black uppercase py-1.5 rounded-lg border transition-all ${scoringSheetSize === 'A4' ? 'bg-purple-600 text-white border-purple-600' : 'bg-slate-50 text-slate-600 border-slate-100 hover:bg-slate-100'}`}
+                        >
+                          📄 A4 Besar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setScoringSheetSize('A6')}
+                          className={`text-[9px] font-black uppercase py-1.5 rounded-lg border transition-all ${scoringSheetSize === 'A6' ? 'bg-purple-600 text-white border-purple-600' : 'bg-slate-50 text-slate-600 border-slate-100 hover:bg-slate-100'}`}
+                        >
+                          📑 A6 Grid A4
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="border-t border-slate-100 pt-2 flex flex-col gap-1">
                       <button
                         type="button"
-                        onClick={() => setScoringSheetSize('A4')}
-                        className={`text-[9px] font-black uppercase py-1.5 rounded-lg border transition-all ${scoringSheetSize === 'A4' ? 'bg-purple-600 text-white border-purple-600' : 'bg-slate-50 text-slate-600 border-slate-100 hover:bg-slate-100'}`}
+                        onClick={() => {
+                          handlePrintScoringSheet("ALL");
+                          setShowScoringSheetOptions(false);
+                        }}
+                        className="w-full text-left py-2 px-3 hover:bg-slate-50 rounded-lg text-[10px] font-bold text-slate-700 flex items-center justify-between"
                       >
-                        📄 A4 Besar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setScoringSheetSize('A6')}
-                        className={`text-[9px] font-black uppercase py-1.5 rounded-lg border transition-all ${scoringSheetSize === 'A6' ? 'bg-purple-600 text-white border-purple-600' : 'bg-slate-50 text-slate-600 border-slate-100 hover:bg-slate-100'}`}
-                      >
-                        📑 A6 Grid A4
+                        <span>Cetak Kategori Aktif ({filtered.length})</span>
+                        <span className="text-[8px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded font-black uppercase">Mulai</span>
                       </button>
                     </div>
                   </div>
-                  
-                  <div className="border-t border-slate-100 pt-2 flex flex-col gap-1">
+                </>
+              )}
+            </div>
+
+            <div className="relative flex items-center gap-1.5">
+              <button
+                onClick={() => setShowPrintOptions(!showPrintOptions)}
+                className="bg-slate-100 text-slate-700 px-3.5 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 hover:bg-slate-200 transition-all active:scale-95"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                Cetak Daftar
+              </button>
+              <button
+                onClick={handleExportExcel}
+                className="bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200/80 px-3.5 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 transition-all active:scale-95 shadow-xs"
+                title="Unduh format tabel Excel (.xlsx) rapi dalam sel-sel terpisah"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                Ekspor Excel
+              </button>
+              <button
+                onClick={handleExportCSV}
+                className="bg-slate-100 text-slate-700 hover:bg-slate-200 px-3 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 transition-all active:scale-95"
+                title="Unduh format teks CSV (.csv)"
+              >
+                <FileDown className="w-3.5 h-3.5" />
+                CSV
+              </button>
+              {showPrintOptions && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowPrintOptions(false)}
+                  ></div>
+                  <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
                     <button
-                      type="button"
                       onClick={() => {
-                        handlePrintScoringSheet("ALL");
-                        setShowScoringSheetOptions(false);
+                        handlePrint(false);
+                        setShowPrintOptions(false);
                       }}
-                      className="w-full text-left py-2 px-3 hover:bg-slate-50 rounded-lg text-[10px] font-bold text-slate-700 flex items-center justify-between"
+                      className="w-full text-left px-4 py-3 text-[10px] font-bold text-slate-600 hover:bg-slate-50 border-b border-slate-50"
                     >
-                      <span>Cetak Kategori Aktif ({filtered.length})</span>
-                      <span className="text-[8px] bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded font-black uppercase">Mulai</span>
+                      Kategori Aktif
+                    </button>
+                    <button
+                      onClick={() => {
+                        handlePrint(true);
+                        setShowPrintOptions(false);
+                      }}
+                      className="w-full text-left px-4 py-3 text-[10px] font-bold text-slate-600 hover:bg-slate-50"
+                    >
+                      Semua Kategori
                     </button>
                   </div>
-                </div>
-              </>
-            )}
+                </>
+              )}
+            </div>
           </div>
-          <div className="relative flex items-center gap-1.5">
-            <button
-              onClick={() => setShowPrintOptions(!showPrintOptions)}
-              className="bg-slate-100 text-slate-700 px-3.5 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 hover:bg-slate-200 transition-all active:scale-95"
-            >
-              <Printer className="w-3.5 h-3.5" />
-              Cetak Daftar
-            </button>
-            <button
-              onClick={handleExportExcel}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 transition-all active:scale-95 shadow-md shadow-emerald-600/20"
-              title="Unduh format tabel Excel (.xlsx) rapi dalam sel-sel terpisah"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5" />
-              Ekspor Excel (.xlsx)
-            </button>
-            <button
-              onClick={handleExportCSV}
-              className="bg-emerald-50 text-emerald-700 px-3 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 hover:bg-emerald-100 transition-all active:scale-95 border border-emerald-200"
-              title="Unduh format teks CSV (.csv)"
-            >
-              <FileDown className="w-3.5 h-3.5" />
-              CSV
-            </button>
-            {showPrintOptions && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setShowPrintOptions(false)}
-                ></div>
-                <div className="absolute top-full right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2">
-                  <button
-                    onClick={() => {
-                      handlePrint(false);
-                      setShowPrintOptions(false);
-                    }}
-                    className="w-full text-left px-4 py-3 text-[10px] font-bold text-slate-600 hover:bg-slate-50 border-b border-slate-50"
-                  >
-                    Kategori Aktif
-                  </button>
-                  <button
-                    onClick={() => {
-                      handlePrint(true);
-                      setShowPrintOptions(false);
-                    }}
-                    className="w-full text-left px-4 py-3 text-[10px] font-bold text-slate-600 hover:bg-slate-50"
-                  >
-                    Semua Kategori
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="bg-arcus-red text-white px-3.5 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 hover:bg-red-700 transition-all active:scale-95 shadow-md shadow-arcus-red/20"
-            title="Tambah Peserta Manual"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Tambah
-          </button>
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 transition-all active:scale-95 shadow-md shadow-emerald-600/20"
-            title="Import Peserta dari File Excel (.xlsx / .xls / .csv)"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            Import Excel
-          </button>
-          <button
-            onClick={() => setShowAutoAllocationModal(true)}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 transition-all active:scale-95 shadow-md shadow-purple-600/20"
-            title="Tata nomor bantalan otomatis dan menerus per kategori (U9 -> U12 -> U18 -> Dewasa) dengan opsi sebar klub"
-          >
-            <Layers className="w-3.5 h-3.5 text-purple-200" />
-            Alokasi Otomatis
-          </button>
-          <button
-            onClick={handleSmartRandomize}
-            disabled={isShuffling}
-            className="bg-arcus-dark text-white px-3.5 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 hover:bg-black transition-all active:scale-95 disabled:opacity-50"
-            title="Acak posisi pemanah untuk kategori yang sedang aktif"
-          >
-            {isShuffling ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <Shuffle className="w-3.5 h-3.5 text-arcus-red" />
-            )}
-            Acak Kategori
-          </button>
         </div>
       </div>
 
@@ -719,7 +732,7 @@ const ArcherList: React.FC<Props> = ({
                 className="flex-1 py-2 px-3 rounded-xl text-xs font-black uppercase flex items-center justify-center gap-2 text-slate-600 hover:text-emerald-700 hover:bg-white/60 transition-all"
               >
                 <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                Import Excel (.xlsx)
+                Import Peserta (Excel)
               </button>
             </div>
 
@@ -901,7 +914,7 @@ const ArcherList: React.FC<Props> = ({
                   </div>
                   <div className="text-left">
                     <span className="text-[11px] font-black text-emerald-950 block">Punya Banyak Peserta?</span>
-                    <span className="text-[10px] text-emerald-800">Gunakan fitur Import Excel untuk upload puluhan / ratusan atlet sekaligus.</span>
+                    <span className="text-[10px] text-emerald-800">Gunakan fitur Import Peserta untuk upload puluhan / ratusan atlet sekaligus via file Excel.</span>
                   </div>
                 </div>
                 <button
@@ -912,7 +925,7 @@ const ArcherList: React.FC<Props> = ({
                   }}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase px-3 py-1.5 rounded-lg shrink-0 transition-all shadow-sm"
                 >
-                  Buka Excel
+                  Import Peserta
                 </button>
               </div>
 
