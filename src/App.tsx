@@ -344,7 +344,7 @@ export default function App() {
   }, []);
 
   const pushNotification = (title: string, message: string, type: 'INFO' | 'SUCCESS' | 'WARNING' = 'INFO') => {
-    const id = Date.now().toString();
+    const id = `notif_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const newNotif: AppNotification = { 
       id, 
       title, 
@@ -1645,6 +1645,58 @@ export default function App() {
     }
   };
 
+  const onBulkAddArchers = async (newArchers: Archer[]) => {
+    if (!appState.activeEventId || newArchers.length === 0) return;
+    const activeEvent = appState.events.find(e => e.id === appState.activeEventId);
+    if (!activeEvent) return;
+
+    try {
+      if (db && isOnline) {
+        const { writeBatch, doc } = await import('firebase/firestore');
+        const chunkSize = 400;
+        for (let i = 0; i < newArchers.length; i += chunkSize) {
+          const chunk = newArchers.slice(i, i + chunkSize);
+          const batch = writeBatch(db);
+          chunk.forEach(archer => {
+            const subRef = doc(db, 'events', activeEvent.id, 'submissions', archer.id);
+            batch.set(subRef, {
+              ...archer,
+              serverTimestamp: serverTimestamp(),
+              updatedAt: new Date().toISOString()
+            }, { merge: true });
+          });
+          await batch.commit();
+        }
+        console.log(`[CLIENT-BULK-ADD] ${newArchers.length} archers added to Firestore submissions`);
+      }
+
+      const currentArchers = activeEvent.archers || [];
+      const currentOfficials = activeEvent.officials || [];
+      const existingIds = new Set(currentArchers.map(a => a.id));
+      const filteredNew = newArchers.filter(a => !existingIds.has(a.id));
+      const updatedArchers = [...currentArchers, ...filteredNew];
+
+      const updatePayload: any = {
+        archers: updatedArchers,
+        registrationCount: updatedArchers.length + currentOfficials.length,
+        lastRegistrationAt: new Date().toISOString()
+      };
+
+      const activeEventAny = activeEvent as any;
+      if (activeEventAny.data && typeof activeEventAny.data === 'object') {
+        updatePayload["data.archers"] = updatedArchers;
+        updatePayload["data.registrationCount"] = updatedArchers.length + currentOfficials.length;
+      }
+
+      await handleUpdateEvent(activeEvent.id, updatePayload);
+      pushNotification("Berhasil", `${filteredNew.length} peserta berhasil diimpor ke dalam turnamen.`, "SUCCESS");
+    } catch (err: any) {
+      console.error("Bulk add archers failed:", err);
+      pushNotification("Gagal Impor", err.message || "Gagal mengimpor data peserta", "WARNING");
+      throw err;
+    }
+  };
+
   const onUpdateParticipant = async (participantId: string, updates: Partial<ParticipantRegistration>) => {
     if (!appState.activeEventId) return;
     const activeEvent = appState.events.find(e => e.id === appState.activeEventId);
@@ -2012,11 +2064,6 @@ export default function App() {
           }}
           onBack={() => setView('LANDING')}
           onViewParticipants={() => setView('ENTRY_LIST')}
-          onGoToIdCardPortal={(club) => {
-            setSelfServiceClub(club || '');
-            setSelfServiceSearch('');
-            setView('SELF_SERVICE_ID_CARD');
-          }}
         />;
 
       case 'SCORER_LOGIN':
@@ -2080,7 +2127,7 @@ export default function App() {
              return !!(isOwner || isScorer);
           })}
           onCreateEvent={async (name) => {
-             const id = 'evt_' + Date.now();
+             const id = `evt_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
              const newEvent: ArcheryEvent = {
                id,
                ownerId: appState.currentUser?.id || appState.currentUser?.email || '',
@@ -2219,6 +2266,7 @@ export default function App() {
           onAddParticipant={onAddParticipant}
           onUpdateParticipant={onUpdateParticipant}
           onBulkUpdateArchers={onBulkUpdateArchers}
+          onBulkAddParticipants={onBulkAddArchers}
           onBack={() => setView('MEMBER_DASHBOARD')}
           onManageElimination={() => setView('ELIMINATION_PANEL')}
           onManageResults={() => setView('RESULTS_PANEL')}
@@ -2421,11 +2469,6 @@ export default function App() {
           }}
           onViewParticipants={() => setView('ENTRY_LIST')}
           onViewLiveScoreboard={() => setView('LIVE_SCOREBOARD')}
-          onPrintIdCards={() => {
-            setSelfServiceClub('');
-            setSelfServiceSearch('');
-            setView('SELF_SERVICE_ID_CARD');
-          }}
         />;
 
       case 'LIVE_SCOREBOARD':
@@ -2447,21 +2490,35 @@ export default function App() {
           event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           onBack={() => setView('PUBLIC_EVENT_INFO')}
           onRefresh={() => refreshActiveEventDetails(true)}
-          onPrintIdCards={(club) => {
-            setSelfServiceClub(club || '');
-            setSelfServiceSearch('');
-            setView('SELF_SERVICE_ID_CARD');
-          }}
           isSyncing={isSyncing}
         />;
 
       case 'SELF_SERVICE_ID_CARD':
         if (!activeEvent) return renderEventNotFoundOrLoading();
+        if (!appState.currentUser) {
+          return (
+            <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-6 text-center">
+              <div className="max-w-md bg-slate-800 p-8 rounded-3xl border border-slate-700 space-y-4">
+                <ShieldCheck className="w-12 h-12 text-arcus-red mx-auto" />
+                <h3 className="text-xl font-bold font-oswald uppercase tracking-wide">Cetak Kartu Khusus Panitia</h3>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Pencetakan kartu peserta (ID Card) dikelola dan dicetak khusus oleh Panitia Penyelenggara turnamen melalui Menu Kontrol Admin.
+                </p>
+                <button
+                  onClick={() => setView('PUBLIC_EVENT_INFO')}
+                  className="px-6 py-3 bg-arcus-red hover:bg-red-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-all"
+                >
+                  Kembali ke Info Event
+                </button>
+              </div>
+            </div>
+          );
+        }
         return <SelfServiceIdCardPortal 
           event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           initialClub={selfServiceClub}
           initialSearch={selfServiceSearch}
-          onBack={() => setView('PUBLIC_EVENT_INFO')}
+          onBack={() => setView('EVENT_ADMIN')}
         />;
 
       default:
@@ -2554,8 +2611,8 @@ export default function App() {
 
       {notifications.length > 0 && (
         <div className="fixed top-6 right-6 z-[1000] flex flex-col gap-3 max-w-sm w-full print:hidden">
-          {notifications.map(n => (
-            <div key={n.id} className={`p-4 rounded-2xl shadow-xl border-l-4 animate-in slide-in-from-right flex gap-3 ${
+          {notifications.map((n, idx) => (
+            <div key={`${n.id || 'notif'}-${idx}`} className={`p-4 rounded-2xl shadow-xl border-l-4 animate-in slide-in-from-right flex gap-3 ${
               n.type === 'SUCCESS' ? 'bg-white border-green-500' : 
               n.type === 'WARNING' ? 'bg-white border-orange-500' : 
               n.type === 'ERROR' ? 'bg-white border-red-500' : 'bg-white border-blue-500'

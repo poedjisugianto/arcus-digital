@@ -47,7 +47,10 @@ if (fs.existsSync(configPath)) {
 // Initialize Firebase Admin with maximum resilience
 let db: any = null;
 
+let isAdminSdkAvailable: boolean | null = null;
+
 function getAdminDB() {
+  if (isAdminSdkAvailable === false) return null;
   if (db) return db;
   
   try {
@@ -92,8 +95,22 @@ function getAdminDB() {
   }
 }
 
-// Initial attempt to warm up the DB connection
+// Initial attempt to warm up the DB connection and test permissions non-blockingly
 getAdminDB();
+setTimeout(async () => {
+  if (db && isAdminSdkAvailable === null) {
+    try {
+      await db.collection('events').limit(1).get();
+      isAdminSdkAvailable = true;
+      console.log("[FIREBASE-ADMIN] Admin SDK credentials verified and operational.");
+    } catch (err: any) {
+      if (err.message && (err.message.includes("PERMISSION_DENIED") || err.message.includes("7 PERMISSION_DENIED"))) {
+        isAdminSdkAvailable = false;
+        console.log("[FIREBASE-ADMIN] Environment credentials lack Admin SDK IAM roles. Switched to high-performance direct Firestore REST engine.");
+      }
+    }
+  }
+}, 500);
 
 // Transformation helper for Firestore REST API
 function transformRestFields(fields: any) {
@@ -175,7 +192,7 @@ async function restGetDoc(collectionPath: string, docId: string) {
 }
 
 // REST helper to write/merge a document
-async function restWriteDoc(collectionPath: string, docId: string, data: any) {
+async function restWriteDoc(collectionPath: string, docId: string, data: any, useUpdateMask: boolean = true) {
   const pid = firebaseConfig.projectId || process.env.VITE_FIREBASE_PROJECT_ID;
   const dbId = firebaseConfig.firestoreDatabaseId || process.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || "(default)";
   const apiKey = firebaseConfig.apiKey || process.env.VITE_FIREBASE_API_KEY;
@@ -184,7 +201,12 @@ async function restWriteDoc(collectionPath: string, docId: string, data: any) {
   try {
     const converted = convertToRestFields(data);
     const fields = converted.mapValue?.fields || {};
-    const url = `https://firestore.googleapis.com/v1/projects/${pid}/databases/${dbId}/documents/${collectionPath}/${docId}?key=${apiKey}`;
+    const keys = Object.keys(data);
+    let url = `https://firestore.googleapis.com/v1/projects/${pid}/databases/${dbId}/documents/${collectionPath}/${docId}?key=${apiKey}`;
+    if (useUpdateMask && keys.length > 0) {
+      const maskParams = keys.map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
+      url += `&${maskParams}`;
+    }
     await axios.patch(url, { fields }, { timeout: 8000 });
     return true;
   } catch (err: any) {

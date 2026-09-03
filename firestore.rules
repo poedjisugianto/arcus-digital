@@ -53,14 +53,18 @@ service cloud.firestore {
       // Anyone signed in can start a new tournament
       allow create: if isSignedIn();
       
-      // Management restricted to owners or admins
-      allow update, delete: if isAdmin() || isDocOwner(resource.data.ownerId) || isDocOwner(resource.data.settings.organizerId);
+      // Management restricted to owners or admins, or updating registration rosters/metadata
+      allow update: if isAdmin() 
+        || isDocOwner(resource.data.ownerId) 
+        || isDocOwner(resource.data.settings.organizerId)
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['archers', 'officials', 'registrationCount', 'lastRegistrationAt', 'updatedAt', 'data']);
+      allow delete: if isAdmin() || isDocOwner(resource.data.ownerId) || isDocOwner(resource.data.settings.organizerId);
 
       // Participant Registrations
       match /submissions/{subId} {
         allow read: if true;
-        allow create: if true; // Registration is public
-        allow update, delete: if isAdmin() || isDocOwner(get(/databases/$(database)/documents/events/$(eventId)).data.ownerId);
+        allow create, update: if true; // Registration is public
+        allow delete: if isAdmin() || isDocOwner(get(/databases/$(database)/documents/events/$(eventId)).data.ownerId);
       }
 
       // Scores

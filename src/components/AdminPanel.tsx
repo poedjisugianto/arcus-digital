@@ -32,6 +32,7 @@ interface Props {
   onAddParticipant?: (participant: ParticipantRegistration) => void;
   onUpdateParticipant?: (id: string, updates: Partial<ParticipantRegistration>) => void;
   onBulkUpdateArchers?: (updated: Archer[]) => void;
+  onBulkAddParticipants?: (newArchers: Archer[]) => Promise<void> | void;
   onBack: () => void;
   onOpenTV?: () => void;
   onShare?: () => void;
@@ -64,6 +65,7 @@ const AdminPanel: React.FC<Props> = ({
   onAddParticipant,
   onUpdateParticipant,
   onBulkUpdateArchers,
+  onBulkAddParticipants,
   onBack, 
   onOpenTV, 
   onShare,
@@ -532,6 +534,7 @@ const AdminPanel: React.FC<Props> = ({
                 onBack={() => setActiveTab('GENERAL')} 
                 onRemove={onRemoveParticipant || (() => {})}
                 onAdd={onAddParticipant || (() => {})}
+                onBulkAdd={onBulkAddParticipants}
                 onUpdate={(a) => onUpdateParticipant?.(a.id, a)}
                 onBulkUpdate={onBulkUpdateArchers || (() => {})}
                 onGoToIdCardEditor={onManageIdCards || (() => {})}

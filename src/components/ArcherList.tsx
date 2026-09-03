@@ -25,7 +25,8 @@ import {
   XCircle,
   ScanLine,
   Layers,
-  Sparkles
+  Sparkles,
+  Pencil
 } from "lucide-react";
 import {
   Archer,
@@ -41,6 +42,8 @@ import { exportToExcel, exportToCSV } from "../lib/excelHelper";
 import ScoringSheet from "./ScoringSheet";
 import ParticipantScannerModal from "./ParticipantScannerModal";
 import AutoTargetAllocationModal from "./AutoTargetAllocationModal";
+import ArcherImportModal from "./ArcherImportModal";
+import ArcherEditModal from "./ArcherEditModal";
 
 interface Props {
   archers: Archer[];
@@ -49,6 +52,7 @@ interface Props {
   onRemove: (id: string) => void;
   onBack: () => void;
   onBulkUpdate: (updated: Archer[]) => void;
+  onBulkAdd?: (newArchers: Archer[]) => Promise<void> | void;
   onGoToIdCardEditor: () => void;
   onRefreshData?: () => void;
   onPushToCloud?: () => void;
@@ -67,6 +71,7 @@ const ArcherList: React.FC<Props> = ({
   onRemove,
   onBack,
   onBulkUpdate,
+  onBulkAdd,
   onGoToIdCardEditor,
   onRefreshData,
   onPushToCloud,
@@ -83,6 +88,7 @@ const ArcherList: React.FC<Props> = ({
     "ALL",
   );
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [printArcherId, setPrintArcherId] = useState<string | "ALL" | null>(
     null,
@@ -91,6 +97,7 @@ const ArcherList: React.FC<Props> = ({
   const [filterClub, setFilterClub] = useState<string>("ALL");
   const [filterCheckIn, setFilterCheckIn] = useState<"ALL" | "CHECKED_IN" | "NOT_CHECKED_IN">("ALL");
   const [showScannerModal, setShowScannerModal] = useState(false);
+  const [editingArcher, setEditingArcher] = useState<Archer | null>(null);
   const [showAutoAllocationModal, setShowAutoAllocationModal] = useState(false);
   const [initialScanQuery, setInitialScanQuery] = useState("");
   const [printAllCategories, setPrintAllCategories] = useState(false);
@@ -629,9 +636,18 @@ const ArcherList: React.FC<Props> = ({
           <button
             onClick={() => setShowAddForm(true)}
             className="bg-arcus-red text-white px-3.5 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 hover:bg-red-700 transition-all active:scale-95 shadow-md shadow-arcus-red/20"
+            title="Tambah Peserta Manual"
           >
             <Plus className="w-3.5 h-3.5" />
             Tambah
+          </button>
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-[10px] font-black flex items-center gap-1.5 transition-all active:scale-95 shadow-md shadow-emerald-600/20"
+            title="Import Peserta dari File Excel (.xlsx / .xls / .csv)"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            Import Excel
           </button>
           <button
             onClick={() => setShowAutoAllocationModal(true)}
@@ -665,15 +681,42 @@ const ArcherList: React.FC<Props> = ({
                 <div className="p-3 bg-red-50 rounded-2xl">
                   <UserPlus className="w-6 h-6 text-arcus-red" />
                 </div>
-                <h3 className="text-2xl font-black font-oswald uppercase italic text-slate-900">
-                  Tambah Peserta Manual
-                </h3>
+                <div>
+                  <h3 className="text-2xl font-black font-oswald uppercase italic text-slate-900">
+                    Tambah Peserta
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Input data pemanah manual atau import banyak sekaligus via Excel.
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setShowAddForm(false)}
                 className="p-2 text-slate-300 hover:text-slate-900 transition-colors"
               >
                 <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Mode Switcher */}
+            <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1.5">
+              <button
+                type="button"
+                className="flex-1 py-2 px-3 rounded-xl text-xs font-black uppercase flex items-center justify-center gap-2 bg-white text-slate-900 shadow-sm transition-all"
+              >
+                <UserPlus className="w-4 h-4 text-arcus-red" />
+                Input Manual
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddForm(false);
+                  setShowImportModal(true);
+                }}
+                className="flex-1 py-2 px-3 rounded-xl text-xs font-black uppercase flex items-center justify-center gap-2 text-slate-600 hover:text-emerald-700 hover:bg-white/60 transition-all"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                Import Excel (.xlsx)
               </button>
             </div>
 
@@ -847,6 +890,29 @@ const ArcherList: React.FC<Props> = ({
                 </label>
               </div>
 
+              {/* Excel Import Callout */}
+              <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-3 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-emerald-600 text-white rounded-xl shrink-0">
+                    <FileSpreadsheet className="w-4 h-4" />
+                  </div>
+                  <div className="text-left">
+                    <span className="text-[11px] font-black text-emerald-950 block">Punya Banyak Peserta?</span>
+                    <span className="text-[10px] text-emerald-800">Gunakan fitur Import Excel untuk upload puluhan / ratusan atlet sekaligus.</span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setShowImportModal(true);
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase px-3 py-1.5 rounded-lg shrink-0 transition-all shadow-sm"
+                >
+                  Buka Excel
+                </button>
+              </div>
+
               <button
                 type="submit"
                 className="w-full bg-arcus-red text-white py-3.5 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-red-600/20 hover:bg-red-700 active:scale-95 transition-all"
@@ -943,7 +1009,7 @@ const ArcherList: React.FC<Props> = ({
                     </thead>
                     <tbody>
                       {catArchers.map((a: Archer, aIdx: number) => (
-                        <tr key={a.id}>
+                        <tr key={`${a.id || 'cat-arch'}-${aIdx}`}>
                           <td className="border border-black py-2 px-1 text-center text-[10px]">
                             {aIdx + 1}
                           </td>
@@ -1030,7 +1096,7 @@ const ArcherList: React.FC<Props> = ({
                 </thead>
                 <tbody>
                   {filtered.map((a: Archer, aIdx: number) => (
-                    <tr key={a.id}>
+                    <tr key={`${a.id || 'arch'}-${aIdx}`}>
                       <td className="border border-black py-2 px-1 text-center text-[10px]">
                         {aIdx + 1}
                       </td>
@@ -1136,7 +1202,7 @@ const ArcherList: React.FC<Props> = ({
                       {grid.map((a, idx) => {
                         if (a) {
                           return (
-                            <div key={a.id} className="border border-slate-300 rounded-2xl p-1 overflow-hidden relative max-h-[141mm]">
+                            <div key={`${a.id || 'sheet'}-${idx}`} className="border border-slate-300 rounded-2xl p-1 overflow-hidden relative max-h-[141mm]">
                               <ScoringSheet
                                 archer={a}
                                 settings={settings}
@@ -1163,8 +1229,8 @@ const ArcherList: React.FC<Props> = ({
                 });
               })()
             ) : (
-              filtered.map((a: Archer) => (
-                <div key={a.id} className="page-break-after-always">
+              filtered.map((a: Archer, aIdx: number) => (
+                <div key={`${a.id || 'sheet'}-${aIdx}`} className="page-break-after-always">
                   <ScoringSheet
                     archer={a}
                     settings={settings}
@@ -1264,7 +1330,7 @@ const ArcherList: React.FC<Props> = ({
             </thead>
             <tbody>
               {filtered.map((a: Archer, idx: number) => (
-                <tr key={a.id} className={`border-b transition-colors ${a.checkedIn ? 'bg-emerald-50/20 hover:bg-emerald-50/40' : 'hover:bg-slate-50'}`}>
+                <tr key={`${a.id || 'arch'}-${idx}`} className={`border-b transition-colors ${a.checkedIn ? 'bg-emerald-50/20 hover:bg-emerald-50/40' : 'hover:bg-slate-50'}`}>
                   <td className="p-4 font-black text-slate-600">{idx + 1}</td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
@@ -1368,6 +1434,13 @@ const ArcherList: React.FC<Props> = ({
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
+                        onClick={() => setEditingArcher(a)}
+                        className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                        title="Edit Data Peserta"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
                         onClick={() => {
                           setInitialScanQuery(a.id);
                           setShowScannerModal(true);
@@ -1425,6 +1498,20 @@ const ArcherList: React.FC<Props> = ({
         </div>
       </div>
 
+      {/* Edit Participant Modal */}
+      <ArcherEditModal
+        isOpen={!!editingArcher}
+        archer={editingArcher}
+        onClose={() => setEditingArcher(null)}
+        onSave={async (updated) => {
+          await onUpdate(updated);
+          setEditingArcher(null);
+        }}
+        totalTargets={totalTargets}
+        settings={settings}
+        eventId={eventId}
+      />
+
       {/* Participant Scanner & Check-in Modal */}
       <ParticipantScannerModal
         isOpen={showScannerModal}
@@ -1450,6 +1537,26 @@ const ArcherList: React.FC<Props> = ({
           onBulkUpdate(updatedArchers);
         }}
       />
+
+      {/* Excel Participant Import Modal */}
+      {showImportModal && (
+        <ArcherImportModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          onImport={async (newArchers) => {
+            if (onBulkAdd) {
+              await onBulkAdd(newArchers);
+            } else {
+              const combined = [...archers, ...newArchers];
+              onBulkUpdate(combined);
+            }
+          }}
+          currentArchersCount={archers.length}
+          totalTargets={totalTargets}
+          settings={settings}
+          globalSettings={globalSettings}
+        />
+      )}
     </div>
   );
 };

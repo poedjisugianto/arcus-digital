@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { 
   Search, Trash2, ArrowLeft, 
-  X, Check, UserPlus, Printer, Users as UsersIcon, Image as ImageIcon, FileDown
+  X, Check, UserPlus, Printer, Users as UsersIcon, Image as ImageIcon, FileDown, Pencil
 } from 'lucide-react';
 import { Archer, CategoryType, TournamentSettings, GlobalSettings, RegistrationStatus, ParticipantRegistration } from '../types';
 import { CATEGORY_LABELS } from '../constants';
+import OfficialEditModal from './OfficialEditModal';
 
 interface Props {
   officials: ParticipantRegistration[];
@@ -17,6 +18,7 @@ interface Props {
 
 const OfficialList: React.FC<Props> = ({ officials, onUpdate, onRemove, onGoToIdCardEditor, onBack, settings }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [editingOfficial, setEditingOfficial] = useState<ParticipantRegistration | null>(null);
 
   const filtered = useMemo(() => {
     return (officials || []).filter(o => 
@@ -170,10 +172,18 @@ const OfficialList: React.FC<Props> = ({ officials, onUpdate, onRemove, onGoToId
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                        <button 
+                         onClick={() => setEditingOfficial(o)}
+                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                         title="Edit Data Official"
+                       >
+                         <Pencil className="w-4 h-4" />
+                       </button>
+                       <button 
                          onClick={() => {
                            if(confirm(`Hapus data official ${o.name}?`)) onRemove(o.id);
                          }} 
                          className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                         title="Hapus Official"
                        >
                          <Trash2 className="w-4 h-4" />
                        </button>
@@ -223,6 +233,18 @@ const OfficialList: React.FC<Props> = ({ officials, onUpdate, onRemove, onGoToId
             </tbody>
          </table>
       </div>
+
+      {/* Edit Official Modal */}
+      <OfficialEditModal
+        isOpen={!!editingOfficial}
+        official={editingOfficial}
+        onClose={() => setEditingOfficial(null)}
+        onSave={async (updated) => {
+          await onUpdate(updated);
+          setEditingOfficial(null);
+        }}
+        settings={settings}
+      />
     </div>
   );
 };

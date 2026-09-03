@@ -3,7 +3,7 @@ import {
   Calendar, MapPin, Users, Trophy, Target, 
   ChevronRight, ArrowLeft, Share2, Download, 
   ShieldCheck, Info, Clock, Award, CheckCircle2,
-  ExternalLink, Smartphone, QrCode, Printer
+  ExternalLink, Smartphone
 } from 'lucide-react';
 import { ArcheryEvent, CategoryType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
@@ -19,10 +19,9 @@ interface Props {
   onShare: () => void;
   onViewParticipants: () => void;
   onViewLiveScoreboard: () => void;
-  onPrintIdCards?: () => void;
 }
 
-export default function EventInfo({ event, onBack, onRegister, onShare, onViewParticipants, onViewLiveScoreboard, onPrintIdCards }: Props) {
+export default function EventInfo({ event, onBack, onRegister, onShare, onViewParticipants, onViewLiveScoreboard }: Props) {
   const isExpired = event.settings?.registrationDeadline && new Date() > new Date(event.settings?.registrationDeadline);
   const isRegistrationOpen = event.status !== 'DRAFT' && event.status !== 'COMPLETED';
   
@@ -372,15 +371,6 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
                     Apple / iCal
                   </button>
                 </div>
-                {onPrintIdCards && (
-                  <button 
-                    onClick={onPrintIdCards}
-                    className="w-full py-4 bg-slate-950 text-white rounded-[2rem] font-black font-oswald uppercase italic text-lg hover:bg-arcus-red transition-all flex items-center justify-center gap-3 shadow-md hover:shadow-lg active:scale-95 border border-slate-800"
-                  >
-                    <QrCode className="w-5 h-5 text-amber-400" />
-                    Cetak Kartu Peserta (E-ID)
-                  </button>
-                )}
                 {event.settings?.thbUrl && (
                   <a 
                     href={event.settings?.thbUrl}

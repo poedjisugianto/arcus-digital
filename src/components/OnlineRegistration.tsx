@@ -25,10 +25,9 @@ interface Props {
   onRegister: (r: ParticipantRegistration[]) => void;
   onBack: () => void;
   onViewParticipants: () => void;
-  onGoToIdCardPortal?: (club?: string) => void;
 }
 
-export default function OnlineRegistration({ event, globalSettings, onRegister, onBack, onViewParticipants, onGoToIdCardPortal }: Props) {
+export default function OnlineRegistration({ event, globalSettings, onRegister, onBack, onViewParticipants }: Props) {
   const [regMode, setRegMode] = useState<'INDIVIDUAL' | 'COLLECTIVE'>('INDIVIDUAL');
   const [step, setStep] = useState(1);
   const [recentRegistrations, setRecentRegistrations] = useState<ParticipantRegistration[]>([]);
@@ -712,14 +711,15 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                 >
                   <Users className="w-4 h-4" /> CEK DAFTAR PESERTA
                 </button>
-                {onGoToIdCardPortal && (
-                  <button 
-                    onClick={() => onGoToIdCardPortal(formData.club || undefined)} 
-                    className="w-full py-4 bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-2xl font-black uppercase text-xs hover:bg-arcus-red transition-all flex items-center justify-center gap-3 shadow-lg shadow-indigo-950/20 border border-slate-700"
-                  >
-                    <QrCode className="w-4 h-4 text-amber-400" /> CETAK KARTU PESERTA (E-ID)
-                  </button>
-                )}
+                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl text-center space-y-1">
+                  <div className="flex items-center justify-center gap-1.5 text-slate-700 text-[10px] font-black uppercase tracking-wider">
+                    <ShieldCheck className="w-3.5 h-3.5 text-arcus-red" />
+                    ID Card Resmi Panitia
+                  </div>
+                  <p className="text-[8.5px] text-slate-500 font-semibold leading-relaxed">
+                    Kartu tanda peserta (ID Card) akan disiapkan dan dicetak resmi oleh panitia turnamen.
+                  </p>
+                </div>
                 <button 
                   onClick={() => setShowInvoice(true)} 
                   className="w-full py-4 bg-amber-500 text-white rounded-2xl font-black uppercase text-xs hover:bg-amber-600 transition-all flex items-center justify-center gap-3 shadow-lg shadow-amber-500/20"

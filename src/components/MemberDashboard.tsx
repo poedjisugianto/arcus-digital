@@ -549,8 +549,8 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                        <p className="font-black uppercase tracking-widest text-xs">Tidak ada pesan masuk</p>
                     </div>
                   ) : (
-                    receivedNotifs.sort((a, b) => b.timestamp - a.timestamp).map(notif => (
-                      <div key={notif.id} className={`p-6 rounded-[2rem] border-2 shadow-sm transition-all ${notif.type === 'WARNING' ? 'bg-red-50 border-red-100' : 'bg-white border-white'}`}>
+                    receivedNotifs.sort((a, b) => b.timestamp - a.timestamp).map((notif, idx) => (
+                      <div key={`${notif.id || 'rec'}-${idx}`} className={`p-6 rounded-[2rem] border-2 shadow-sm transition-all ${notif.type === 'WARNING' ? 'bg-red-50 border-red-100' : 'bg-white border-white'}`}>
                          <div className="flex justify-between items-start mb-3">
                             <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${notif.type === 'WARNING' ? 'bg-red-600 text-white' : 'bg-slate-900 text-white'}`}>MASTER ADMIN</span>
                             <span className="text-[9px] font-black text-slate-600 uppercase">{safeFormatDateTime(notif.timestamp)}</span>
@@ -569,8 +569,8 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                        <p className="font-black uppercase tracking-widest text-xs">Belum ada riwayat pesan</p>
                     </div>
                    ) : (
-                    sentNotifs.sort((a, b) => b.timestamp - a.timestamp).map(notif => (
-                      <div key={notif.id} className="p-6 rounded-[2rem] bg-white border-2 border-slate-100 shadow-sm opacity-80">
+                    sentNotifs.sort((a, b) => b.timestamp - a.timestamp).map((notif, idx) => (
+                      <div key={`${notif.id || 'sent'}-${idx}`} className="p-6 rounded-[2rem] bg-white border-2 border-slate-100 shadow-sm opacity-80">
                          <div className="flex justify-between items-start mb-3">
                             <span className="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-blue-50 text-blue-600 border border-blue-100">Kirim Ke Master</span>
                             <span className="text-[9px] font-black text-slate-600 uppercase">{safeFormatDateTime(notif.timestamp)}</span>
