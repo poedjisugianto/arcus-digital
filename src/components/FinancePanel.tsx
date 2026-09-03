@@ -1,10 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ArcheryEvent, ParticipantRegistration, Archer, GlobalSettings, CategoryType } from '../types';
 import { 
   DollarSign, X, Check, Copy, Landmark, Clock, 
   TrendingUp, CreditCard, ArrowUpRight, AlertCircle, 
-  Receipt, ShieldCheck, Zap, Info, Printer
+  Receipt, ShieldCheck, Zap, Info, Printer, Search, ExternalLink, Filter
 } from 'lucide-react';
 import ArcusLogo from './ArcusLogo';
 import { CATEGORY_LABELS } from '../constants';
@@ -20,9 +20,19 @@ interface Props {
 
 const FinancePanel: React.FC<Props> = ({ event, globalSettings, onApproveRegistration, onPayPlatformFee, onBack, isSuperAdmin = false }) => {
   const [copied, setCopied] = useState(false);
-  const [showProofOverlay, setShowProofOverlay] = useState<{ url: string; id: string } | null>(null);
+  const [showProofOverlay, setShowProofOverlay] = useState<{ 
+    url: string; 
+    id: string; 
+    name?: string; 
+    club?: string; 
+    amount?: number; 
+    category?: string;
+    isPending?: boolean;
+  } | null>(null);
   const [showSavedFlag, setShowSavedFlag] = useState(false);
   const [flagMessage, setFlagMessage] = useState('');
+  const [filterTab, setFilterTab] = useState<'ALL' | 'PENDING' | 'CONFIRMED' | 'WITH_PROOF'>('PENDING');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const isKidsCategory = (cat: string) => {
     return [
@@ -55,6 +65,43 @@ const FinancePanel: React.FC<Props> = ({ event, globalSettings, onApproveRegistr
       ...pendingFromRegs
     ].map(p => [p.id, p])).values()
   );
+
+  // All combined participants for full verification history
+  const allRegistrations = useMemo(() => {
+    const entries: [string, any][] = [
+      ...(event.archers || []).map(a => [a.id, { ...a, regType: 'ARCHER' as const }] as [string, any]),
+      ...(event.officials || []).map(o => [o.id, { ...o, regType: 'OFFICIAL' as const }] as [string, any]),
+      ...(event.registrations || []).map(r => [r.id, r] as [string, any])
+    ];
+    return Array.from(new Map<string, any>(entries).values());
+  }, [event.archers, event.officials, event.registrations]);
+
+  const countWithProof = useMemo(() => {
+    return allRegistrations.filter(r => !!(r.paymentProof || r.paymentProofUrl)).length;
+  }, [allRegistrations]);
+
+  const displayRegistrations = useMemo(() => {
+    return allRegistrations.filter(reg => {
+      const isPending = reg.status === 'PENDING' || !reg.status;
+      const isConfirmed = reg.status === 'CONFIRMED' || reg.status === 'APPROVED' || reg.status === 'PAID';
+      const hasProof = !!(reg.paymentProof || reg.paymentProofUrl);
+
+      if (filterTab === 'PENDING' && !isPending) return false;
+      if (filterTab === 'CONFIRMED' && !isConfirmed) return false;
+      if (filterTab === 'WITH_PROOF' && !hasProof) return false;
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchesName = (reg.name || '').toLowerCase().includes(q);
+        const matchesClub = (reg.club || '').toLowerCase().includes(q);
+        const matchesEmail = (reg.email || '').toLowerCase().includes(q);
+        const matchesPhone = (reg.phone || '').toLowerCase().includes(q);
+        if (!matchesName && !matchesClub && !matchesEmail && !matchesPhone) return false;
+      }
+
+      return true;
+    });
+  }, [allRegistrations, filterTab, searchQuery]);
 
   const totalRevenue = uniqueParticipants.reduce((acc, curr) => acc + (curr.totalPaid || (curr as any).platformFee || 0), 0);
   
@@ -200,82 +247,208 @@ const FinancePanel: React.FC<Props> = ({ event, globalSettings, onApproveRegistr
         </div>
       </div>
 
-      {/* Verification List */}
+      {/* Verification List & Proof Inspector */}
       <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
-        <div className="px-8 py-6 bg-slate-50 border-b flex justify-between items-center">
-          <h3 className="font-black font-oswald uppercase text-slate-900 flex items-center gap-3 italic text-lg">
-            Verifikasi Pendaftaran
-          </h3>
-          <div className="flex flex-col items-end gap-1">
-            <div className="flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border border-blue-100">
-              Total Pendaftar: {uniqueParticipants.length}
+        <div className="px-6 sm:px-8 py-6 bg-slate-50 border-b flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h3 className="font-black font-oswald uppercase text-slate-900 flex items-center gap-3 italic text-lg">
+              <Receipt className="w-5 h-5 text-emerald-600" /> Verifikasi Pendaftaran & Bukti Transfer
+            </h3>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+              Cek foto struk pembayaran peserta, konfirmasi keikutsertaan, atau filter berdasarkan status
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border border-blue-100">
+              Total: {uniqueParticipants.length}
             </div>
-            <div className="flex items-center gap-2 bg-orange-50 text-orange-600 px-4 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border border-orange-100">
-              Menunggu Konfirmasi: {pendingRegistrations.length}
+            <div className="flex items-center gap-1.5 bg-amber-50 text-amber-700 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border border-amber-200">
+              Pending: {pendingRegistrations.length}
             </div>
+            <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border border-emerald-200">
+              Ada Bukti: {countWithProof}
+            </div>
+          </div>
+        </div>
+
+        {/* Filter and Search Bar */}
+        <div className="p-4 sm:px-8 bg-white border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
+            <button
+              type="button"
+              onClick={() => setFilterTab('PENDING')}
+              className={`px-3.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                filterTab === 'PENDING'
+                  ? 'bg-amber-500 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Menunggu Konfirmasi ({pendingRegistrations.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterTab('WITH_PROOF')}
+              className={`px-3.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                filterTab === 'WITH_PROOF'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Ada Bukti Transfer ({countWithProof})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterTab('CONFIRMED')}
+              className={`px-3.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                filterTab === 'CONFIRMED'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Sudah Disetujui
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterTab('ALL')}
+              className={`px-3.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+                filterTab === 'ALL'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Semua ({allRegistrations.length})
+            </button>
+          </div>
+
+          <div className="relative min-w-[220px]">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Cari pemanah / klub / kontak..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-slate-900/10 transition-all font-medium"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
           </div>
         </div>
  
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-white text-[9px] font-black uppercase tracking-widest border-b text-slate-700">
+              <tr className="bg-slate-50/50 text-[9px] font-black uppercase tracking-widest border-b text-slate-700">
                 <th className="px-8 py-4">Pemanah & Klub</th>
                 <th className="px-8 py-4">Kontak</th>
                 <th className="px-8 py-4">Metode</th>
                 <th className="px-8 py-4 text-center">Bukti Bayar</th>
                 <th className="px-8 py-4 text-right">Nominal</th>
-                <th className="px-8 py-4 text-right pr-12">Action</th>
+                <th className="px-8 py-4 text-right pr-12">Status / Aksi</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
-              {pendingRegistrations.map(reg => (
-                <tr key={reg.id} className="hover:bg-slate-50/50 transition-colors group">
-                  <td className="px-8 py-6">
-                    <p className="font-bold text-slate-900 uppercase font-oswald italic leading-none">{reg.name}</p>
-                    <p className="text-[9px] text-slate-700 font-black uppercase mt-1">{reg.club}</p>
-                  </td>
-                  <td className="px-8 py-6">
-                    <p className="text-[10px] font-black text-slate-600">{reg.phone || '-'}</p>
-                    <p className="text-[8px] text-slate-700 truncate max-w-[120px]">{reg.email}</p>
-                  </td>
-                  <td className="px-8 py-6">
-                    <div className="flex flex-col gap-1">
-                      <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-md border text-center ${reg.paymentType === 'GATEWAY' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-slate-100 text-slate-800 border-slate-200'}`}>
-                        {reg.paymentType}
-                      </span>
-                      {reg.paymentType === 'GATEWAY' && (
-                        <span className="text-[7px] font-bold text-blue-500 uppercase tracking-tighter flex items-center gap-1">
-                          <Zap className="w-2 h-2" /> Auto-Verified
+            <tbody className="divide-y divide-slate-100">
+              {displayRegistrations.map(reg => {
+                const isPending = reg.status === 'PENDING' || !reg.status;
+                const proofUrl = reg.paymentProofUrl || reg.paymentProof;
+                return (
+                  <tr key={reg.id} className="hover:bg-slate-50/70 transition-colors group">
+                    <td className="px-8 py-5">
+                      <p className="font-bold text-slate-900 uppercase font-oswald italic leading-none">{reg.name}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[9px] text-slate-700 font-black uppercase">{reg.club}</span>
+                        {reg.category && (
+                          <span className="text-[8px] bg-slate-100 text-slate-600 font-bold px-1.5 py-0.2 rounded uppercase">
+                            {CATEGORY_LABELS[reg.category as CategoryType] || reg.category}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-8 py-5">
+                      <p className="text-[10px] font-black text-slate-600">{reg.phone || '-'}</p>
+                      <p className="text-[8px] text-slate-700 truncate max-w-[140px]">{reg.email || '-'}</p>
+                    </td>
+                    <td className="px-8 py-5">
+                      <div className="flex flex-col gap-1">
+                        <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-md border text-center ${reg.paymentType === 'GATEWAY' ? 'bg-blue-50 text-blue-600 border-blue-100' : 'bg-slate-100 text-slate-800 border-slate-200'}`}>
+                          {reg.paymentType || 'MANUAL'}
+                        </span>
+                        {reg.paymentType === 'GATEWAY' && (
+                          <span className="text-[7px] font-bold text-blue-500 uppercase tracking-tighter flex items-center gap-1">
+                            <Zap className="w-2 h-2" /> Auto-Verified
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-8 py-5 text-center">
+                      {proofUrl ? (
+                        <div className="flex flex-col items-center gap-1">
+                          <button 
+                            type="button"
+                            onClick={() => setShowProofOverlay({ 
+                              url: proofUrl, 
+                              id: reg.id,
+                              name: reg.name,
+                              club: reg.club,
+                              amount: reg.totalPaid || 0,
+                              category: reg.category,
+                              isPending
+                            })} 
+                            className="w-12 h-12 rounded-xl overflow-hidden border-2 border-emerald-400 shadow-sm hover:scale-110 hover:shadow-md transition-all relative group/thumb cursor-pointer"
+                            title="Klik untuk memperbesar bukti transfer"
+                          >
+                            <img src={proofUrl} className="w-full h-full object-cover" alt="Bukti Transfer" />
+                            <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity text-white text-[8px] font-bold">
+                              Lihat
+                            </div>
+                          </button>
+                          <span className="text-[8px] font-black text-emerald-700 uppercase tracking-wider">
+                            Ada Bukti
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-[10px] text-slate-400 italic font-bold">
+                          {reg.paymentType === 'GATEWAY' ? 'Otomatis/Gateway' : 'Tanpa Bukti'}
                         </span>
                       )}
-                    </div>
-                  </td>
-                  <td className="px-8 py-6 text-center">
-                    {(reg.paymentProofUrl || reg.paymentProof) ? (
-                      <button onClick={() => setShowProofOverlay({ url: reg.paymentProofUrl || reg.paymentProof || '', id: reg.id })} className="w-10 h-10 rounded-lg overflow-hidden border-2 border-white shadow-md hover:scale-110 transition-transform">
-                        <img src={reg.paymentProofUrl || reg.paymentProof} className="w-full h-full object-cover" alt="Proof" />
-                      </button>
-                    ) : <span className="text-[10px] text-slate-600 italic font-bold">Otomatis/Gateway</span>}
-                  </td>
-                  <td className="px-8 py-6 text-right font-black text-slate-900">
-                    Rp {(reg.totalPaid || 0).toLocaleString()}
-                  </td>
-                  <td className="px-8 py-6 text-right pr-12">
-                    <button 
-                      onClick={() => handleApprove(reg.id)}
-                      className="bg-red-600 text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase shadow-lg shadow-red-600/10 hover:brightness-110 transition-all active:scale-95"
-                    >
-                      SETUJU
-                    </button>
-                  </td>
-                </tr>
-              ))}
-              {pendingRegistrations.length === 0 && (
+                    </td>
+                    <td className="px-8 py-5 text-right font-black text-slate-900">
+                      Rp {(reg.totalPaid || 0).toLocaleString()}
+                    </td>
+                    <td className="px-8 py-5 text-right pr-12">
+                      {isPending ? (
+                        <button 
+                          type="button"
+                          onClick={() => handleApprove(reg.id)}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-xl text-[9px] font-black uppercase shadow-md shadow-emerald-600/20 active:scale-95 transition-all flex items-center gap-1.5 ml-auto"
+                        >
+                          <Check className="w-3.5 h-3.5" /> SETUJUI
+                        </button>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <Check className="w-3 h-3" /> {reg.status || 'CONFIRMED'}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+              {displayRegistrations.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-24 text-center">
-                     <Receipt className="w-12 h-12 mx-auto text-slate-100 mb-4" />
-                     <p className="text-slate-600 font-black uppercase tracking-widest text-[10px]">Semua pendaftar telah masuk ke Daftar Peserta</p>
+                  <td colSpan={6} className="py-20 text-center">
+                    <Receipt className="w-12 h-12 mx-auto text-slate-200 mb-3" />
+                    <p className="text-slate-600 font-black uppercase tracking-widest text-xs">
+                      Tidak ada data pendaftaran yang sesuai
+                    </p>
+                    <p className="text-slate-400 text-[10px] mt-1">
+                      Coba ubah kata kunci pencarian atau pilih tab filter lain.
+                    </p>
                   </td>
                 </tr>
               )}
@@ -284,23 +457,79 @@ const FinancePanel: React.FC<Props> = ({ event, globalSettings, onApproveRegistr
         </div>
       </div>
 
-      {/* Proof Overlay */}
+      {/* Proof Overlay Modal */}
       {showProofOverlay && (
-        <div className="fixed inset-0 bg-slate-950/95 z-[500] flex flex-col items-center justify-center p-8 animate-in fade-in" onClick={() => setShowProofOverlay(null)}>
-          <div className="relative group max-w-full max-h-[80vh]">
-            <img src={showProofOverlay.url} className="max-w-full max-h-full object-contain rounded-2xl shadow-2xl border-4 border-white" alt="Proof" />
-            <div className="absolute -bottom-24 left-1/2 -translate-x-1/2 flex items-center gap-4">
+        <div 
+          className="fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-[500] flex flex-col items-center justify-center p-4 sm:p-8 animate-in fade-in" 
+          onClick={() => setShowProofOverlay(null)}
+        >
+          <div 
+            className="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl border border-slate-100 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header Info */}
+            <div className="p-4 sm:p-5 bg-slate-900 text-white flex items-center justify-between">
+              <div>
+                <span className="text-[8px] font-black uppercase tracking-widest text-emerald-400">
+                  Bukti Transfer Pendaftaran
+                </span>
+                <h4 className="text-base font-black font-oswald uppercase italic text-white leading-tight">
+                  {showProofOverlay.name || 'Peserta'}
+                </h4>
+                <p className="text-[10px] text-slate-300 font-bold">
+                  {showProofOverlay.club || '-'} • Rp {(showProofOverlay.amount || 0).toLocaleString()}
+                </p>
+              </div>
               <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleApprove(showProofOverlay.id);
-                  setShowProofOverlay(null);
-                }}
-                className="bg-red-600 text-white px-12 py-4 rounded-2xl font-black uppercase tracking-widest text-sm shadow-2xl shadow-red-600/40 hover:bg-red-700 active:scale-95 transition-all flex items-center gap-3"
+                type="button"
+                onClick={() => setShowProofOverlay(null)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all"
               >
-                <Check className="w-5 h-5" /> SETUJU
+                <X className="w-4 h-4" />
               </button>
-              <button className="text-white p-4 bg-white/10 rounded-2xl hover:bg-white/20 transition-all backdrop-blur-md border border-white/20"><X className="w-6 h-6" /></button>
+            </div>
+
+            {/* Proof Image Box */}
+            <div className="p-4 bg-slate-950 flex items-center justify-center overflow-auto max-h-[60vh]">
+              <img 
+                src={showProofOverlay.url} 
+                className="max-w-full max-h-[55vh] object-contain rounded-xl shadow-lg border border-white/10" 
+                alt="Bukti Transfer Penuh" 
+              />
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+              <a 
+                href={showProofOverlay.url} 
+                target="_blank" 
+                rel="noreferrer"
+                className="text-[10px] font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 shadow-xs"
+              >
+                <ExternalLink className="w-3 h-3" /> Buka Tab Baru
+              </a>
+
+              <div className="flex items-center gap-2">
+                {showProofOverlay.isPending && (
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      handleApprove(showProofOverlay.id);
+                      setShowProofOverlay(null);
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-xl font-black uppercase tracking-wider text-[10px] shadow-lg shadow-emerald-600/30 active:scale-95 transition-all flex items-center gap-2"
+                  >
+                    <Check className="w-4 h-4" /> SETUJUI PENDAFTARAN
+                  </button>
+                )}
+                <button 
+                  type="button"
+                  onClick={() => setShowProofOverlay(null)}
+                  className="px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider bg-slate-200 text-slate-700 hover:bg-slate-300 transition-all"
+                >
+                  Tutup
+                </button>
+              </div>
             </div>
           </div>
         </div>

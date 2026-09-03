@@ -7,7 +7,7 @@ import {
   Link as LinkIcon, Info, Hash, Repeat, Compass, Layers, 
   Users as UsersIcon, AlertTriangle, AlertCircle, ShieldCheck, Zap, ToggleRight, ToggleLeft,
   FileDown, ExternalLink, HelpCircle, Check, ChevronLeft, Smartphone, Clock, Swords, Monitor,
-  Heart, Youtube, Video, Crosshair, Scale, Sliders, Award, Printer, GitBranch, Share2
+  Heart, Youtube, Video, Crosshair, Scale, Sliders, Award, Printer, GitBranch, Share2, Receipt
 } from 'lucide-react';
 import { TournamentSettings, CategoryType, TargetType, PaymentMethod, ScorerAccess, CategoryConfig, Sponsorship, Archer, ParticipantRegistration, GlobalSettings, RundownItem, ArcheryEvent } from '../types';
 import { CATEGORY_LABELS, TARGET_LABELS } from '../constants';
@@ -419,6 +419,18 @@ const AdminPanel: React.FC<Props> = ({
           </div>
           
           <div className="flex items-center gap-2">
+            {onManageFinance && !isPractice && (
+              <button 
+                type="button"
+                onClick={onManageFinance}
+                className="px-3.5 md:px-5 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-[8px] md:text-[9px] font-black uppercase tracking-widest flex items-center gap-2 text-emerald-800 hover:bg-emerald-100 hover:border-emerald-300 transition-all active:scale-95 shadow-xs"
+                title="Lihat Rekap Keuangan & Verifikasi Bukti Transfer"
+              >
+                <Receipt className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="hidden sm:inline">KEUANGAN & BUKTI</span>
+                <span className="sm:hidden">BUKTI</span>
+              </button>
+            )}
             {onShare && !isPractice && (
               <button 
                 type="button"
@@ -496,6 +508,15 @@ const AdminPanel: React.FC<Props> = ({
               >
                 <Landmark className={`w-3.5 h-3.5 ${activeTab === 'PAYMENT' ? 'text-arcus-red' : ''}`} /> PEMBAYARAN
                 {activeTab === 'PAYMENT' && <motion.div layoutId="admTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
+              </button>
+            )}
+            {!isPractice && onManageFinance && (
+              <button 
+                type="button"
+                onClick={onManageFinance}
+                className="px-4 md:px-6 py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 whitespace-nowrap text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50/50 rounded-t-xl"
+              >
+                <Receipt className="w-3.5 h-3.5 text-emerald-600" /> BUKTI BAYAR & KEUANGAN
               </button>
             )}
             <button 
@@ -1470,7 +1491,38 @@ const AdminPanel: React.FC<Props> = ({
           )}
 
           {activeTab === 'PAYMENT' && !isPractice && (
-            <div className="space-y-16 animate-in fade-in duration-500">
+            <div className="space-y-12 animate-in fade-in duration-500">
+              {/* Card Shortcut to Finance & Proof Verification */}
+              {onManageFinance && (
+                <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-900 rounded-[2.5rem] p-6 sm:p-8 text-white flex flex-col sm:flex-row items-center justify-between gap-6 shadow-xl border border-emerald-500/20">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center shrink-0">
+                      <Receipt className="w-7 h-7 text-emerald-400" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-lg sm:text-xl font-black font-oswald uppercase italic tracking-wide">
+                          Verifikasi Bukti Transfer & Rekap Kas
+                        </h4>
+                        <span className="bg-emerald-500 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full text-slate-950">
+                          LIVE
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300 font-medium mt-1 max-w-xl">
+                        Lihat foto struk transfer yang diunggah pendaftar saat registrasi online, konfirmasi pendaftaran peserta, dan cetak invoice / rekap kas.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onManageFinance}
+                    className="w-full sm:w-auto px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/30 active:scale-95 flex items-center justify-center gap-2 shrink-0 font-bold"
+                  >
+                    <Receipt className="w-4 h-4" /> Buka Panel Bukti Transfer
+                  </button>
+                </div>
+              )}
+
               {/* Section: Manual Payment Target */}
               <div className="space-y-8">
               <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 pb-4 gap-4">

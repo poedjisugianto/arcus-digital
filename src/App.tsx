@@ -2335,7 +2335,13 @@ export default function App() {
           globalSettings={appState.globalSettings}
           onApproveRegistration={(regId) => {
             const updatedRegs = (activeEvent.registrations || []).map(r => r.id === regId ? { ...r, status: RegistrationStatus.CONFIRMED } : r);
-            handleUpdateEvent(activeEvent.id, { registrations: updatedRegs });
+            const updatedArchers = (activeEvent.archers || []).map(a => a.id === regId ? { ...a, status: RegistrationStatus.CONFIRMED } : a);
+            const updatedOfficials = (activeEvent.officials || []).map(o => o.id === regId ? { ...o, status: RegistrationStatus.CONFIRMED } : o);
+            handleUpdateEvent(activeEvent.id, { 
+              registrations: updatedRegs.map(r => sanitizeForFirestore(r)),
+              archers: updatedArchers.map(a => sanitizeForFirestore(a)),
+              officials: updatedOfficials.map(o => sanitizeForFirestore(o))
+            });
             pushNotification("Status Peserta Diperbarui", "Pendaftaran berhasil dikonfirmasi.", "SUCCESS");
           }}
           onPayPlatformFee={(evtId) => {
