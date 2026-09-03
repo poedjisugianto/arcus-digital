@@ -105,7 +105,7 @@ export const OfficialEditModal: React.FC<OfficialEditModalProps> = ({
         phone: formData.phone.trim() || '-',
         email: formData.email.trim() || '-',
         status: formData.status,
-        photoUrl: formData.photoUrl || undefined
+        photoUrl: formData.photoUrl.trim() ? formData.photoUrl.trim() : ""
       };
 
       await onSave(updated);

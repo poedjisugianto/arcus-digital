@@ -26,7 +26,8 @@ import {
   ScanLine,
   Layers,
   Sparkles,
-  Pencil
+  Pencil,
+  AlertCircle
 } from "lucide-react";
 import {
   Archer,
@@ -98,6 +99,8 @@ const ArcherList: React.FC<Props> = ({
   const [filterCheckIn, setFilterCheckIn] = useState<"ALL" | "CHECKED_IN" | "NOT_CHECKED_IN">("ALL");
   const [showScannerModal, setShowScannerModal] = useState(false);
   const [editingArcher, setEditingArcher] = useState<Archer | null>(null);
+  const [archerToDelete, setArcherToDelete] = useState<Archer | null>(null);
+  const [isDeletingParticipant, setIsDeletingParticipant] = useState(false);
   const [showAutoAllocationModal, setShowAutoAllocationModal] = useState(false);
   const [initialScanQuery, setInitialScanQuery] = useState("");
   const [printAllCategories, setPrintAllCategories] = useState(false);
@@ -1363,7 +1366,7 @@ const ArcherList: React.FC<Props> = ({
                         onUpdate({
                           ...a,
                           checkedIn: nextState,
-                          checkInTimestamp: nextState ? Date.now() : undefined
+                          checkInTimestamp: nextState ? Date.now() : 0
                         });
                         if (nextState) {
                           toast.success(`Check-in berhasil: ${a.name}`);
@@ -1458,8 +1461,9 @@ const ArcherList: React.FC<Props> = ({
                         <QrCode className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => onRemove(a.id)}
-                        className="p-2 text-slate-300 hover:text-red-600 transition-colors"
+                        onClick={() => setArcherToDelete(a)}
+                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                        title="Hapus Peserta"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -1511,6 +1515,68 @@ const ArcherList: React.FC<Props> = ({
         settings={settings}
         eventId={eventId}
       />
+
+      {/* Delete Participant Confirmation Modal */}
+      {archerToDelete && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[120] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-100 p-6 sm:p-7 flex flex-col gap-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center text-red-600 shrink-0 shadow-inner">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black font-oswald uppercase italic tracking-wide text-slate-900 leading-tight">
+                  Hapus Data Peserta?
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Tindakan ini permanen dan tidak dapat dibatalkan.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-600 space-y-1.5">
+              <p className="font-black text-slate-900 text-sm">{archerToDelete.name}</p>
+              <p className="text-slate-600 font-medium">Klub: <span className="font-bold text-slate-800">{archerToDelete.club}</span></p>
+              <p className="text-slate-600 font-medium">Kategori: <span className="font-bold text-slate-800">{CATEGORY_LABELS[archerToDelete.category as CategoryType] || archerToDelete.category}</span></p>
+              <div className="pt-2 border-t border-slate-200/60 text-[11px] text-red-600 font-bold flex items-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>Seluruh riwayat nilai skoring dan registrasi peserta ini akan ikut terhapus.</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setArcherToDelete(null)}
+                disabled={isDeletingParticipant}
+                className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-slate-600 hover:bg-slate-100 transition-all"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingParticipant}
+                onClick={async () => {
+                  if (!archerToDelete) return;
+                  setIsDeletingParticipant(true);
+                  try {
+                    await onRemove(archerToDelete.id);
+                    setArcherToDelete(null);
+                  } catch (err: any) {
+                    console.error("Gagal menghapus:", err);
+                    toast.error("Gagal menghapus peserta: " + (err.message || ""));
+                  } finally {
+                    setIsDeletingParticipant(false);
+                  }
+                }}
+                className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/30 transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
+              >
+                {isDeletingParticipant ? 'Menghapus...' : 'Hapus Sekarang'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Participant Scanner & Check-in Modal */}
       <ParticipantScannerModal

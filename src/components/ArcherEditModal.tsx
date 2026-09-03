@@ -163,11 +163,11 @@ export const ArcherEditModal: React.FC<ArcherEditModalProps> = ({
         totalPaid: Number(formData.totalPaid) || 0,
         platformFee: Number(formData.platformFee) || 0,
         pin: formData.pin.trim() || archer.pin || Math.floor(1000 + Math.random() * 9000).toString(),
-        photoUrl: formData.photoUrl || undefined,
+        photoUrl: formData.photoUrl.trim() ? formData.photoUrl.trim() : "",
         checkedIn: formData.checkedIn,
         checkInTimestamp: formData.checkedIn 
           ? (formData.checkInTimestamp || Date.now()) 
-          : undefined,
+          : 0,
         updatedAt: Date.now()
       };
 

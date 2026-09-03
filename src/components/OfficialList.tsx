@@ -19,6 +19,8 @@ interface Props {
 const OfficialList: React.FC<Props> = ({ officials, onUpdate, onRemove, onGoToIdCardEditor, onBack, settings }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingOfficial, setEditingOfficial] = useState<ParticipantRegistration | null>(null);
+  const [officialToDelete, setOfficialToDelete] = useState<ParticipantRegistration | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const filtered = useMemo(() => {
     return (officials || []).filter(o => 
@@ -179,10 +181,8 @@ const OfficialList: React.FC<Props> = ({ officials, onUpdate, onRemove, onGoToId
                          <Pencil className="w-4 h-4" />
                        </button>
                        <button 
-                         onClick={() => {
-                           if(confirm(`Hapus data official ${o.name}?`)) onRemove(o.id);
-                         }} 
-                         className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                         onClick={() => setOfficialToDelete(o)} 
+                         className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                          title="Hapus Official"
                        >
                          <Trash2 className="w-4 h-4" />
@@ -245,6 +245,61 @@ const OfficialList: React.FC<Props> = ({ officials, onUpdate, onRemove, onGoToId
         }}
         settings={settings}
       />
+
+      {/* Delete Official Confirmation Modal */}
+      {officialToDelete && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[120] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-100 p-6 sm:p-7 flex flex-col gap-5 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center text-red-600 shrink-0 shadow-inner">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black font-oswald uppercase italic tracking-wide text-slate-900 leading-tight">
+                  Hapus Data Official?
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  Tindakan ini permanen dan tidak dapat dibatalkan.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-600 space-y-1.5">
+              <p className="font-black text-slate-900 text-sm">{officialToDelete.name}</p>
+              <p className="text-slate-600 font-medium">Klub: <span className="font-bold text-slate-800">{officialToDelete.club}</span></p>
+              <p className="text-slate-600 font-medium">Kontak: <span className="font-bold text-slate-800">{officialToDelete.phone || '-'}</span></p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setOfficialToDelete(null)}
+                disabled={isDeleting}
+                className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-slate-600 hover:bg-slate-100 transition-all"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={async () => {
+                  if (!officialToDelete) return;
+                  setIsDeleting(true);
+                  try {
+                    await onRemove(officialToDelete.id);
+                    setOfficialToDelete(null);
+                  } finally {
+                    setIsDeleting(false);
+                  }
+                }}
+                className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-600/30 transition-all flex items-center gap-2 active:scale-95 disabled:opacity-50"
+              >
+                {isDeleting ? 'Menghapus...' : 'Hapus Sekarang'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

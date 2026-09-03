@@ -86,6 +86,7 @@ import IdCardEditor from './components/IdCardEditor';
 import SelfServiceIdCardPortal from './components/SelfServiceIdCardPortal';
 
 import { auth, db } from './firebase';
+import { sanitizeForFirestore } from './lib/firestoreUtils';
 const googleProvider = new GoogleAuthProvider();
 
 // Helper to parse route from URL search params & session storage
@@ -1497,7 +1498,8 @@ export default function App() {
           await batch.commit();
         }
 
-        await updateDoc(doc(db, 'events', id), firestoreUpdate);
+        const cleanFirestoreUpdate = sanitizeForFirestore(firestoreUpdate);
+        await updateDoc(doc(db, 'events', id), cleanFirestoreUpdate);
         pushNotification("Berhasil", "Perubahan disimpan.", "SUCCESS");
       } catch (err: any) {
         console.warn("Update sync failed, falling back to merge setDoc", err);
@@ -1515,7 +1517,8 @@ export default function App() {
         }
 
         try {
-          await setDoc(doc(db, 'events', id), fallbackUpdate, { merge: true });
+          const cleanFallback = sanitizeForFirestore(fallbackUpdate);
+          await setDoc(doc(db, 'events', id), cleanFallback, { merge: true });
           pushNotification("Berhasil (Sync)", "Perubahan disimpan.", "SUCCESS");
         } catch (setErr: any) {
           console.error("Critical Firestore Error:", setErr);
@@ -1530,7 +1533,6 @@ export default function App() {
 
   const onRemoveParticipant = async (participantId: string) => {
     if (!appState.activeEventId) return;
-    if (!confirm('Hapus peserta ini? Seluruh data skor dan registrasi terkait akan ikut terhapus.')) return;
 
     try {
       const activeEvent = appState.events.find(e => e.id === appState.activeEventId);
@@ -1539,17 +1541,21 @@ export default function App() {
       }
 
       // 1. Direct client-side deletion of submission document (Using user's fully authorized session)
-      if (db) {
-        const { doc, deleteDoc } = await import('firebase/firestore');
-        await deleteDoc(doc(db, 'events', appState.activeEventId, 'submissions', participantId));
-        console.log(`[CLIENT-DELETE] Participant submission ${participantId} deleted via direct SDK`);
+      if (db && isOnline) {
+        try {
+          const { doc, deleteDoc } = await import('firebase/firestore');
+          await deleteDoc(doc(db, 'events', appState.activeEventId, 'submissions', participantId));
+          console.log(`[CLIENT-DELETE] Participant submission ${participantId} deleted via direct SDK`);
+        } catch (delSubErr) {
+          console.warn("[CLIENT-DELETE] Could not delete submission doc directly (may not exist):", delSubErr);
+        }
       }
 
       // 2. Direct client-side update of main event arrays & counter
       const currentArchers = activeEvent.archers || [];
       const currentOfficials = activeEvent.officials || [];
-      const filteredArchers = currentArchers.filter((a: any) => a.id !== participantId);
-      const filteredOfficials = currentOfficials.filter((o: any) => o.id !== participantId);
+      const filteredArchers = currentArchers.filter((a: any) => a.id !== participantId).map(a => sanitizeForFirestore(a));
+      const filteredOfficials = currentOfficials.filter((o: any) => o.id !== participantId).map(o => sanitizeForFirestore(o));
 
       const updatePayload: any = {
         archers: filteredArchers,
@@ -1588,8 +1594,8 @@ export default function App() {
 
         pushNotification("Dihapus", "Peserta berhasil dihapus.", "SUCCESS");
       } catch (fallbackErr: any) {
-        console.error("Remove participant fallback failed:", fallbackErr);
-        pushNotification("Gagal", fallbackErr.message, "WARNING");
+        console.error("Remove participant complete error:", fallbackErr);
+        pushNotification("Gagal", fallbackErr.message || "Gagal menghapus peserta", "WARNING");
       }
     }
   };
@@ -1714,22 +1720,29 @@ export default function App() {
         throw new Error("Peserta tidak ditemukan.");
       }
 
+      // Sanitize updates to prevent "Unsupported field value: undefined"
+      const cleanUpdates = sanitizeForFirestore({
+        ...updates,
+        updatedAt: new Date().toISOString()
+      });
+
       // Direct client-side update of subcollection submission document so onSnapshot is kept in sync
       if (db && isOnline) {
-        const { doc, updateDoc } = await import('firebase/firestore');
-        const subRef = doc(db, 'events', activeEvent.id, 'submissions', participantId);
-        await updateDoc(subRef, {
-          ...updates,
-          updatedAt: new Date().toISOString()
-        });
-        console.log(`[CLIENT-UPDATE] Participant submission ${participantId} updated in Firestore`);
+        try {
+          const { doc, setDoc } = await import('firebase/firestore');
+          const subRef = doc(db, 'events', activeEvent.id, 'submissions', participantId);
+          await setDoc(subRef, cleanUpdates, { merge: true });
+          console.log(`[CLIENT-UPDATE] Participant submission ${participantId} updated in Firestore`);
+        } catch (subErr) {
+          console.warn("[CLIENT-UPDATE] Error updating submissions subcollection doc (continuing):", subErr);
+        }
       }
 
       const payload: any = {};
       if (isArcher) {
-        payload.archers = archers.map(a => a.id === participantId ? { ...a, ...updates } : a);
+        payload.archers = archers.map(a => a.id === participantId ? sanitizeForFirestore({ ...a, ...cleanUpdates }) : sanitizeForFirestore(a));
       } else {
-        payload.officials = officials.map(o => o.id === participantId ? { ...o, ...updates } : o);
+        payload.officials = officials.map(o => o.id === participantId ? sanitizeForFirestore({ ...o, ...cleanUpdates }) : sanitizeForFirestore(o));
       }
 
       await handleUpdateEvent(activeEvent.id, payload);
