@@ -31,9 +31,11 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
   const [selectedArcherId, setSelectedArcherId] = useState<string | null>(null);
   const [currentEnd, setCurrentEnd] = useState(0);
   const [tempArrows, setTempArrows] = useState<(number | 'X')[]>([]);
+  const [activeArrowIndex, setActiveArrowIndex] = useState<number | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [showToast, setShowToast] = useState<string | null>(null);
   const [showScanner, setShowScanner] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   // Keep selectedTarget inside allowedTargets if props change
   useEffect(() => {
@@ -63,6 +65,7 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
 
   useEffect(() => {
     setIsDirty(false);
+    setActiveArrowIndex(null);
   }, [selectedArcherId, currentEnd]);
 
   useEffect(() => {
@@ -144,17 +147,13 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
       }
       // Backspace to delete
       else if (key === 'backspace' || key === 'delete') {
-        const idx = tempArrows.map(x => x !== -1).lastIndexOf(true);
-        if (idx !== -1) {
-          setIsDirty(true);
-          const n = [...tempArrows]; n[idx] = -1; setTempArrows(n);
-        }
+        handleDeleteArrow();
       }
-      // Enter to save
+      // Enter to trigger verification & review dialog
       else if (key === 'enter') {
-        const allFilled = tempArrows.every(v => v !== -1);
-        if (allFilled || tempArrows.some(v => v !== -1)) {
-          handleSave(tempArrows);
+        const hasValues = tempArrows.some(v => v !== -1);
+        if (hasValues) {
+          setShowConfirmModal(true);
         }
       }
       // Navigation
@@ -180,22 +179,87 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedArcherId, currentEnd, tempArrows, keypadValues, config, archersAtTarget]);
+  }, [selectedArcherId, currentEnd, tempArrows, keypadValues, config, archersAtTarget, activeArrowIndex]);
 
   const handleInput = (val: number | 'X' | 'M') => {
     if (!config) return;
     setIsDirty(true);
+    const scoreVal = val === 'M' ? 0 : val;
+
+    // If user explicitly clicked on an arrow box, update that specific arrow
+    if (activeArrowIndex !== null && activeArrowIndex < config.arrows) {
+      const newArrows = [...tempArrows];
+      newArrows[activeArrowIndex] = scoreVal;
+      setTempArrows(newArrows);
+
+      // Move focus to next arrow slot or clear focus if at end
+      if (activeArrowIndex + 1 < config.arrows) {
+        setActiveArrowIndex(activeArrowIndex + 1);
+      } else {
+        setActiveArrowIndex(null);
+      }
+      return;
+    }
+
+    // Otherwise, fill the first available empty slot (-1)
     const nextIdx = tempArrows.indexOf(-1);
     if (nextIdx !== -1) {
       const newArrows = [...tempArrows];
-      newArrows[nextIdx] = val === 'M' ? 0 : val;
+      newArrows[nextIdx] = scoreVal;
       setTempArrows(newArrows);
       
-      if (nextIdx === config.arrows - 1) {
-        handleSave(newArrows);
+      // CRITICAL: NO AUTO-SAVE! Team can examine & verify every arrow before saving
+      if (nextIdx + 1 < config.arrows) {
+        setActiveArrowIndex(nextIdx + 1);
+      } else {
+        setActiveArrowIndex(null);
       }
     }
   };
+
+  const handleDeleteArrow = () => {
+    setIsDirty(true);
+    const newArrows = [...tempArrows];
+
+    // If an arrow box is actively selected and has a value, clear it
+    if (activeArrowIndex !== null && newArrows[activeArrowIndex] !== -1) {
+      newArrows[activeArrowIndex] = -1;
+      setTempArrows(newArrows);
+      return;
+    }
+
+    // Otherwise, delete the last filled arrow
+    const lastFilledIdx = newArrows.map(x => x !== -1).lastIndexOf(true);
+    if (lastFilledIdx !== -1) {
+      newArrows[lastFilledIdx] = -1;
+      setTempArrows(newArrows);
+      setActiveArrowIndex(lastFilledIdx);
+    }
+  };
+
+  const currentEndTotal = useMemo(() => {
+    if (!config) return 0;
+    let maxVal = 10;
+    if (config.targetType === TargetType.PUTA || config.targetType === TargetType.TRADITIONAL_PUTA) {
+      maxVal = 2;
+    } else if (config.targetType === TargetType.TRADITIONAL_6_RING) {
+      maxVal = 6;
+    } else if (config.targetType === TargetType.FACE_5_RING) {
+      maxVal = 5;
+    }
+    return tempArrows.reduce<number>((acc, v) => {
+      if (v === -1) return acc;
+      return acc + (v === 'X' ? maxVal : Number(v));
+    }, 0);
+  }, [tempArrows, config]);
+
+  const filledArrowsCount = useMemo(() => {
+    return tempArrows.filter(v => v !== -1).length;
+  }, [tempArrows]);
+
+  const isAllArrowsFilled = useMemo(() => {
+    return !!config && tempArrows.length === config.arrows && tempArrows.every(v => v !== -1);
+  }, [tempArrows, config]);
 
   const handleSave = (arrows: (number | 'X')[]) => {
     if (!selectedArcherId || !config) return;
@@ -256,6 +320,8 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
 
     // Reset status dirty immediately
     setIsDirty(false);
+    setActiveArrowIndex(null);
+    setShowConfirmModal(false);
 
     if (isReset) {
       setShowToast(`Data Rambahan ${currentEnd + 1} Direset!`);
@@ -264,11 +330,11 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
       return;
     }
 
-    // CRITICAL: Reset tempArrows immediately so the "draft saver" effect 
+    // Reset tempArrows immediately so the "draft saver" effect 
     // doesn't catch the old arrows for the NEW archerId/currentEnd
     setTempArrows(new Array(config.arrows).fill(-1));
 
-    setShowToast(`Skor ${selectedArcher?.name} Disimpan!`);
+    setShowToast(`Skor ${selectedArcher?.name} (Rambahan ${currentEnd + 1}) Disimpan!`);
     setTimeout(() => setShowToast(null), 1500);
 
     // Auto Advance logic (Pindah Archer -> Pindah Bantalan berikutnya yang diizinkan -> Pindah Rambahan)
@@ -358,6 +424,9 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
                     <Lock className="w-2.5 h-2.5" /> Bantalan {allowedTargets.join(', ')}
                   </span>
                 )}
+                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[8px] font-black rounded-md uppercase tracking-wider border border-emerald-200" title="Skor tidak disimpan otomatis agar dapat diperiksa terlebih dahulu">
+                  <ShieldCheck className="w-2.5 h-2.5 text-emerald-600" /> Manual Save (Verifikasi)
+                </span>
               </div>
               <p className="text-[9px] font-bold uppercase mt-1 tracking-widest text-slate-800">
                 {currentScorer ? `Petugas: ${currentScorer.name}` : 'Field Score Terminal'}
@@ -436,40 +505,130 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
             </div>
           ) : (
             <>
-              {/* Progress & Current Score Display */}
-              <div className="space-y-6 text-center">
-                  <div className="flex items-center justify-center gap-1.5 overflow-x-auto no-scrollbar pb-2">
-                    {Array.from({ length: config?.ends || 7 }).map((_, i) => {
-                      const scoreForEnd = (state.scores || []).find(s => s.archerId === selectedArcherId && s.endIndex === i && !s.isDeleted);
-                      return (
-                        <button 
-                          key={i} 
-                          onClick={() => setCurrentEnd(i)} 
-                          className={`min-w-10 h-10 rounded-lg text-xs font-black border transition-all flex flex-col items-center justify-center ${currentEnd === i ? 'bg-slate-900 border-slate-900 text-white shadow-sm' : scoreForEnd ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-white border-slate-100 text-slate-600'}`}
-                        >
-                          <span className="text-[9px]">R{i + 1}</span>
-                          {scoreForEnd && <span className="text-[8px] opacity-70">{scoreForEnd.total}</span>}
-                        </button>
-                      );
-                    })}
+              {/* Selected Archer Header Bar */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs sm:text-sm font-black px-2.5 py-1 bg-slate-900 text-white rounded-xl shadow-xs">
+                    {selectedArcher.targetNo}{selectedArcher.position}
+                  </span>
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-black uppercase font-oswald tracking-tight text-slate-900 leading-tight">
+                      {selectedArcher.name}
+                    </h3>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                      {selectedArcher.club || 'Independen'} • {CATEGORY_LABELS[selectedArcher.category as CategoryType]}
+                    </p>
                   </div>
-                 
-                  <div className="flex justify-center flex-wrap gap-2 sm:gap-4">
-                    {tempArrows.map((a, i) => (
-                      <div 
+                </div>
+                <div className="text-right">
+                  <span className="text-[9px] font-black uppercase text-slate-400 block tracking-wider">Rambahan</span>
+                  <span className="text-base sm:text-lg font-black font-mono text-slate-900">
+                    Ke-{currentEnd + 1} <span className="text-xs text-slate-400 font-normal">/ {config?.ends || 7}</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Progress & Current Score Display */}
+              <div className="space-y-4 sm:space-y-5 text-center">
+                {/* Ends Navigation */}
+                <div className="flex items-center justify-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                  {Array.from({ length: config?.ends || 7 }).map((_, i) => {
+                    const scoreForEnd = (state.scores || []).find(s => s.archerId === selectedArcherId && s.endIndex === i && !s.isDeleted);
+                    return (
+                      <button 
                         key={i} 
-                        className={`w-14 h-14 sm:w-20 sm:h-20 rounded-lg border-2 flex items-center justify-center text-2xl sm:text-4xl font-black transition-all ${a === -1 ? 'border-slate-100 text-slate-100' : 'border-slate-900 text-slate-900 shadow-sm'}`}
+                        onClick={() => setCurrentEnd(i)} 
+                        className={`min-w-10 h-10 rounded-xl text-xs font-black border transition-all flex flex-col items-center justify-center ${
+                          currentEnd === i 
+                            ? 'bg-slate-900 border-slate-900 text-white shadow-sm' 
+                            : scoreForEnd 
+                              ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
+                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
                       >
-                        {a === -1 ? '' : (a === 0 && config?.targetType === TargetType.PUTA ? 'M' : a)}
+                        <span className="text-[9px]">R{i + 1}</span>
+                        {scoreForEnd && <span className="text-[8px] font-bold opacity-80">{scoreForEnd.total}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+               
+                {/* Arrow Boxes with individual click-to-edit & Active Indicator */}
+                <div className="flex justify-center flex-wrap gap-2 sm:gap-3">
+                  {tempArrows.map((a, i) => {
+                    const isActive = activeArrowIndex === i;
+                    const isFilled = a !== -1;
+                    return (
+                      <button
+                        key={i} 
+                        type="button"
+                        onClick={() => setActiveArrowIndex(i === activeArrowIndex ? null : i)}
+                        className={`w-14 h-16 sm:w-20 sm:h-22 rounded-2xl border-2 flex flex-col items-center justify-between p-1.5 sm:p-2 transition-all relative ${
+                          isActive 
+                            ? 'border-blue-600 bg-blue-50/60 ring-4 ring-blue-500/30 shadow-md scale-105' 
+                            : isFilled 
+                              ? 'border-slate-800 bg-white text-slate-900 shadow-xs hover:border-slate-600' 
+                              : 'border-dashed border-slate-300 bg-slate-50/70 text-slate-300 hover:border-slate-400'
+                        }`}
+                        title={`Anak panah ${i + 1} - Klik untuk koreksi nilai`}
+                      >
+                        <span className={`text-[8px] sm:text-[9px] font-black uppercase tracking-wider ${isActive ? 'text-blue-700 font-extrabold' : 'text-slate-400'}`}>
+                          P{i + 1}
+                        </span>
+                        <span className="text-2xl sm:text-4xl font-black leading-none mb-1">
+                          {a === -1 ? '-' : (a === 0 && config?.targetType === TargetType.PUTA ? 'M' : a)}
+                        </span>
+                        <span className="text-[7px] font-bold uppercase tracking-wider text-slate-400">
+                          {isActive ? 'Aktif' : isFilled ? 'Ubah' : 'Isi'}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Verification & Inspection Status Bar */}
+                <div className="max-w-md mx-auto">
+                  <div className={`p-3 sm:p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 text-left ${
+                    isAllArrowsFilled
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-950 shadow-sm'
+                      : filledArrowsCount > 0
+                        ? 'bg-amber-50/90 border-amber-200 text-amber-950'
+                        : 'bg-slate-50 border-slate-200 text-slate-700'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-black text-xs ${
+                        isAllArrowsFilled 
+                          ? 'bg-emerald-600 text-white shadow-sm' 
+                          : filledArrowsCount > 0 
+                            ? 'bg-amber-500 text-white' 
+                            : 'bg-slate-200 text-slate-600'
+                      }`}>
+                        {isAllArrowsFilled ? <CheckCircle2 className="w-5 h-5" /> : `${filledArrowsCount}/${config?.arrows || 6}`}
                       </div>
-                    ))}
-                 </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black uppercase tracking-wider">
+                            {isAllArrowsFilled ? 'Siap Diteliti & Disimpan' : 'Input Berjalan'}
+                          </span>
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-white border border-current/20 shadow-2xs">
+                            Total R{currentEnd + 1}: <strong className="text-slate-900">{currentEndTotal} Poin</strong>
+                          </span>
+                        </div>
+                        <p className="text-[10px] opacity-80 leading-snug mt-0.5">
+                          {isAllArrowsFilled
+                            ? 'Periksa kembali kesesuaian skor di atas dengan lembar fisik / bantalan. Tekan Simpan Skor jika sudah benar.'
+                            : 'Auto-save dinonaktifkan: Silakan isi semua anak panah, teliti, lalu simpan secara manual.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* High Contrast Sunlight Keypad */}
               <div className="w-full max-w-lg mx-auto flex flex-col gap-2 sm:gap-4 pb-4 sm:pb-8">
                 {/* Keyboard Helper */}
-                <div className="hidden lg:flex items-center justify-center gap-4 mb-2">
+                <div className="hidden lg:flex items-center justify-center gap-4 mb-1">
                    <div className="flex items-center gap-1.5 opacity-40">
                       <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border text-[9px] font-mono">1-9</kbd>
                       <span className="text-[8px] font-bold uppercase tracking-widest">Score</span>
@@ -507,35 +666,39 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
                     </button>
                   ))}
                   <button 
-                    onClick={() => {
-                      const idx = tempArrows.map(x => x !== -1).lastIndexOf(true);
-                      if (idx !== -1) {
-                        setIsDirty(true);
-                        const n = [...tempArrows]; n[idx] = -1; setTempArrows(n);
-                      }
-                    }}
-                    className="h-14 sm:h-20 bg-white text-red-500 rounded-2xl flex items-center justify-center active:scale-95 transition-all border-2 border-slate-100 shadow-sm"
+                    onClick={handleDeleteArrow}
+                    className="h-14 sm:h-20 bg-white text-red-500 rounded-2xl flex flex-col items-center justify-center active:scale-95 transition-all border-2 border-slate-200 shadow-sm hover:bg-red-50 hover:border-red-200"
+                    title="Hapus / Koreksi Anak Panah"
                   >
-                    <Delete className="w-8 h-8 sm:w-10 sm:h-10" />
+                    <Delete className="w-7 h-7 sm:w-9 sm:h-9" />
+                    <span className="text-[8px] font-black uppercase tracking-wider mt-0.5">Hapus</span>
                   </button>
                 </div>
 
-                <div className="flex gap-2 sm:gap-4">
+                {/* Explicit Action Buttons */}
+                <div className="flex gap-2 sm:gap-4 pt-1">
                     <button 
                       onClick={() => {
-                        const allFilled = tempArrows.every(v => v !== -1);
-                        if (allFilled || tempArrows.some(v => v !== -1)) {
-                          handleSave(tempArrows);
+                        if (tempArrows.some(v => v !== -1)) {
+                          setShowConfirmModal(true);
                         }
                       }}
-                      className="flex-1 h-14 sm:h-20 bg-emerald-500 text-white rounded-2xl font-black uppercase text-base sm:text-lg tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-3 border-b-4 border-emerald-700"
+                      disabled={!tempArrows.some(v => v !== -1)}
+                      className={`flex-1 h-14 sm:h-20 rounded-2xl font-black uppercase text-sm sm:text-base tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 sm:gap-3 border-b-4 ${
+                        isAllArrowsFilled
+                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-800 shadow-emerald-600/30 ring-4 ring-emerald-400/30'
+                          : tempArrows.some(v => v !== -1)
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-800'
+                            : 'bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed'
+                      }`}
                     >
-                      <CheckCircle2 className="w-6 h-6 sm:w-8 sm:h-8" />
-                      Simpan Skor
+                      <CheckCircle2 className="w-6 h-6 sm:w-7 sm:h-7" />
+                      <span>{isAllArrowsFilled ? `Teliti & Simpan R${currentEnd + 1}` : 'Teliti & Simpan Skor'}</span>
                     </button>
                     <button 
                       onClick={handleResetEnd}
-                      className="px-6 h-14 sm:h-20 bg-red-50 text-red-500 border-2 border-red-200 rounded-2xl font-black uppercase text-[10px] sm:text-xs tracking-tighter sm:tracking-widest shadow-sm active:scale-95 transition-all flex flex-col items-center justify-center gap-1"
+                      className="px-5 sm:px-6 h-14 sm:h-20 bg-red-50 text-red-600 border-2 border-red-200 rounded-2xl font-black uppercase text-[10px] sm:text-xs tracking-tighter sm:tracking-widest shadow-xs active:scale-95 transition-all flex flex-col items-center justify-center gap-1 hover:bg-red-100"
+                      title="Reset skor rambahan ini"
                     >
                       <Trash2 className="w-5 h-5 sm:w-6 sm:h-6" />
                       RESET
@@ -546,6 +709,105 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
           )}
         </div>
       </div>
+
+      {/* Scorer Verification & Review Modal (Anti Auto-Save) */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 sm:p-7 space-y-5 animate-in zoom-in-95">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-2xl">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black font-oswald uppercase italic text-slate-900 leading-tight">
+                    Teliti & Verifikasi Skor
+                  </h3>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                    Rambahan {currentEnd + 1} • Bantalan {selectedTarget}{selectedArcher?.position}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowConfirmModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Archer Info Card */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 flex items-center justify-between">
+              <div>
+                <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-wider block">Pemanah</span>
+                <span className="text-sm font-black text-slate-900 uppercase leading-tight block">{selectedArcher?.name}</span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="text-[9px] font-semibold text-slate-600 uppercase">{selectedArcher?.club || '-'}</span>
+                  {selectedArcher?.ktaNumber && (
+                    <span className="text-[7.5px] font-mono font-bold text-blue-700 bg-blue-50 px-1 py-0.2 rounded border border-blue-100">
+                      KTA: {selectedArcher.ktaNumber}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-[8.5px] font-black text-slate-400 uppercase tracking-wider block">Target</span>
+                <span className="text-xl font-black text-arcus-red font-oswald">{selectedTarget}{selectedArcher?.position}</span>
+              </div>
+            </div>
+
+            {/* Arrows Preview Grid */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[10px] font-black uppercase text-slate-700 tracking-wider">Rincian Anak Panah</span>
+                <span className="text-[10px] font-bold text-slate-600">Total: <strong className="text-slate-900 text-sm font-black">{currentEndTotal} Poin</strong></span>
+              </div>
+              <div className="grid grid-cols-6 gap-2">
+                {tempArrows.map((arrow, idx) => (
+                  <div 
+                    key={idx}
+                    className={`h-11 rounded-xl flex items-center justify-center font-black text-base border-2 shadow-xs ${
+                      arrow === -1 
+                        ? 'bg-slate-100 border-dashed border-slate-300 text-slate-400' 
+                        : getButtonStyles(arrow)
+                    }`}
+                  >
+                    {arrow === -1 ? '-' : arrow}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Warning Notice */}
+            <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-xl text-amber-900 text-[10px] leading-relaxed flex items-start gap-2">
+              <span className="text-amber-600 font-bold shrink-0">⚠️</span>
+              <span>Pastikan tim scorer telah meneliti dan mencocokkan skor dengan lembar fisik / bantalan sebelum konfirmasi.</span>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="grid grid-cols-2 gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                className="py-3 px-4 rounded-xl border border-slate-200 font-bold text-xs uppercase text-slate-700 hover:bg-slate-100 transition-all active:scale-95 text-center"
+              >
+                Koreksi Skor
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowConfirmModal(false);
+                  handleSave(tempArrows);
+                }}
+                className="py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/25 transition-all active:scale-95 flex items-center justify-center gap-1.5"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                Simpan Resmi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Instant Notification Toast */}
       {showToast && (

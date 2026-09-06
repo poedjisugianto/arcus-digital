@@ -145,6 +145,7 @@ export function exportToCSV(options: ExportTableOptions) {
 export interface ParsedArcherRow {
   tempId: string;
   name: string;
+  ktaNumber?: string;
   club: string;
   category: string;
   categoryLabel: string;
@@ -166,6 +167,7 @@ export function downloadArcherImportTemplate(
 ) {
   const headers = [
     'Nama Lengkap',
+    'No KTA',
     'Klub / Instansi',
     'Kategori',
     'Nomor Bantalan',
@@ -178,6 +180,7 @@ export function downloadArcherImportTemplate(
   const sampleRows = [
     [
       'Ahmad Fauzi',
+      'KTA-2024-001',
       'Fast Archery Club',
       availableCategories[0]?.label || 'Dewasa Putra',
       1,
@@ -188,6 +191,7 @@ export function downloadArcherImportTemplate(
     ],
     [
       'Siti Nurhaliza',
+      'KTA-2024-002',
       'Surabaya Archery Team',
       availableCategories[1]?.label || 'Dewasa Putri',
       1,
@@ -198,6 +202,7 @@ export function downloadArcherImportTemplate(
     ],
     [
       'Bambang Pamungkas',
+      '',
       'Focus Archery Academy',
       availableCategories[2]?.label || 'U18 Putra',
       2,
@@ -208,6 +213,7 @@ export function downloadArcherImportTemplate(
     ],
     [
       'Aisyah Maharani',
+      'KTA-ANNUR-089',
       'An-Nur Archery Club',
       availableCategories[3]?.label || 'U12 Putri',
       2,
@@ -218,6 +224,7 @@ export function downloadArcherImportTemplate(
     ],
     [
       'Rizky Pratama',
+      'KTA-2024-005',
       'Nusantara Bow Club',
       availableCategories[0]?.label || 'Dewasa Putra',
       3,
@@ -233,7 +240,7 @@ export function downloadArcherImportTemplate(
   // Sheet 1: Template Peserta
   const ws1Data = [
     ['TEMPLATE RESMI IMPORT PESERTA PANAHAN'],
-    ['Petunjuk: Kolom Nama Lengkap dan Klub wajib diisi. Kolom lainnya bersifat opsional.'],
+    ['Petunjuk: Kolom Nama Lengkap dan Klub wajib diisi. Kolom No KTA penting untuk event resmi (opsional jika belum memiliki).'],
     [],
     headers,
     ...sampleRows
@@ -241,6 +248,7 @@ export function downloadArcherImportTemplate(
   const ws1 = XLSX.utils.aoa_to_sheet(ws1Data);
   ws1['!cols'] = [
     { wch: 26 }, // Nama
+    { wch: 22 }, // No KTA
     { wch: 26 }, // Klub
     { wch: 22 }, // Kategori
     { wch: 16 }, // Bantalan
@@ -257,6 +265,7 @@ export function downloadArcherImportTemplate(
     [],
     ['Nama Kolom', 'Keterangan', 'Contoh Nilai'],
     ['Nama Lengkap', 'Wajib. Nama lengkap atlet / peserta.', 'Ahmad Fauzi'],
+    ['No KTA', 'Opsional / Dianjurkan saat Event Resmi. Nomor Kartu Tanda Anggota / ID Atlet Klub.', 'KTA-2024-001'],
     ['Klub / Instansi', 'Wajib. Nama klub, kontingen daerah, atau sekolah.', 'Fast Archery Club'],
     ['Kategori', 'Pilih sesuai daftar kategori lomba.', 'Dewasa Putra / U18 Putra / Barebow'],
     ['Nomor Bantalan', 'Opsional. Nomor bantalan panahan (angka 1, 2, 3...).', '1'],
@@ -403,6 +412,7 @@ export async function parseArchersFromExcel(
 
   // Map header columns flexibly
   let nameCol = -1;
+  let ktaCol = -1;
   let clubCol = -1;
   let catCol = -1;
   let targetCol = -1;
@@ -413,7 +423,9 @@ export async function parseArchersFromExcel(
 
   rawHeaders.forEach((h, idx) => {
     const clean = h.toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (nameCol === -1 && (clean.includes('nama') || clean === 'name' || clean.includes('peserta') || clean.includes('archer') || clean.includes('atlet'))) {
+    if (ktaCol === -1 && (clean.includes('kta') || clean.includes('nokta') || clean.includes('nomorkta') || clean.includes('idcard') || clean.includes('fespati') || clean.includes('perpani') || clean.includes('anggotano') || clean === 'noanggota' || clean.includes('kartuanggota'))) {
+      ktaCol = idx;
+    } else if (nameCol === -1 && (clean.includes('nama') || clean === 'name' || clean.includes('peserta') || clean.includes('archer') || clean.includes('atlet'))) {
       nameCol = idx;
     } else if (clubCol === -1 && (clean.includes('klub') || clean.includes('club') || clean.includes('kontingen') || clean.includes('instansi') || clean.includes('sekolah') || clean.includes('daerah'))) {
       clubCol = idx;
@@ -450,6 +462,7 @@ export async function parseArchersFromExcel(
     if (!Array.isArray(row) || row.length === 0) return;
 
     const rawName = nameCol >= 0 ? String(row[nameCol] || '').trim() : '';
+    const rawKta = ktaCol >= 0 ? String(row[ktaCol] || '').trim() : '';
     const rawClub = clubCol >= 0 ? String(row[clubCol] || '').trim() : '';
     const rawCat = catCol >= 0 ? String(row[catCol] || '').trim() : '';
     const rawTarget = targetCol >= 0 ? row[targetCol] : undefined;
@@ -459,7 +472,7 @@ export async function parseArchersFromExcel(
     const rawEmail = emailCol >= 0 ? String(row[emailCol] || '').trim() : '';
 
     // If completely empty row, ignore
-    if (!rawName && !rawClub && !rawCat && !rawPhone) return;
+    if (!rawName && !rawClub && !rawCat && !rawPhone && !rawKta) return;
 
     const matchedCat = rawCat ? matchCategory(rawCat, availableCategories) : defaultCategory;
 
@@ -496,6 +509,7 @@ export async function parseArchersFromExcel(
     parsedRows.push({
       tempId: `imp_${Date.now()}_${rIdx}_${Math.random().toString(36).substring(2, 7)}`,
       name: rawName,
+      ktaNumber: rawKta || undefined,
       club: rawClub || '-',
       category: matchedCat.key,
       categoryLabel: matchedCat.label,

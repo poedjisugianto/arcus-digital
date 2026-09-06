@@ -46,6 +46,8 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
     ? new Date() > new Date(event.settings?.registrationDeadline) 
     : false;
 
+  const isKtaRequired = Boolean(event.settings?.requireKta);
+
   const getCategoryRegisteredCount = (cat: string) => {
     return (event.registrations || []).filter(
       r => r.category === cat && 
@@ -69,8 +71,8 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
     return dbCount + localCount;
   };
 
-  const [collectiveMembers, setCollectiveMembers] = useState<{name: string, category: string, photoUrl?: string}[]>([]);
-  const [newMember, setNewMember] = useState({ name: '', category: '', photoUrl: '' });
+  const [collectiveMembers, setCollectiveMembers] = useState<{name: string, ktaNumber?: string, category: string, photoUrl?: string}[]>([]);
+  const [newMember, setNewMember] = useState({ name: '', ktaNumber: '', category: '', photoUrl: '' });
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [paymentErrorDetail, setPaymentErrorDetail] = useState<{ title: string; message: string; isAuthError?: boolean } | null>(null);
 
@@ -78,6 +80,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
 
   const [formData, setFormData] = useState<{
     name: string;
+    ktaNumber: string;
     email: string;
     phone: string;
     club: string;
@@ -88,7 +91,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
     regType: 'ARCHER' | 'OFFICIAL';
     photoUrl?: string;
   }>({
-    name: '', email: '', phone: '', club: '', category: '', paymentProof: '',
+    name: '', ktaNumber: '', email: '', phone: '', club: '', category: '', paymentProof: '',
     paymentType: isGatewayEnabled ? 'GATEWAY' : 'MANUAL', 
     selectedPaymentMethodId: '', regType: 'ARCHER', photoUrl: ''
   });
@@ -265,7 +268,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
 
   const resetRegistration = () => {
     setFormData({
-      name: '', email: '', phone: '', club: '', category: '', paymentProof: '',
+      name: '', ktaNumber: '', email: '', phone: '', club: '', category: '', paymentProof: '',
       paymentType: 'MANUAL', selectedPaymentMethodId: '', regType: 'ARCHER', photoUrl: ''
     });
     setAgreedToTerms(false);
@@ -383,6 +386,20 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
         return;
       }
     }
+
+    if (isKtaRequired) {
+      if (regMode === 'INDIVIDUAL' && formData.regType === 'ARCHER' && !formData.ktaNumber.trim()) {
+        toast.error("Nomor KTA wajib diisi untuk atlet karena turnamen ini berstatus Event Resmi!");
+        return;
+      }
+      if (regMode === 'COLLECTIVE') {
+        const missingKta = collectiveMembers.find(m => m.category !== 'OFFICIAL' && (!m.ktaNumber || !m.ktaNumber.trim()));
+        if (missingKta) {
+          toast.error(`Nomor KTA untuk atlet "${missingKta.name}" wajib diisi!`);
+          return;
+        }
+      }
+    }
     
     if (formData.paymentType === 'MANUAL' && !formData.paymentProof) {
       toast.error("Silakan unggah bukti pembayaran terlebih dahulu");
@@ -425,6 +442,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
         id: 'reg_' + Math.random().toString(36).substr(2, 9),
         registrationNo,
         name: formData.name,
+        ktaNumber: formData.ktaNumber.trim() ? formData.ktaNumber.trim().toUpperCase() : undefined,
         email: formData.email,
         phone: formData.phone,
         club: formData.club,
@@ -470,6 +488,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
           id: 'reg_' + Math.random().toString(36).substr(2, 9),
           registrationNo,
           name: member.name,
+          ktaNumber: member.ktaNumber?.trim() ? member.ktaNumber.trim().toUpperCase() : undefined,
           email: formData.email, // Use club contact email
           phone: formData.phone, // Use club contact phone
           club: formData.club,
@@ -779,7 +798,27 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
             </div>
 
             {step === 1 && (
-              <form onSubmit={(e) => { e.preventDefault(); setStep(2); }} className="bg-white p-4 md:p-6 rounded-[2rem] shadow-xl space-y-4">
+              <form onSubmit={(e) => { 
+                e.preventDefault(); 
+                if (isKtaRequired) {
+                  if (regMode === 'INDIVIDUAL' && formData.regType === 'ARCHER' && !formData.ktaNumber.trim()) {
+                    toast.error("Nomor KTA wajib diisi untuk atlet karena turnamen ini berstatus Event Resmi!");
+                    return;
+                  }
+                  if (regMode === 'COLLECTIVE') {
+                    if (collectiveMembers.length === 0) {
+                      toast.error("Tambahkan minimal satu anggota terlebih dahulu");
+                      return;
+                    }
+                    const missingKta = collectiveMembers.find(m => m.category !== 'OFFICIAL' && (!m.ktaNumber || !m.ktaNumber.trim()));
+                    if (missingKta) {
+                      toast.error(`Nomor KTA untuk atlet "${missingKta.name}" wajib diisi!`);
+                      return;
+                    }
+                  }
+                }
+                setStep(2); 
+              }} className="bg-white p-4 md:p-6 rounded-[2rem] shadow-xl space-y-4">
                 <div className="flex gap-3 bg-slate-50 p-1 rounded-xl">
                   <button type="button" onClick={() => setRegMode('INDIVIDUAL')} className={`flex-1 py-2.5 rounded-lg font-black text-[10px] transition-all ${regMode === 'INDIVIDUAL' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-700'}`}>INDIVIDU</button>
                   <button type="button" onClick={() => setRegMode('COLLECTIVE')} className={`flex-1 py-2.5 rounded-lg font-black text-[10px] transition-all ${regMode === 'COLLECTIVE' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-700'}`}>KOLEKTIF (KLUB)</button>
@@ -823,6 +862,45 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                         <span className="text-[7.5px] font-black text-slate-700 uppercase ml-2 italic">Nama Peserta</span>
                         <input required type="text" placeholder="NAMA LENGKAP" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value.toUpperCase()})} className="w-full p-2.5 bg-slate-50 rounded-xl font-black italic border border-slate-100 outline-none focus:border-arcus-red text-[11px]" />
                       </div>
+                      {formData.regType === 'ARCHER' ? (
+                        <div className="md:col-span-2 space-y-0.5">
+                          <div className="flex items-center justify-between ml-2">
+                            <span className="text-[7.5px] font-black text-slate-700 uppercase italic">
+                              Nomor KTA (Kartu Tanda Anggota) {isKtaRequired && <span className="text-red-500 font-black">*</span>}
+                            </span>
+                            <span className={`text-[7px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider ${
+                              isKtaRequired 
+                                ? 'text-red-700 bg-red-50 border-red-200 font-black' 
+                                : 'text-slate-500 bg-slate-100 border-slate-200'
+                            }`}>
+                              {isKtaRequired ? 'Wajib Diisi (Event Resmi)' : 'Tidak Wajib (Bisa Diabaikan)'}
+                            </span>
+                          </div>
+                          <input 
+                            type="text" 
+                            required={isKtaRequired}
+                            placeholder={isKtaRequired ? "CONTOH: KTA-2024-001 (WAJIB DIISI)" : "CONTOH: KTA-2024-001 ATAU NO KTA KLUB (BISA DIABAIKAN)"} 
+                            value={formData.ktaNumber} 
+                            onChange={e => setFormData({...formData, ktaNumber: e.target.value.toUpperCase()})} 
+                            className={`w-full p-2.5 bg-slate-50 rounded-xl font-black italic border outline-none focus:border-arcus-red text-[11px] placeholder:font-normal placeholder:italic placeholder:text-slate-400 ${
+                              isKtaRequired && !formData.ktaNumber.trim() ? 'border-amber-400' : 'border-slate-100'
+                            }`} 
+                          />
+                        </div>
+                      ) : (
+                        <div className="md:col-span-2 p-3 bg-blue-50/70 rounded-xl border border-blue-100 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0" />
+                            <div>
+                              <p className="text-[9px] font-black text-blue-900 uppercase">Khusus Official / Pendamping Atlet</p>
+                              <p className="text-[7.5px] font-bold text-blue-700">Tidak perlu mengisi nomor KTA (Keluarga/Official bebas KTA).</p>
+                            </div>
+                          </div>
+                          <span className="text-[7.5px] font-black uppercase tracking-wider text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full border border-blue-200 shrink-0">
+                            Bebas KTA
+                          </span>
+                        </div>
+                      )}
                       {formData.regType === 'ARCHER' && (
                         <div className="md:col-span-2 space-y-0.5">
                           <span className="text-[7.5px] font-black text-slate-700 uppercase ml-2 italic">Kategori</span>
@@ -890,7 +968,14 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                                 </div>
                                 <div className="text-left">
                                   <p className="text-[10px] font-black text-slate-900 uppercase italic">{m.name}</p>
-                                  <p className="text-[8px] font-bold text-slate-700 uppercase">{CATEGORY_LABELS[m.category as CategoryType] || m.category}</p>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <span className="text-[8px] font-bold text-slate-700 uppercase">{CATEGORY_LABELS[m.category as CategoryType] || m.category}</span>
+                                    {m.ktaNumber && (
+                                      <span className="text-[7.5px] font-mono font-bold text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-100">
+                                        KTA: {m.ktaNumber}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                               <button onClick={() => setCollectiveMembers(prev => prev.filter((_, idx) => idx !== i))} className="p-1.5 text-slate-300 hover:text-arcus-red transition-colors">
@@ -905,6 +990,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                         <p className="text-[8px] font-black text-slate-700 uppercase italic text-center">Tambah Anggota Baru</p>
                         <div className="grid grid-cols-1 gap-2">
                           <input type="text" placeholder="NAMA ANGGOTA" value={newMember.name} onChange={e => setNewMember({...newMember, name: e.target.value.toUpperCase()})} className="w-full p-2.5 bg-white rounded-xl font-black italic border border-slate-200 text-[10px]" />
+                          
                           <select value={newMember.category} onChange={e => setNewMember({...newMember, category: e.target.value})} className="w-full p-2.5 bg-white rounded-xl font-black italic border border-slate-200 text-[10px]">
                             <option value="">PILIH KATEGORI</option>
                             {categories.map(cat => {
@@ -925,6 +1011,45 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                               <option value={CategoryType.OFFICIAL}>{CATEGORY_LABELS[CategoryType.OFFICIAL]}</option>
                             )}
                           </select>
+
+                          {newMember.category === 'OFFICIAL' ? (
+                            <div className="p-2.5 bg-blue-50/70 rounded-xl border border-blue-100 flex items-center justify-between">
+                              <div className="flex items-center gap-1.5">
+                                <ShieldCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                <div>
+                                  <p className="text-[8.5px] font-black text-blue-900 uppercase">Khusus Official / Pendamping</p>
+                                  <p className="text-[7.5px] font-bold text-blue-700">Tidak perlu mengisi nomor KTA.</p>
+                                </div>
+                              </div>
+                              <span className="text-[7px] font-black uppercase tracking-wider text-blue-700 bg-blue-100 px-2 py-0.5 rounded-md border border-blue-200 shrink-0">
+                                Bebas KTA
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="space-y-0.5">
+                              <div className="flex items-center justify-between px-1">
+                                <span className="text-[7.5px] font-black text-slate-700 uppercase italic">
+                                  Nomor KTA {isKtaRequired && <span className="text-red-500 font-black">*</span>}
+                                </span>
+                                <span className={`text-[7px] font-bold px-1.5 py-0.2 rounded border uppercase tracking-wider ${
+                                  isKtaRequired 
+                                    ? 'text-red-700 bg-red-50 border-red-200 font-black' 
+                                    : 'text-slate-500 bg-slate-100 border-slate-200'
+                                }`}>
+                                  {isKtaRequired ? 'Wajib (Atlet)' : 'Tidak Wajib / Opsional'}
+                                </span>
+                              </div>
+                              <input 
+                                type="text" 
+                                placeholder={isKtaRequired ? "NOMOR KTA ATLET (WAJIB DIISI UNTUK EVENT RESMI)" : "NO KTA ATLET (BISA DIABAIKAN / LATBER)"} 
+                                value={newMember.ktaNumber} 
+                                onChange={e => setNewMember({...newMember, ktaNumber: e.target.value.toUpperCase()})} 
+                                className={`w-full p-2.5 bg-white rounded-xl font-black italic border text-[10px] placeholder:font-normal placeholder:italic placeholder:text-slate-400 ${
+                                  isKtaRequired && !newMember.ktaNumber.trim() ? 'border-amber-400' : 'border-slate-200'
+                                }`} 
+                              />
+                            </div>
+                          )}
                           
                           <div className="flex items-center gap-3 bg-white p-2.5 rounded-xl border border-slate-200">
                             <div className="w-10 h-10 rounded-xl bg-slate-100 overflow-hidden flex items-center justify-center text-slate-700 shrink-0">
@@ -949,6 +1074,10 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                                 toast.error("Isi nama dan kategori");
                                 return;
                               }
+                              if (isKtaRequired && newMember.category !== 'OFFICIAL' && (!newMember.ktaNumber || !newMember.ktaNumber.trim())) {
+                                toast.error("Nomor KTA wajib diisi untuk atlet karena turnamen ini berstatus Event Resmi!");
+                                return;
+                              }
                               if (newMember.category !== 'OFFICIAL') {
                                 const quota = getCategoryQuota(newMember.category);
                                 if (quota !== undefined && quota !== null && quota > 0) {
@@ -960,7 +1089,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                                 }
                               }
                               setCollectiveMembers([...collectiveMembers, { ...newMember }]);
-                              setNewMember({ name: '', category: '', photoUrl: '' });
+                              setNewMember({ name: '', ktaNumber: '', category: '', photoUrl: '' });
                             }}
                             className="w-full py-2.5 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px]"
                           >
@@ -995,9 +1124,16 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                       <div className="flex items-start justify-between text-[11px] md:text-xs">
                         <div className="space-y-0.5">
                           <p className="font-bold text-slate-800 leading-tight">{formData.name || 'Pendaftar'}</p>
-                          <p className="text-[8px] font-black text-slate-700 uppercase tracking-wider leading-none">
-                            {formData.regType === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (formData.category ? (CATEGORY_LABELS[formData.category as CategoryType] || formData.category) : 'BELUM PILIH KATEGORI')}
-                          </p>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <p className="text-[8px] font-black text-slate-700 uppercase tracking-wider leading-none">
+                              {formData.regType === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (formData.category ? (CATEGORY_LABELS[formData.category as CategoryType] || formData.category) : 'BELUM PILIH KATEGORI')}
+                            </p>
+                            {formData.ktaNumber && (
+                              <span className="text-[7.5px] font-mono font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                                KTA: {formData.ktaNumber}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="text-right space-y-0.5">
                           <p className="font-extrabold text-slate-900">
@@ -1015,9 +1151,16 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                           <div key={idx} className="flex items-start justify-between text-[11px] md:text-xs border-b border-slate-100 pb-2 last:border-0 last:pb-0">
                             <div className="space-y-0.5">
                               <p className="font-bold text-slate-800 leading-tight">{member.name}</p>
-                              <p className="text-[8px] font-black text-slate-700 uppercase tracking-wider leading-none">
-                                {member.category === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (CATEGORY_LABELS[member.category as CategoryType] || member.category)}
-                              </p>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <p className="text-[8px] font-black text-slate-700 uppercase tracking-wider leading-none">
+                                  {member.category === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (CATEGORY_LABELS[member.category as CategoryType] || member.category)}
+                                </p>
+                                {member.ktaNumber && (
+                                  <span className="text-[7.5px] font-mono font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                                    KTA: {member.ktaNumber}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                             <div className="text-right space-y-0.5">
                               <p className="font-extrabold text-slate-900">Rp {regFee.toLocaleString()}</p>
@@ -1427,6 +1570,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                             ? [{
                                 id: 'temp_inv',
                                 name: formData.name || 'Pendaftar',
+                                ktaNumber: formData.ktaNumber || undefined,
                                 category: formData.regType === 'OFFICIAL' ? 'OFFICIAL' : formData.category,
                                 club: formData.club || '-',
                                 totalPaid: ((formData.regType === 'OFFICIAL' ? event.settings?.officialFee : event.settings?.categoryConfigs?.[formData.category as CategoryType]?.registrationFee) || 0),
@@ -1450,6 +1594,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                                 return {
                                   id: `temp_inv_${idx}`,
                                   name: m.name,
+                                  ktaNumber: m.ktaNumber || undefined,
                                   category: m.category,
                                   club: formData.club || '-',
                                   totalPaid: regFee,
@@ -1464,7 +1609,14 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                       return items.map((item, idx) => {
                         return (
                           <tr key={idx} className="hover:bg-slate-50/50">
-                            <td className="p-3 font-bold text-slate-800">{item.name}</td>
+                            <td className="p-3 font-bold text-slate-800">
+                              <div>{item.name}</div>
+                              {(item as any).ktaNumber && (
+                                <div className="text-[8px] font-mono text-blue-700 font-bold mt-0.5">
+                                  KTA: {(item as any).ktaNumber}
+                                </div>
+                              )}
+                            </td>
                             <td className="p-3 text-slate-700 font-extrabold uppercase text-[9px] tracking-wide">
                               {item.category === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (CATEGORY_LABELS[item.category as CategoryType] || item.category)}
                             </td>

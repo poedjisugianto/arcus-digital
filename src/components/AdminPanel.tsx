@@ -950,7 +950,7 @@ const AdminPanel: React.FC<Props> = ({
                              {localSettings.enableGateway ? <ToggleRight className="w-10 h-10 text-blue-600" /> : <ToggleLeft className="w-10 h-10 text-slate-600" />}
                           </button>
                        </div>
-                       <div className="pt-4 border-t border-slate-200">
+                        <div className="pt-4 border-t border-slate-200">
                          <label className="block space-y-2">
                             <div className="flex items-center gap-2">
                                <UsersIcon className="w-4 h-4 text-slate-700" />
@@ -967,6 +967,70 @@ const AdminPanel: React.FC<Props> = ({
                               />
                             </div>
                          </label>
+                       </div>
+                    </div>
+
+                    {/* Kebijakan KTA Peserta */}
+                    <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-200 space-y-4">
+                       <div className="flex items-center justify-between">
+                         <p className="text-[10px] font-black text-slate-700 uppercase tracking-[0.2em]">Syarat Nomor KTA</p>
+                         <span className={`text-[8px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
+                           localSettings.requireKta 
+                             ? 'bg-amber-100 text-amber-800 border-amber-300' 
+                             : 'bg-slate-200 text-slate-700 border-slate-300'
+                         }`}>
+                           {localSettings.requireKta ? 'Wajib KTA' : 'Tidak Wajib'}
+                         </span>
+                       </div>
+
+                       <p className="text-[9px] text-slate-600 font-bold leading-relaxed">
+                         Pilih apakah atlet wajib menyertakan nomor KTA saat mendaftar (Event Resmi) atau bisa mengabaikan kolom nomor KTA (Latber / Open / Bebas). Khusus official/pendamping keluarga atlet otomatis dibebaskan dari kewajiban KTA.
+                       </p>
+
+                       <div className="grid grid-cols-1 gap-2.5 pt-1">
+                         {/* Tombol: Wajib isi Nomer KTA */}
+                         <button
+                           type="button"
+                           onClick={() => updateSettings({ requireKta: true })}
+                           className={`p-3.5 rounded-2xl border text-left transition-all relative flex flex-col justify-between ${
+                             localSettings.requireKta
+                               ? 'bg-arcus-red text-white border-arcus-red shadow-lg shadow-arcus-red/25 ring-2 ring-arcus-red/20'
+                               : 'bg-white text-slate-800 border-slate-200 hover:border-slate-300 hover:bg-slate-100/60'
+                           }`}
+                         >
+                           <div className="flex items-center justify-between gap-2 mb-1">
+                             <div className="flex items-center gap-2">
+                               <ShieldCheck className={`w-4 h-4 ${localSettings.requireKta ? 'text-white' : 'text-arcus-red'}`} />
+                               <span className="text-[10.5px] font-black uppercase tracking-tight">Wajib isi Nomer KTA</span>
+                             </div>
+                             {localSettings.requireKta && <Check className="w-4 h-4 text-white shrink-0" />}
+                           </div>
+                           <p className={`text-[8.5px] leading-tight ${localSettings.requireKta ? 'text-red-100 font-medium' : 'text-slate-500 font-medium'}`}>
+                             Event Resmi / Kejuaraan Tertutup. Peserta wajib mengisi nomor KTA pada menu input pendaftaran.
+                           </p>
+                         </button>
+
+                         {/* Tombol: Tidak wajib isi nomer KTA */}
+                         <button
+                           type="button"
+                           onClick={() => updateSettings({ requireKta: false })}
+                           className={`p-3.5 rounded-2xl border text-left transition-all relative flex flex-col justify-between ${
+                             !localSettings.requireKta
+                               ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/25 ring-2 ring-slate-900/20'
+                               : 'bg-white text-slate-800 border-slate-200 hover:border-slate-300 hover:bg-slate-100/60'
+                           }`}
+                         >
+                           <div className="flex items-center justify-between gap-2 mb-1">
+                             <div className="flex items-center gap-2">
+                               <Zap className={`w-4 h-4 ${!localSettings.requireKta ? 'text-white' : 'text-slate-600'}`} />
+                               <span className="text-[10.5px] font-black uppercase tracking-tight">Tidak wajib isi nomer KTA</span>
+                             </div>
+                             {!localSettings.requireKta && <Check className="w-4 h-4 text-white shrink-0" />}
+                           </div>
+                           <p className={`text-[8.5px] leading-tight ${!localSettings.requireKta ? 'text-slate-300 font-medium' : 'text-slate-500 font-medium'}`}>
+                             Event Tidak Resmi / Latber / Open. Peserta bisa mengabaikan kolom nomor KTA saat mendaftar.
+                           </p>
+                         </button>
                        </div>
                     </div>
                   </div>

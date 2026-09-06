@@ -13,6 +13,7 @@ export const DEFAULT_SETTINGS: TournamentSettings = {
   totalEnds: 6,
   isPractice: false,
   isFreeEvent: false,
+  requireKta: false,
   paymentMethods: [],
   categoryConfigs: {}
 };

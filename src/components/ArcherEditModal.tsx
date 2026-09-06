@@ -32,6 +32,7 @@ export const ArcherEditModal: React.FC<ArcherEditModalProps> = ({
   const [formData, setFormData] = useState({
     name: '',
     registrationNo: '',
+    ktaNumber: '',
     club: '',
     category: CategoryType.ADULT_PUTRA as string,
     targetNo: 1,
@@ -59,6 +60,7 @@ export const ArcherEditModal: React.FC<ArcherEditModalProps> = ({
       setFormData({
         name: archer.name || '',
         registrationNo: archer.registrationNo || '',
+        ktaNumber: archer.ktaNumber || '',
         club: archer.club || '',
         category: archer.category || CategoryType.ADULT_PUTRA,
         targetNo: Number(archer.targetNo) || 1,
@@ -151,6 +153,7 @@ export const ArcherEditModal: React.FC<ArcherEditModalProps> = ({
         ...archer,
         name: formData.name.trim(),
         registrationNo: formData.registrationNo.trim() || archer.registrationNo,
+        ktaNumber: formData.ktaNumber.trim() ? formData.ktaNumber.trim().toUpperCase() : undefined,
         club: formData.club.trim(),
         category: formData.category,
         targetNo: Number(formData.targetNo) || 1,
@@ -337,6 +340,24 @@ export const ArcherEditModal: React.FC<ArcherEditModalProps> = ({
                   onChange={(e) => setFormData({ ...formData, registrationNo: e.target.value })}
                   placeholder="e.g. REG-0042 atau INV-1234"
                   className="mt-1.5 block w-full rounded-2xl border border-slate-200 px-4 py-2.5 font-mono font-bold outline-none focus:ring-4 ring-red-500/10 focus:border-arcus-red transition-all text-slate-900 text-sm"
+                />
+              </label>
+
+              <label className="block">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">
+                    Nomor KTA (Kartu Tanda Anggota)
+                  </span>
+                  <span className="text-[7.5px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100 uppercase">
+                    Event Resmi
+                  </span>
+                </div>
+                <input
+                  type="text"
+                  value={formData.ktaNumber}
+                  onChange={(e) => setFormData({ ...formData, ktaNumber: e.target.value.toUpperCase() })}
+                  placeholder="e.g. KTA-2024-001 atau KTA-0123"
+                  className="mt-1.5 block w-full rounded-2xl border border-slate-200 px-4 py-2.5 font-mono font-bold outline-none focus:ring-4 ring-blue-500/10 focus:border-blue-600 transition-all text-slate-900 text-sm placeholder:font-normal placeholder:text-slate-400"
                 />
               </label>
             </div>

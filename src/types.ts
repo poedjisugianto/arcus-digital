@@ -129,6 +129,7 @@ export enum RegistrationStatus {
 export interface ParticipantRegistration {
   id: string;
   registrationNo?: string;
+  ktaNumber?: string; // No KTA (Kartu Tanda Anggota) Klub / Induk Organisasi
   name: string;
   email: string;
   phone?: string;
@@ -264,6 +265,7 @@ export interface TournamentSettings {
   officialFee?: number;
   categoryConfigs?: Partial<Record<CategoryType, CategoryConfig>>;
   waGroupLink?: string;
+  requireKta?: boolean; // true = Wajib Isi Nomor KTA (Event Resmi), false / undefined = Tidak Wajib Isi Nomor KTA (Latber / Open)
   lastResetAt?: number;
   sponsorships?: Sponsorship[];
   rundown?: RundownItem[];
