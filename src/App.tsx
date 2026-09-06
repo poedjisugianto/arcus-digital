@@ -1715,8 +1715,9 @@ export default function App() {
       
       const isArcher = archers.some(a => a.id === participantId);
       const isOfficial = officials.some(o => o.id === participantId);
+      const isRegistration = (activeEvent.registrations || []).some(r => r.id === participantId);
 
-      if (!isArcher && !isOfficial) {
+      if (!isArcher && !isOfficial && !isRegistration) {
         throw new Error("Peserta tidak ditemukan.");
       }
 
@@ -1741,8 +1742,16 @@ export default function App() {
       const payload: any = {};
       if (isArcher) {
         payload.archers = archers.map(a => a.id === participantId ? sanitizeForFirestore({ ...a, ...cleanUpdates }) : sanitizeForFirestore(a));
-      } else {
+      } else if (!isOfficial && isRegistration) {
+        const foundReg = (activeEvent.registrations || []).find(r => r.id === participantId);
+        const newArcherEntry = { ...foundReg, ...cleanUpdates };
+        payload.archers = [...archers, sanitizeForFirestore(newArcherEntry)];
+      }
+      if (isOfficial) {
         payload.officials = officials.map(o => o.id === participantId ? sanitizeForFirestore({ ...o, ...cleanUpdates }) : sanitizeForFirestore(o));
+      }
+      if (isRegistration) {
+        payload.registrations = (activeEvent.registrations || []).map(r => r.id === participantId ? sanitizeForFirestore({ ...r, ...cleanUpdates }) : sanitizeForFirestore(r));
       }
 
       await handleUpdateEvent(activeEvent.id, payload);

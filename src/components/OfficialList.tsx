@@ -44,13 +44,14 @@ const OfficialList: React.FC<Props> = ({ officials, onUpdate, onRemove, onGoToId
         return;
       }
 
-      const headers = ["Nama", "Klub", "Kontak", "Email", "Status"];
+      const headers = ["Nama", "No KTA", "Klub", "Kontak", "Email", "Status"];
       const csvRows = [];
       csvRows.push(headers.join(","));
 
       for (const o of dataToExport) {
         const row = [
           `"${o.name}"`,
+          `"${o.ktaNumber || '-'}"`,
           `"${o.club}"`,
           `"${o.phone || '-'}"`,
           `"${o.email || '-'}"`,
@@ -128,6 +129,7 @@ const OfficialList: React.FC<Props> = ({ officials, onUpdate, onRemove, onGoToId
             <thead>
               <tr className="bg-slate-50">
                 <th className="px-6 py-4 text-[10px] font-black text-slate-900 uppercase tracking-widest">Official / Pelatih</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-900 uppercase tracking-widest">No. KTA</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-900 uppercase tracking-widest">Klub / Pengcab</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-900 uppercase tracking-widest">Kontak</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-900 uppercase tracking-widest">Status</th>
@@ -144,6 +146,15 @@ const OfficialList: React.FC<Props> = ({ officials, onUpdate, onRemove, onGoToId
                       </div>
                       <span className="text-xs font-black text-slate-900 uppercase italic font-oswald">{o.name || 'TANPA NAMA'}</span>
                     </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    {o.ktaNumber ? (
+                      <span className="font-mono font-bold text-[10px] text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 inline-block uppercase">
+                        {o.ktaNumber}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 font-bold italic text-xs">-</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 text-xs font-bold text-slate-800 uppercase">{o.club}</td>
                   <td className="px-6 py-4">

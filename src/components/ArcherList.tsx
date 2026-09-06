@@ -1050,6 +1050,9 @@ const ArcherList: React.FC<Props> = ({
                         <th className="border border-black py-2 px-2 text-[10px] font-bold uppercase">
                           Nama Pemanah
                         </th>
+                        <th className="border border-black py-2 px-2 text-[10px] font-bold uppercase w-28">
+                          No KTA
+                        </th>
                         <th className="border border-black py-2 px-2 text-[10px] font-bold uppercase">
                           Klub / Kota
                         </th>
@@ -1073,6 +1076,9 @@ const ArcherList: React.FC<Props> = ({
                           </td>
                           <td className="border border-black py-1 px-2 text-[11px] font-bold uppercase">
                             {a.name}
+                          </td>
+                          <td className="border border-black py-1 px-2 text-center text-[10px] font-mono font-bold">
+                            {a.ktaNumber || "-"}
                           </td>
                           <td className="border border-black py-1 px-2 text-[10px] uppercase">
                             {a.club}
@@ -1137,6 +1143,9 @@ const ArcherList: React.FC<Props> = ({
                     <th className="border border-black py-2 px-2 text-[10px] font-bold uppercase">
                       Nama Pemanah
                     </th>
+                    <th className="border border-black py-2 px-2 text-[10px] font-bold uppercase w-28">
+                      No KTA
+                    </th>
                     <th className="border border-black py-2 px-2 text-[10px] font-bold uppercase">
                       Klub / Kota
                     </th>
@@ -1160,9 +1169,9 @@ const ArcherList: React.FC<Props> = ({
                       </td>
                       <td className="border border-black py-1 px-2 text-[11px] font-bold uppercase">
                         <div>{a.name}</div>
-                        {a.ktaNumber && (
-                          <div className="text-[8px] font-mono text-slate-600 font-normal">KTA: {a.ktaNumber}</div>
-                        )}
+                      </td>
+                      <td className="border border-black py-1 px-2 text-center text-[10px] font-mono font-bold">
+                        {a.ktaNumber || "-"}
                       </td>
                       <td className="border border-black py-1 px-2 text-[10px] uppercase">
                         {a.club}
@@ -1317,7 +1326,7 @@ const ArcherList: React.FC<Props> = ({
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700" />
             <input
               type="text"
-              placeholder="Cari nama, ID barcode, No. Registrasi, klub, atau bantalan..."
+              placeholder="Cari nama, No. KTA, ID barcode, No. Registrasi, klub, atau bantalan..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-arcus-red transition-all"
@@ -1377,6 +1386,7 @@ const ArcherList: React.FC<Props> = ({
                 <th className="p-4 w-12">No.</th>
                 <th className="p-4">Bantalan</th>
                 <th className="p-4">Nama Pemanah</th>
+                <th className="p-4">No. KTA</th>
                 <th className="p-4">Registrasi Ulang</th>
                 <th className="p-4">Kontak</th>
                 <th className="p-4">Klub</th>
@@ -1411,13 +1421,17 @@ const ArcherList: React.FC<Props> = ({
                         <span className="text-[8px] font-mono text-slate-700">
                           ID: {a.id.substring(0, 10)}
                         </span>
-                        {a.ktaNumber && (
-                          <span className="text-[8px] font-mono font-bold text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-100">
-                            KTA: {a.ktaNumber}
-                          </span>
-                        )}
                       </div>
                     </div>
+                  </td>
+                  <td className="p-4">
+                    {a.ktaNumber ? (
+                      <span className="font-mono font-bold text-[11px] text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 inline-block uppercase tracking-wide">
+                        {a.ktaNumber}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400 font-bold italic text-xs">-</span>
+                    )}
                   </td>
                   <td className="p-4">
                     <button
