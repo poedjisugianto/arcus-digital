@@ -13,6 +13,15 @@ export function sanitizeForFirestore<T>(data: T): T {
   if (data instanceof Date) {
     return data;
   }
+  // Preserve Firebase FieldValue sentinels (serverTimestamp, deleteField, arrayUnion, increment, etc.)
+  if (
+    typeof data === 'object' &&
+    ('_methodName' in (data as any) ||
+      (data as any)?.constructor?.name?.includes('FieldValue') ||
+      '_delegate' in (data as any))
+  ) {
+    return data;
+  }
   if (Array.isArray(data)) {
     return data
       .filter((item) => item !== undefined)

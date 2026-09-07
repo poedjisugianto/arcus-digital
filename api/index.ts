@@ -1411,16 +1411,26 @@ app.post("/api/register-participant", async (req, res) => {
           }, { merge: true });
         });
 
-        // 2. Update the main event metadata
+        // 2. Update the main event metadata (ensure no base64 images/paymentProofs bloat root doc)
+        const slimItem = (item: any) => {
+          const c = { ...item };
+          delete c.paymentProof;
+          delete c.paymentProofUrl;
+          if (typeof c.photoUrl === 'string' && (c.photoUrl.startsWith('data:') || c.photoUrl.length > 500)) {
+            delete c.photoUrl;
+          }
+          return c;
+        };
+
         const newArchers = (archers || []).map(a => ({
-          ...a,
+          ...slimItem(a),
           status: a.status || "PENDING",
           timestamp: a.timestamp || Date.now(),
           registeredVia: 'ONLINE'
         }));
 
         const newOfficials = (officials || []).map(o => ({
-          ...o,
+          ...slimItem(o),
           status: o.status || "PENDING",
           timestamp: o.timestamp || Date.now(),
           registeredVia: 'ONLINE'
@@ -1665,6 +1675,35 @@ app.get("/api/event-details/:id", async (req, res) => {
       return res.json({ success: true, data: eventDetailsCache[eventId].data, source: 'error-fallback' });
     }
     return res.json({ success: false, message: "Event detail tidak tersedia di cloud", data: null });
+  }
+});
+
+app.post("/api/optimize-event/:id", async (req, res) => {
+  const eventId = req.params.id;
+  const currentDb = getAdminDB();
+  if (!currentDb) {
+    return res.status(500).json({ success: false, message: "Admin DB not initialized" });
+  }
+  try {
+    const eventRef = currentDb.collection('events').doc(eventId);
+    await eventRef.update({
+      registrations: FieldValue.delete(),
+      "data.registrations": FieldValue.delete(),
+      scores: FieldValue.delete(),
+      scoreLogs: FieldValue.delete(),
+      "data.scores": FieldValue.delete(),
+      "data.scoreLogs": FieldValue.delete(),
+      archers: FieldValue.delete(),
+      "data.archers": FieldValue.delete(),
+      officials: FieldValue.delete(),
+      "data.officials": FieldValue.delete(),
+      updatedAt: FieldValue.serverTimestamp()
+    });
+    console.log(`[API/OPTIMIZE-EVENT] Document ${eventId} purged of bloated subcollection duplicates successfully.`);
+    return res.json({ success: true, message: "Dokumen event berhasil dioptimalkan dan dikurangi ukurannya." });
+  } catch (err: any) {
+    console.error("[API/OPTIMIZE-EVENT] Error:", err);
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 

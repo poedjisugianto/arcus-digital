@@ -1452,15 +1452,55 @@ export default function App() {
     
     if (isOnline && db) {
       try {
+        const { deleteField } = await import('firebase/firestore');
+
         // Create a flattened update object for Firestore to avoid overwriting nested objects
         const firestoreUpdate: any = {
           ...updated,
           updatedAt: serverTimestamp()
         };
 
-        // scores and scoreLogs are written to individual subcollections, remove from main document
+        // scores and scoreLogs are written to individual subcollections, NEVER in main document
         delete firestoreUpdate.scores;
         delete firestoreUpdate.scoreLogs;
+        delete firestoreUpdate["data.scores"];
+        delete firestoreUpdate["data.scoreLogs"];
+
+        // Submissions/registrations are strictly stored in 'submissions' subcollection.
+        // Deleting these fields from the root event document prevents exceeding Firestore's 1MB limit.
+        delete firestoreUpdate.registrations;
+        delete firestoreUpdate["data.registrations"];
+        firestoreUpdate.registrations = deleteField();
+        firestoreUpdate["data.registrations"] = deleteField();
+        firestoreUpdate.scores = deleteField();
+        firestoreUpdate.scoreLogs = deleteField();
+        firestoreUpdate["data.scores"] = deleteField();
+        firestoreUpdate["data.scoreLogs"] = deleteField();
+
+        // Helper to strip massive base64 images from archers/officials before saving to root event document
+        const slimParticipantForEventDoc = (item: any) => {
+          if (!item || typeof item !== 'object') return item;
+          const copy = { ...item };
+          delete copy.paymentProof;
+          delete copy.paymentProofUrl;
+          if (typeof copy.photoUrl === 'string' && (copy.photoUrl.startsWith('data:') || copy.photoUrl.length > 500)) {
+            delete copy.photoUrl;
+          }
+          return copy;
+        };
+
+        if (Array.isArray(firestoreUpdate.archers)) {
+          firestoreUpdate.archers = firestoreUpdate.archers.map(slimParticipantForEventDoc);
+        }
+        if (Array.isArray(firestoreUpdate.officials)) {
+          firestoreUpdate.officials = firestoreUpdate.officials.map(slimParticipantForEventDoc);
+        }
+        if (firestoreUpdate["data.archers"] && Array.isArray(firestoreUpdate["data.archers"])) {
+          firestoreUpdate["data.archers"] = firestoreUpdate["data.archers"].map(slimParticipantForEventDoc);
+        }
+        if (firestoreUpdate["data.officials"] && Array.isArray(firestoreUpdate["data.officials"])) {
+          firestoreUpdate["data.officials"] = firestoreUpdate["data.officials"].map(slimParticipantForEventDoc);
+        }
 
         // If settings are provided, flatten them for Firestore merge
         if (updated.settings) {
@@ -1501,13 +1541,47 @@ export default function App() {
         const cleanFirestoreUpdate = sanitizeForFirestore(firestoreUpdate);
         await updateDoc(doc(db, 'events', id), cleanFirestoreUpdate);
         pushNotification("Berhasil", "Perubahan disimpan.", "SUCCESS");
+        setHasPendingChanges(false);
       } catch (err: any) {
-        console.warn("Update sync failed, falling back to merge setDoc", err);
+        console.warn("Update sync failed, checking if document size exceeded limit...", err);
+
+        const isSizeOverflow = (err?.message && (err.message.includes("maximum allowed size") || err.message.includes("1,048,576 bytes") || err.message.includes("exceeds"))) ||
+          String(err).includes("exceeds the maximum allowed size");
+
+        if (isSizeOverflow) {
+          try {
+            console.warn("[RECOVERY] Event doc exceeded 1MB limit. Purging bloated fields from root document in Firestore...");
+            const { deleteField } = await import('firebase/firestore');
+            await updateDoc(doc(db, 'events', id), {
+              registrations: deleteField(),
+              "data.registrations": deleteField(),
+              scores: deleteField(),
+              scoreLogs: deleteField(),
+              "data.scores": deleteField(),
+              "data.scoreLogs": deleteField(),
+              archers: deleteField(),
+              "data.archers": deleteField(),
+              officials: deleteField(),
+              "data.officials": deleteField(),
+              updatedAt: serverTimestamp()
+            });
+            console.log("[RECOVERY] Purged bloated fields successfully. Document size restored to lightweight state.");
+            pushNotification("Optimalisasi Dokumen", "Ukuran data turnamen berhasil dioptimalkan dan disinkronkan kembali.", "SUCCESS");
+            setHasPendingChanges(false);
+            return;
+          } catch (purgeErr) {
+            console.error("[RECOVERY] Purge attempt failed:", purgeErr);
+          }
+        }
         
         // Re-calculate flattened update explicitly for fallback
         const fallbackUpdate: any = { ...updated, updatedAt: serverTimestamp() };
         delete fallbackUpdate.scores;
         delete fallbackUpdate.scoreLogs;
+        delete fallbackUpdate.registrations;
+        delete fallbackUpdate["data.registrations"];
+        delete fallbackUpdate["data.scores"];
+        delete fallbackUpdate["data.scoreLogs"];
         
         if (updated.settings) {
           delete fallbackUpdate.settings;
@@ -1520,6 +1594,7 @@ export default function App() {
           const cleanFallback = sanitizeForFirestore(fallbackUpdate);
           await setDoc(doc(db, 'events', id), cleanFallback, { merge: true });
           pushNotification("Berhasil (Sync)", "Perubahan disimpan.", "SUCCESS");
+          setHasPendingChanges(false);
         } catch (setErr: any) {
           console.error("Critical Firestore Error:", setErr);
           pushNotification("Gagal Sync", setErr.message || "Network error", "WARNING");
@@ -1773,12 +1848,12 @@ export default function App() {
         
         updatedArchers.forEach((archer) => {
           const subRef = doc(db, 'events', activeEvent.id, 'submissions', archer.id);
-          batch.update(subRef, {
+          batch.set(subRef, {
             targetNo: archer.targetNo,
             position: archer.position,
             wave: archer.wave,
             updatedAt: new Date().toISOString()
-          });
+          }, { merge: true });
         });
         
         await batch.commit();
