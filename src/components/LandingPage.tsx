@@ -15,10 +15,12 @@ import {
   RefreshCw,
   AlertTriangle,
   Download,
-  Laptop
+  Laptop,
+  Navigation
 } from 'lucide-react';
 import { ArcheryEvent, User } from '../types';
 import { resolveGoogleDriveUrl } from '../lib/photoService';
+import { getGoogleMapsUrl } from '../lib/mapsHelper';
 import ArcusLogo from './ArcusLogo';
 import TournamentCalendar from './TournamentCalendar';
 import { usePWAInstall } from '../hooks/usePWAInstall';
@@ -467,11 +469,25 @@ export default function LandingPage({
                             {(event as any).registrationCount || (event.archers || []).length || 0} ARCHER TERDAFTAR
                           </span>
                         </div>
-                        <div className="flex items-center gap-4 text-slate-600">
-                          <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-700">
-                            <MapPin className="w-4 h-4" />
+                        <div className="flex items-center justify-between gap-2 text-slate-600">
+                          <div className="flex items-center gap-4 min-w-0">
+                            <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-red-600 shrink-0">
+                              <MapPin className="w-4 h-4" />
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-widest truncate">{event.settings?.location || 'Lokasi Menunggu Update'}</span>
                           </div>
-                          <span className="text-[10px] font-black uppercase tracking-widest truncate">{event.settings?.location || 'Lokasi Menunggu Update'}</span>
+                          {getGoogleMapsUrl(event.settings?.location, event.settings?.mapsUrl) && (
+                            <a
+                              href={getGoogleMapsUrl(event.settings?.location, event.settings?.mapsUrl)!}
+                              target="_blank"
+                              rel="noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="px-2 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 font-black text-[9px] uppercase tracking-wider flex items-center gap-1 shrink-0 transition-all shadow-xs"
+                              title="Buka Lokasi di Google Maps"
+                            >
+                              <Navigation className="w-2.5 h-2.5" /> Peta
+                            </a>
+                          )}
                         </div>
                         <div className="flex items-center gap-4 text-slate-600">
                           <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-700">

@@ -11,6 +11,7 @@ import { CATEGORY_LABELS } from '../constants';
 import ArcusLogo from './ArcusLogo';
 import { toast } from 'sonner';
 import { exportToExcel, exportToCSV } from '../lib/excelHelper';
+import { resolveGoogleDriveUrl } from '../lib/photoService';
 
 interface Props {
   isOpen?: boolean;
@@ -520,11 +521,29 @@ export default function PrintRoundReportModal({
         className="w-full bg-white text-slate-900 font-sans p-6 sm:p-8"
         style={{ colorScheme: 'light' }}
       >
-        {/* Document Official Header */}
+        {/* Document Official Header with Multi-Logo */}
         <div className="border-b-2 border-slate-900 pb-3 mb-4">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center justify-between gap-4">
+            {/* Left Logos: Event Logo + Club Logo */}
             <div className="flex items-center gap-3">
-              <ArcusLogo className="w-12 h-12 shrink-0" />
+              {event.settings?.logoUrl ? (
+                <img 
+                  src={resolveGoogleDriveUrl(event.settings.logoUrl)} 
+                  alt="Event Logo" 
+                  className="h-12 max-w-[75px] object-contain shrink-0"
+                  referrerPolicy="no-referrer"
+                />
+              ) : null}
+
+              {event.settings?.clubLogoUrl ? (
+                <img 
+                  src={resolveGoogleDriveUrl(event.settings.clubLogoUrl)} 
+                  alt="Club Logo" 
+                  className="h-11 max-w-[70px] object-contain shrink-0"
+                  referrerPolicy="no-referrer"
+                />
+              ) : null}
+
               <div>
                 <span className="text-[9px] font-black uppercase tracking-[0.25em] text-red-600 block">
                   DOKUMEN RESMI TURNAMEN &amp; REKAPITULASI DATA MASTER
@@ -540,14 +559,29 @@ export default function PrintRoundReportModal({
               </div>
             </div>
 
-            <div className="text-right border border-slate-900 px-3 py-2 rounded-xl bg-slate-50 text-center shrink-0 min-w-[140px]">
-              <p className="text-[8px] font-black uppercase text-slate-600 tracking-widest">Kategori Lomba</p>
-              <p className="text-sm font-black font-oswald uppercase text-slate-900 leading-tight">
-                {categoryLabel}
-              </p>
-              <p className="text-[8px] font-bold text-red-600 uppercase mt-0.5">
-                Jarak: {config?.distance || 'Standard'} • Target: {config?.targetType || 'Standard'}
-              </p>
+            {/* Right Side: Organization Logo + Arcus Logo + Category Box */}
+            <div className="flex items-center gap-3 shrink-0">
+              <div className="flex items-center gap-2">
+                {event.settings?.secondaryLogoUrl && (
+                  <img 
+                    src={resolveGoogleDriveUrl(event.settings.secondaryLogoUrl)} 
+                    alt="PERPANI Logo" 
+                    className="h-11 max-w-[65px] object-contain shrink-0"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+                <ArcusLogo className="w-11 h-11 shrink-0" />
+              </div>
+
+              <div className="text-right border border-slate-900 px-3 py-2 rounded-xl bg-slate-50 text-center shrink-0 min-w-[130px]">
+                <p className="text-[8px] font-black uppercase text-slate-600 tracking-widest">Kategori Lomba</p>
+                <p className="text-sm font-black font-oswald uppercase text-slate-900 leading-tight">
+                  {categoryLabel}
+                </p>
+                <p className="text-[8px] font-bold text-red-600 uppercase mt-0.5">
+                  Jarak: {config?.distance || 'Standard'} • Target: {config?.targetType || 'Standard'}
+                </p>
+              </div>
             </div>
           </div>
 

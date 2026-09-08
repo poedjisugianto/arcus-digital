@@ -237,6 +237,15 @@ export interface RundownItem {
   notes?: string;
 }
 
+export interface TechnicalSupportAccess {
+  enabled: boolean;
+  grantedAt?: number;
+  expiresAt?: number; // timestamp in milliseconds
+  durationHours?: number; // 2, 6, 24
+  issueNote?: string;
+  grantedByEmail?: string;
+}
+
 export interface TournamentSettings {
   tournamentName: string;
   organizerId: string;
@@ -249,6 +258,10 @@ export interface TournamentSettings {
   thbLink?: string;
   platformFeePaidToOwner?: boolean;
   location?: string;
+  mapsUrl?: string; // Link Google Maps / Share pin lokasi turnamen
+  logoUrl?: string; // Logo Utama Event / Turnamen (URL / Google Drive)
+  secondaryLogoUrl?: string; // Logo Induk Organisasi (PERPANI / KONI / World Archery)
+  clubLogoUrl?: string; // Logo Klub Penyelenggara / Tuan Rumah
   eventDate?: string;
   executionTime?: string;
   isFreeEvent?: boolean;
@@ -269,6 +282,7 @@ export interface TournamentSettings {
   lastResetAt?: number;
   sponsorships?: Sponsorship[];
   rundown?: RundownItem[];
+  technicalSupport?: TechnicalSupportAccess;
 }
 
 export interface DisbursementRequest {

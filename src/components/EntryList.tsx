@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Search, ArrowLeft, Users, Trophy, Target, ChevronRight, Filter, CheckCircle2, Info, RefreshCw } from 'lucide-react';
+import { Search, ArrowLeft, Users, Trophy, Target, ChevronRight, Filter, CheckCircle2, Info, RefreshCw, QrCode } from 'lucide-react';
 import { ArcheryEvent, CategoryType, Archer } from '../types';
 import { CATEGORY_LABELS } from '../constants';
 import ArcusLogo from './ArcusLogo';
+import ParticipantTicketModal from './ParticipantTicketModal';
 
 interface Props {
   event: ArcheryEvent;
@@ -15,6 +16,7 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing }: Props
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<CategoryType | 'ALL'>('ALL');
   const [viewMode, setViewMode] = useState<'ARCHERS' | 'OFFICIALS'>('ARCHERS');
+  const [selectedTicketParticipant, setSelectedTicketParticipant] = useState<Archer | null>(null);
 
   const categories = useMemo(() => {
     return (Object.keys(CategoryType) as CategoryType[]).filter(cat => cat !== CategoryType.OFFICIAL);
@@ -201,6 +203,7 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing }: Props
                   {viewMode === 'ARCHERS' && <th className="px-4 md:px-10 py-3 md:py-6 hidden sm:table-cell">Category</th>}
                   {viewMode === 'ARCHERS' && <th className="px-4 md:px-10 py-3 md:py-6 text-center">Target</th>}
                   <th className="px-4 md:px-10 py-3 md:py-6 text-right">Status</th>
+                  <th className="px-3 md:px-6 py-3 md:py-6 text-center">Tiket</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -236,6 +239,16 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing }: Props
                       <div className="flex items-center justify-end">
                         {getStatusBadge(item.status)}
                       </div>
+                    </td>
+                    <td className="px-3 md:px-6 py-3 md:py-6 text-center">
+                      <button
+                        onClick={() => setSelectedTicketParticipant(item as Archer)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-900 hover:text-white text-slate-800 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 group/btn"
+                        title="Lihat / Simpan Tiket Barcode"
+                      >
+                        <QrCode className="w-3.5 h-3.5 text-red-600 group-hover/btn:text-white" />
+                        <span className="hidden sm:inline">Tiket</span>
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -277,6 +290,33 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing }: Props
           </a>
         </div>
       </div>
+
+      {/* Participant Ticket / Barcode Modal */}
+      {selectedTicketParticipant && (
+        <ParticipantTicketModal
+          isOpen={Boolean(selectedTicketParticipant)}
+          onClose={() => setSelectedTicketParticipant(null)}
+          tournamentName={event.settings?.tournamentName}
+          tournamentDate={event.settings?.eventDate}
+          tournamentLocation={event.settings?.location}
+          mapsUrl={event.settings?.mapsUrl}
+          logoUrl={event.settings?.logoUrl}
+          secondaryLogoUrl={event.settings?.secondaryLogoUrl}
+          clubLogoUrl={event.settings?.clubLogoUrl}
+          participants={[{
+            id: selectedTicketParticipant.id,
+            name: selectedTicketParticipant.name,
+            club: selectedTicketParticipant.club,
+            category: selectedTicketParticipant.category,
+            registrationNo: selectedTicketParticipant.registrationNo || selectedTicketParticipant.id,
+            status: selectedTicketParticipant.status,
+            targetNo: selectedTicketParticipant.targetNo,
+            position: selectedTicketParticipant.position,
+            wave: selectedTicketParticipant.wave,
+            ktaNumber: (selectedTicketParticipant as any).ktaNumber
+          }]}
+        />
+      )}
     </div>
   );
 }

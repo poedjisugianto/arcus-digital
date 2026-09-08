@@ -3,12 +3,13 @@ import {
   ArrowLeft, Printer, Image as ImageIcon, Plus, Trash2, 
   Settings, User, MapPin, Calendar, Layout, Download,
   Type, Move, Maximize, Activity, CreditCard, ShieldCheck, Star, Trophy, Crown, Crosshair, Target,
-  Barcode as BarcodeIcon, QrCode, Upload, Eye, EyeOff, Sliders, Palette, Check, Sparkles, RefreshCw, Layers, FileImage, HelpCircle
+  Barcode as BarcodeIcon, QrCode, Upload, Eye, EyeOff, Sliders, Palette, Check, Sparkles, RefreshCw, Layers, FileImage, HelpCircle, Scissors
 } from 'lucide-react';
 import { Archer, TournamentSettings, CategoryType } from '../types';
 import { QRCodeSVG } from 'qrcode.react';
 import { Barcode } from './Barcode';
 import { safeFormatDate } from '../lib/dateUtils';
+import { resolveGoogleDriveUrl } from '../lib/photoService';
 
 interface Props {
   archers: Archer[];
@@ -28,6 +29,92 @@ interface Logo {
 type BgPattern = 'CLEAN' | 'SPORTY_MESH' | 'DIAGONAL_SPEED' | 'DYNAMIC_WAVES' | 'CARBON' | 'HERITAGE_PAPER' | 'BAMBOO_WEAVE' | 'ETHNIC_MODERN' | 'SPORTY_BURST';
 type CardTheme = 'SPORTY_MODERN' | 'TRADITIONAL_LEGACY' | 'STEALTH_ELITE' | 'ASYMETRIC_PRO' | 'GLORY_ULTIMATE' | 'CHAMPION_ELITE' | 'PRO_ARCHER_X';
 type DesignMode = 'TEMPLATE' | 'CUSTOM_UPLOAD';
+
+export type IdCardSize = 'B1' | 'B2' | 'B3' | 'B4';
+
+export interface IdCardSizeConfig {
+  id: IdCardSize;
+  name: string;
+  badge: string;
+  widthMm: number;
+  heightMm: number;
+  widthCm: number;
+  heightCm: number;
+  aspectRatio: string;
+  ratioFraction: string;
+  pouchName: string;
+  description: string;
+  printWidthCm: number;
+  printHeightCm: number;
+  cardsPerPage: number;
+}
+
+export const ID_CARD_SIZES: Record<IdCardSize, IdCardSizeConfig> = {
+  B1: {
+    id: 'B1',
+    name: 'Ukuran B1',
+    badge: '65 × 102 mm',
+    widthMm: 65,
+    heightMm: 102,
+    widthCm: 6.5,
+    heightCm: 10.2,
+    aspectRatio: '65 / 102',
+    ratioFraction: '65:102',
+    pouchName: 'Plastik Cardcase B1 (6.5 × 10.2 cm)',
+    description: 'Format vertikal ramping & ringkas. Hemat ruang & kertas, pas di saku atau lanyard standar.',
+    printWidthCm: 6.5,
+    printHeightCm: 10.2,
+    cardsPerPage: 4
+  },
+  B2: {
+    id: 'B2',
+    name: 'Ukuran B2',
+    badge: '79 × 126 mm',
+    widthMm: 79,
+    heightMm: 126,
+    widthCm: 7.9,
+    heightCm: 12.6,
+    aspectRatio: '79 / 126',
+    ratioFraction: '79:126',
+    pouchName: 'Plastik Cardcase B2 (7.9 × 12.6 cm)',
+    description: 'Format sedang vertikal yang proporsional. Ruang seimbang untuk foto atlet, barcode, dan nama.',
+    printWidthCm: 7.9,
+    printHeightCm: 12.6,
+    cardsPerPage: 4
+  },
+  B3: {
+    id: 'B3',
+    name: 'Ukuran B3',
+    badge: '95 × 126 mm',
+    widthMm: 95,
+    heightMm: 126,
+    widthCm: 9.5,
+    heightCm: 12.6,
+    aspectRatio: '95 / 126',
+    ratioFraction: '95:126',
+    pouchName: 'Plastik Cardcase B3 (9.5 × 12.6 cm)',
+    description: 'Format lebar standar panitia & ofisial. Nama atlet, klub, dan target terbaca sangat jelas.',
+    printWidthCm: 9.5,
+    printHeightCm: 12.6,
+    cardsPerPage: 4
+  },
+  B4: {
+    id: 'B4',
+    name: 'Ukuran B4',
+    badge: '105 × 150 mm',
+    widthMm: 105,
+    heightMm: 150,
+    widthCm: 10.5,
+    heightCm: 15.0,
+    aspectRatio: '105 / 150',
+    ratioFraction: '7:10 (A6)',
+    pouchName: 'Plastik Cardcase B4 / A6 (10.5 × 15.0 cm)',
+    description: 'Format besar resmi turnamen panahan. Area maksimal untuk logo sponsor, PERPANI, dan akreditasi.',
+    printWidthCm: 9.8,
+    printHeightCm: 14.0,
+    cardsPerPage: 4
+  }
+};
 
 export interface CustomCardConfig {
   athleteBgUrl: string | null;
@@ -98,8 +185,41 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
     return DEFAULT_CUSTOM_CONFIG;
   });
 
-  // Preset Template States
-  const [logos, setLogos] = useState<Logo[]>([]);
+  // Preset Template States - auto initialized from tournament settings
+  const [logos, setLogos] = useState<Logo[]>(() => {
+    const list: Logo[] = [];
+    if (settings?.logoUrl) {
+      list.push({
+        id: 'logo_event',
+        name: 'Logo Event',
+        url: resolveGoogleDriveUrl(settings.logoUrl),
+        x: 0,
+        y: 0,
+        size: 80
+      });
+    }
+    if (settings?.clubLogoUrl) {
+      list.push({
+        id: 'logo_club',
+        name: 'Logo Klub',
+        url: resolveGoogleDriveUrl(settings.clubLogoUrl),
+        x: 0,
+        y: 0,
+        size: 70
+      });
+    }
+    if (settings?.secondaryLogoUrl) {
+      list.push({
+        id: 'logo_org',
+        name: 'Logo Organisasi / PERPANI',
+        url: resolveGoogleDriveUrl(settings.secondaryLogoUrl),
+        x: 0,
+        y: 0,
+        size: 70
+      });
+    }
+    return list;
+  });
   const [cardTitle, setCardTitle] = useState(settings?.tournamentName || 'KARTU PESERTA');
   const [cardSubtitle, setCardSubtitle] = useState(settings?.location || 'ARCUS ARCHERY TOURNAMENT');
   const [cardDate, setCardDate] = useState(safeFormatDate(settings?.eventDate, { day: 'numeric', month: 'long', year: 'numeric' }));
@@ -109,6 +229,41 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
   const [barcodeFormat, setBarcodeFormat] = useState<'BARCODE_128' | 'QR_CODE'>('BARCODE_128');
   const [showEditor, setShowEditor] = useState(true);
   const [viewMode, setViewMode] = useState<'DESIGNER' | 'FULL_PREVIEW'>('DESIGNER');
+  
+  // Selected ID Card Size (B1, B2, B3, B4)
+  const [cardSize, setCardSize] = useState<IdCardSize>(() => {
+    try {
+      const saved = localStorage.getItem(`${storageKey}_size`);
+      if (saved && (saved === 'B1' || saved === 'B2' || saved === 'B3' || saved === 'B4')) {
+        return saved as IdCardSize;
+      }
+    } catch (e) {}
+    return 'B3'; // Default to B3 (95 × 126 mm - standard committee card)
+  });
+
+  // Toggle Cut/Crop Guides
+  const [showCropMarks, setShowCropMarks] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(`${storageKey}_crop_marks`);
+      if (saved !== null) return saved === 'true';
+    } catch (e) {}
+    return true; // Default enabled to assist cutting
+  });
+
+  const sizeConfig = useMemo(() => ID_CARD_SIZES[cardSize] || ID_CARD_SIZES.B3, [cardSize]);
+
+  // Persist size and crop mark settings
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${storageKey}_size`, cardSize);
+    } catch (e) {}
+  }, [cardSize, storageKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${storageKey}_crop_marks`, String(showCropMarks));
+    } catch (e) {}
+  }, [showCropMarks, storageKey]);
   
   // File inputs for custom backgrounds & logos
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -262,13 +417,22 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
       SQUARE: 'rounded-none'
     }[customConfig.photoShape];
 
-    const photoSizeClasses = {
+    const isB1 = cardSize === 'B1';
+    const photoSizeClasses = isB1 ? {
+      SMALL: 'w-[56px] h-[72px]',
+      MEDIUM: 'w-[68px] h-[88px]',
+      LARGE: 'w-[80px] h-[104px]'
+    }[customConfig.photoSize] : {
       SMALL: 'w-[70px] h-[90px]',
       MEDIUM: 'w-[84px] h-[110px]',
       LARGE: 'w-[100px] h-[130px]'
     }[customConfig.photoSize];
 
-    const nameSizeClasses = {
+    const nameSizeClasses = isB1 ? {
+      MEDIUM: 'text-xl',
+      LARGE: 'text-2xl',
+      XLARGE: 'text-3xl'
+    }[customConfig.nameFontSize] : {
       MEDIUM: 'text-2xl',
       LARGE: 'text-3xl sm:text-4xl',
       XLARGE: 'text-4xl sm:text-5xl'
@@ -277,14 +441,26 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
     return (
       <div 
         key={person.id} 
-        className="w-full aspect-[2/3] border border-slate-200 overflow-hidden flex flex-col break-inside-avoid shadow-sm print:shadow-none relative transition-all duration-300 bg-slate-900 select-none"
+        className="w-full id-card-item border border-slate-200 overflow-hidden flex flex-col break-inside-avoid shadow-sm print:shadow-none relative transition-all duration-300 bg-slate-900 select-none"
         style={{
+          aspectRatio: sizeConfig.aspectRatio,
           backgroundImage: bgUrl ? `url("${bgUrl}")` : undefined,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat'
         }}
       >
+        {/* Corner Crop Marks for Precise Cutter Trimming */}
+        {showCropMarks && (
+          <div className="absolute inset-0 pointer-events-none z-40">
+            <div className="absolute inset-0 border border-dashed border-white/20 print:border-slate-400" />
+            <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-white/60 print:border-black" />
+            <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-white/60 print:border-black" />
+            <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-white/60 print:border-black" />
+            <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-white/60 print:border-black" />
+          </div>
+        )}
+
         {/* Placeholder if no background is uploaded yet */}
         {!bgUrl && (
           <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 flex flex-col items-center justify-center p-6 text-center z-0">
@@ -292,7 +468,7 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
               <FileImage className="w-8 h-8 text-white/80" />
             </div>
             <p className="text-white text-xs font-bold uppercase tracking-wider">Belum Ada Background</p>
-            <p className="text-[9px] text-white/90 mt-1 max-w-[200px]">Upload desain latar (rasio 2:3) pada panel kontrol di sebelah kiri.</p>
+            <p className="text-[9px] text-white/90 mt-1 max-w-[220px]">Upload desain latar (rasio {sizeConfig.name}: {sizeConfig.badge}) pada panel kontrol.</p>
           </div>
         )}
 
@@ -454,6 +630,10 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
     const isGlory = cardTheme === 'GLORY_ULTIMATE';
     const isChampion = cardTheme === 'CHAMPION_ELITE';
     const isProX = cardTheme === 'PRO_ARCHER_X';
+    const isB1 = cardSize === 'B1';
+    const isB2 = cardSize === 'B2';
+    const isB3 = cardSize === 'B3';
+    const isB4 = cardSize === 'B4';
     
     const cardAccent = isStealth ? '#E61E2A' : (isOfficial ? (isLegacy ? '#78350f' : '#2563eb') : accentColor);
     const textPrimary = (isStealth || isChampion || isProX) ? 'text-white' : 'text-slate-900';
@@ -461,7 +641,22 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
     const bgBase = isStealth ? 'bg-[#0a0a0a]' : isChampion ? 'bg-gradient-to-br from-blue-900 via-indigo-900 to-slate-900' : isProX ? 'bg-[#0f172a]' : 'bg-white';
 
     return (
-      <div key={person.id} className={`w-full aspect-[2/3] border border-slate-200 overflow-hidden flex flex-col break-inside-avoid shadow-sm print:shadow-none relative transition-all duration-700 ${bgBase}`}>
+      <div 
+        key={person.id} 
+        className={`w-full id-card-item border border-slate-200 overflow-hidden flex flex-col break-inside-avoid shadow-sm print:shadow-none relative transition-all duration-700 ${bgBase}`}
+        style={{ aspectRatio: sizeConfig.aspectRatio }}
+      >
+        {/* Corner Crop Marks for Cutter Precision */}
+        {showCropMarks && (
+          <div className="absolute inset-0 pointer-events-none z-40">
+            <div className="absolute inset-0 border border-dashed border-slate-300/60 print:border-slate-400" />
+            <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-slate-400 print:border-black" />
+            <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-slate-400 print:border-black" />
+            <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-slate-400 print:border-black" />
+            <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-slate-400 print:border-black" />
+          </div>
+        )}
+
         {/* Pattern Layer */}
         {!isChampion && !isProX && <div className="absolute inset-0 opacity-40 mix-blend-multiply" style={getPatternStyles(bgPattern, cardAccent)} />}
         
@@ -559,22 +754,22 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
         )}
 
         {/* Header */}
-        <div className={`h-24 p-5 flex items-center justify-between relative z-10 ${isAsymmetric ? 'flex-row-reverse' : ''}`}>
+        <div className={`${isB1 ? 'h-18 p-3' : isB2 ? 'h-20 p-4' : 'h-24 p-5'} flex items-center justify-between relative z-10 ${isAsymmetric ? 'flex-row-reverse' : ''}`}>
           <div className="flex -space-x-2">
             {logos.map(logo => (
               <img 
                 key={logo.id} 
                 src={logo.url} 
                 alt="" 
-                style={{ maxHeight: logo.size / 2, width: 'auto' }}
+                style={{ maxHeight: isB1 ? Math.min(logo.size / 2.6, 28) : isB2 ? Math.min(logo.size / 2.3, 34) : logo.size / 2, width: 'auto' }}
                 className="object-contain ring-2 ring-white rounded-lg bg-white shadow-lg"
               />
             ))}
-            {logos.length === 0 && <div className="w-12 h-12 rounded-xl flex items-center justify-center border-2 border-dashed border-slate-300 bg-white/50 backdrop-blur-sm"><ImageIcon className="w-5 h-5 text-slate-600" /></div>}
+            {logos.length === 0 && <div className={`${isB1 ? 'w-8 h-8' : 'w-12 h-12'} rounded-xl flex items-center justify-center border-2 border-dashed border-slate-300 bg-white/50 backdrop-blur-sm`}><ImageIcon className={`${isB1 ? 'w-3.5 h-3.5' : 'w-5 h-5'} text-slate-600`} /></div>}
           </div>
           <div className="text-right">
-             <div className={`text-[10px] font-black uppercase tracking-[0.2em] leading-none mb-1 ${isChampion || isProX ? 'text-yellow-400 opacity-100' : 'opacity-40'}`}>E-PASS ID</div>
-             <div className={`text-[12px] font-mono font-black ${isChampion || isProX ? 'text-white' : ''}`} style={{ color: (isChampion || isProX) ? undefined : cardAccent }}>{person.id.substring(0, 8)}</div>
+             <div className={`${isB1 ? 'text-[8px]' : 'text-[10px]'} font-black uppercase tracking-[0.2em] leading-none mb-1 ${isChampion || isProX ? 'text-yellow-400 opacity-100' : 'opacity-40'}`}>E-PASS ID</div>
+             <div className={`${isB1 ? 'text-[10px]' : 'text-[12px]'} font-mono font-black ${isChampion || isProX ? 'text-white' : ''}`} style={{ color: (isChampion || isProX) ? undefined : cardAccent }}>{person.id.substring(0, 8)}</div>
           </div>
         </div>
 
@@ -584,45 +779,45 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
         )}
 
         {/* Main Content Area */}
-        <div className={`p-6 flex flex-col flex-1 relative z-10 ${isAsymmetric ? 'items-start pl-8' : 'items-center'}`}>
-          <div className={`w-full mb-6 ${isAsymmetric ? 'text-left' : 'text-center'}`}>
-            <h2 className={`text-[12px] font-black uppercase tracking-[0.3em] mb-1 scale-y-110 ${isLegacy || isGlory || isChampion || isProX ? 'font-serif italic' : 'font-oswald'} ${textPrimary}`}>
+        <div className={`${isB1 ? 'p-3 gap-3' : isB2 ? 'p-4 gap-4' : 'p-5 gap-5'} flex flex-col flex-1 relative z-10 ${isAsymmetric ? 'items-start pl-6' : 'items-center'}`}>
+          <div className={`w-full ${isB1 ? 'mb-2' : isB2 ? 'mb-3' : 'mb-4'} ${isAsymmetric ? 'text-left' : 'text-center'}`}>
+            <h2 className={`${isB1 ? 'text-[9px] tracking-[0.2em]' : isB2 ? 'text-[10px] tracking-[0.25em]' : 'text-[12px] tracking-[0.3em]'} font-black uppercase mb-0.5 scale-y-110 ${isLegacy || isGlory || isChampion || isProX ? 'font-serif italic' : 'font-oswald'} ${textPrimary} truncate`}>
               {cardTitle}
             </h2>
-            <div className={`h-px w-16 mx-auto mt-2 ${isChampion || isProX ? 'bg-gradient-to-r from-transparent via-yellow-400/50 to-transparent' : 'bg-slate-200'}`} style={{ backgroundColor: (isAsymmetric || isChampion || isProX) ? undefined : `${cardAccent}33` }} />
+            <div className={`h-px ${isB1 ? 'w-10' : 'w-16'} mx-auto mt-1 ${isChampion || isProX ? 'bg-gradient-to-r from-transparent via-yellow-400/50 to-transparent' : 'bg-slate-200'}`} style={{ backgroundColor: (isAsymmetric || isChampion || isProX) ? undefined : `${cardAccent}33` }} />
           </div>
 
-          <div className={`flex flex-col gap-6 w-full ${isAsymmetric ? 'items-start' : 'items-center'}`}>
+          <div className={`flex flex-col ${isB1 ? 'gap-3' : isB2 ? 'gap-4' : 'gap-5'} w-full ${isAsymmetric ? 'items-start' : 'items-center'}`}>
             {/* Name Section with Custom Typography */}
-            <div className="relative group text-center">
+            <div className="relative group text-center w-full px-1">
               {(isLegacy || isGlory || isChampion || isProX) && (
-                <div className={`absolute -top-4 left-0 w-full text-center text-[10px] uppercase font-black tracking-[0.3em] ${isChampion || isProX ? 'text-yellow-500' : 'font-serif italic text-slate-700 opacity-50'}`}>
+                <div className={`absolute -top-3.5 left-0 w-full text-center ${isB1 ? 'text-[8px]' : 'text-[10px]'} uppercase font-black tracking-[0.2em] ${isChampion || isProX ? 'text-yellow-500' : 'font-serif italic text-slate-700 opacity-50'}`}>
                   {isChampion || isProX ? 'Elite Pro Archer' : 'Grand Athlete'}
                 </div>
               )}
-              <h1 className={`text-4xl leading-[0.85] font-black uppercase mb-1 drop-shadow-sm ${isProX ? 'font-oswald italic tracking-tighter' : isLegacy || isGlory || isChampion ? 'font-serif tracking-normal' : 'font-oswald italic tracking-tighter'} ${textPrimary}`}>
+              <h1 className={`${isB1 ? 'text-xl sm:text-2xl leading-[0.9]' : isB2 ? 'text-2xl sm:text-3xl leading-[0.9]' : 'text-3xl sm:text-4xl leading-[0.85]'} font-black uppercase mb-0.5 drop-shadow-sm truncate ${isProX ? 'font-oswald italic tracking-tighter' : isLegacy || isGlory || isChampion ? 'font-serif tracking-normal' : 'font-oswald italic tracking-tighter'} ${textPrimary}`}>
                 {isChampion || isProX ? (
                   <>
                     <span className="block drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">{person.name.split(' ')[0]}</span>
-                    <span className="text-yellow-400 block mt-1 drop-shadow-[0_0_20px_rgba(234,179,8,0.5)]">{person.name.split(' ').slice(1).join(' ')}</span>
+                    <span className="text-yellow-400 block mt-0.5 drop-shadow-[0_0_20px_rgba(234,179,8,0.5)] truncate">{person.name.split(' ').slice(1).join(' ')}</span>
                   </>
                 ) : (
                   <>
-                    {person.name.split(' ')[0]}<br/>
-                    <span style={{ color: (isLegacy || isGlory) ? '#78350f' : cardAccent }}>{person.name.split(' ').slice(1).join(' ')}</span>
+                    <span className="block">{person.name.split(' ')[0]}</span>
+                    <span className="block truncate" style={{ color: (isLegacy || isGlory) ? '#78350f' : cardAccent }}>{person.name.split(' ').slice(1).join(' ')}</span>
                   </>
                 )}
               </h1>
-              <p className={`text-[12px] font-black mt-2 tracking-widest ${textSecondary}`}>
+              <p className={`${isB1 ? 'text-[9px]' : isB2 ? 'text-[10px]' : 'text-[12px]'} font-black mt-1 tracking-wider uppercase truncate ${textSecondary}`}>
                 {person.club || 'INDEPENDENT'}
               </p>
             </div>
 
             {/* Visual Identification Area (Photo + Barcode Batang / QR Code) */}
-            <div className="flex flex-col items-center justify-center gap-3 w-full">
-              <div className="flex items-center justify-center gap-3 w-full">
+            <div className="flex flex-col items-center justify-center gap-2 w-full">
+              <div className={`flex items-center justify-center ${isB1 ? 'gap-2' : 'gap-3'} w-full`}>
                 {/* Profile Photo */}
-                <div className={`p-1 w-[80px] h-[105px] rounded-2xl overflow-hidden relative shadow-md border flex items-center justify-center shrink-0 ${
+                <div className={`p-0.5 ${isB1 ? 'w-[58px] h-[76px]' : isB2 ? 'w-[68px] h-[90px]' : 'w-[80px] h-[105px]'} rounded-xl overflow-hidden relative shadow-md border flex items-center justify-center shrink-0 ${
                   isChampion || isProX 
                     ? 'border-yellow-500/40 bg-slate-900/40' 
                     : isStealth 
@@ -632,37 +827,37 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
                     : 'border-slate-200 bg-slate-50'
                 }`}>
                   {person.photoUrl ? (
-                    <img src={person.photoUrl} alt="" className="w-full h-full object-cover rounded-xl" />
+                    <img src={person.photoUrl} alt="" className="w-full h-full object-cover rounded-lg" />
                   ) : (
                     <div className="flex flex-col items-center justify-center gap-1 text-slate-600">
-                      <User className="w-8 h-8 opacity-40" />
-                      <span className="text-[6px] font-black uppercase tracking-widest text-slate-700 opacity-60">NO PHOTO</span>
+                      <User className={`${isB1 ? 'w-6 h-6' : 'w-8 h-8'} opacity-40`} />
+                      <span className="text-[5px] font-black uppercase tracking-widest text-slate-700 opacity-60">NO PHOTO</span>
                     </div>
                   )}
                 </div>
 
                 {/* Code Container: Barcode Batang 1D or QR Code */}
                 {barcodeFormat === 'QR_CODE' ? (
-                  <div className={`p-3 rounded-2xl shadow-md relative group shrink-0 ${isChampion || isProX ? 'bg-white/10 backdrop-blur-md border border-white/20' : isStealth || isGlory ? 'bg-white' : 'bg-white shadow-slate-200'}`}>
+                  <div className={`${isB1 ? 'p-1.5' : 'p-2.5'} rounded-xl shadow-md relative group shrink-0 ${isChampion || isProX ? 'bg-white/10 backdrop-blur-md border border-white/20' : isStealth || isGlory ? 'bg-white' : 'bg-white shadow-slate-200'}`}>
                      <div className="bg-white p-1 rounded-lg">
-                        <QRCodeSVG value={person.id} size={70} level="H" />
+                        <QRCodeSVG value={person.id} size={isB1 ? 52 : isB2 ? 62 : 70} level="H" />
                      </div>
                   </div>
                 ) : (
-                  <div className={`p-2 rounded-2xl shadow-md relative group flex flex-col items-center justify-center shrink-0 w-[140px] ${isChampion || isProX ? 'bg-white border-2 border-yellow-500/30' : isStealth || isGlory ? 'bg-white border border-slate-200' : 'bg-white border border-slate-200 shadow-slate-200'}`}>
-                    <div className="w-full flex items-center justify-center overflow-hidden py-1">
+                  <div className={`${isB1 ? 'p-1.5 w-[110px]' : isB2 ? 'p-2 w-[125px]' : 'p-2 w-[140px]'} rounded-xl shadow-md relative group flex flex-col items-center justify-center shrink-0 ${isChampion || isProX ? 'bg-white border-2 border-yellow-500/30' : isStealth || isGlory ? 'bg-white border border-slate-200' : 'bg-white border border-slate-200 shadow-slate-200'}`}>
+                    <div className="w-full flex items-center justify-center overflow-hidden py-0.5">
                       <Barcode 
                         value={person.id}
-                        width={1.2}
-                        height={38}
-                        fontSize={8}
+                        width={isB1 ? 0.9 : isB2 ? 1.05 : 1.2}
+                        height={isB1 ? 26 : isB2 ? 32 : 38}
+                        fontSize={isB1 ? 7 : 8}
                         displayValue={true}
                         text={person.registrationNo || person.id.substring(0, 10)}
                         background="transparent"
                         lineColor="#0f172a"
                       />
                     </div>
-                    <div className="text-[7px] font-mono font-bold text-slate-700 uppercase tracking-wider text-center mt-0.5">
+                    <div className="text-[6px] font-mono font-bold text-slate-700 uppercase tracking-wider text-center mt-0.5">
                       {person.targetNo ? `T-${person.targetNo}${person.position}` : 'E-ID'}
                     </div>
                   </div>
@@ -671,65 +866,65 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
             </div>
 
             {/* Category / Status Badge */}
-            <div className="flex flex-col items-center gap-1">
-              <span className={`text-[10px] font-black px-6 py-2 rounded-full text-white uppercase tracking-[0.2em] shadow-lg ${isLegacy || isGlory || isChampion || isProX ? 'rounded-none border-y-2 border-white/20' : 'skew-x-[-10deg]'}`} style={{ backgroundColor: (isChampion || isProX) ? '#ca8a04' : cardAccent }}>
+            <div className="flex flex-col items-center gap-0.5">
+              <span className={`${isB1 ? 'text-[8px] px-3.5 py-1' : isB2 ? 'text-[9px] px-5 py-1.5' : 'text-[10px] px-6 py-2'} font-black rounded-full text-white uppercase tracking-[0.2em] shadow-md ${isLegacy || isGlory || isChampion || isProX ? 'rounded-none border-y-2 border-white/20' : 'skew-x-[-10deg]'}`} style={{ backgroundColor: (isChampion || isProX) ? '#ca8a04' : cardAccent }}>
                 {isOfficial ? 'CREW' : person.category}
               </span>
-              {(isChampion || isProX) && <div className="text-[8px] font-black uppercase text-yellow-500 tracking-[0.4em] mt-1">Official Member</div>}
+              {(isChampion || isProX) && <div className="text-[7px] font-black uppercase text-yellow-500 tracking-[0.3em] mt-0.5">Official Member</div>}
             </div>
           </div>
 
           {/* Technical Data Grid */}
           {!isOfficial && (
-            <div className={`mt-auto w-full grid grid-cols-2 gap-px bg-slate-100 border border-slate-100 rounded-3xl overflow-hidden shadow-2xl ${isChampion || isProX ? 'border-white/10 bg-white/5 backdrop-blur-md' : isGlory ? 'border-amber-200/50' : ''}`}>
-               <div className={`${isStealth ? 'bg-slate-900' : (isChampion || isProX) ? 'bg-white/5' : 'bg-white/50'} p-4 flex flex-col items-center relative overflow-hidden`}>
+            <div className={`mt-auto w-full grid grid-cols-2 gap-px bg-slate-100 border border-slate-100 ${isB1 ? 'rounded-xl' : 'rounded-2xl'} overflow-hidden shadow-md ${isChampion || isProX ? 'border-white/10 bg-white/5 backdrop-blur-md' : isGlory ? 'border-amber-200/50' : ''}`}>
+               <div className={`${isStealth ? 'bg-slate-900' : (isChampion || isProX) ? 'bg-white/5' : 'bg-white/50'} ${isB1 ? 'p-2' : isB2 ? 'p-3' : 'p-4'} flex flex-col items-center relative overflow-hidden`}>
                   {(isGlory || isChampion || isProX) && <div className="absolute top-0 left-0 w-full h-0.5" style={{ background: (isChampion || isProX) ? '#eab308' : cardAccent }} />}
-                  <span className={`text-[7px] font-black uppercase tracking-widest mb-1 ${(isChampion || isProX) ? 'text-yellow-500' : 'text-slate-700'}`}>Target</span>
-                  <span className={`text-2xl font-black ${textPrimary}`}>{person.targetNo}{person.position}</span>
+                  <span className={`text-[7px] font-black uppercase tracking-widest mb-0.5 ${(isChampion || isProX) ? 'text-yellow-500' : 'text-slate-700'}`}>Target</span>
+                  <span className={`${isB1 ? 'text-base' : isB2 ? 'text-xl' : 'text-2xl'} font-black ${textPrimary}`}>{person.targetNo}{person.position}</span>
                </div>
-               <div className={`${isStealth ? 'bg-slate-900' : (isChampion || isProX) ? 'bg-white/5' : 'bg-white/50'} p-4 flex flex-col items-center relative overflow-hidden`}>
+               <div className={`${isStealth ? 'bg-slate-900' : (isChampion || isProX) ? 'bg-white/5' : 'bg-white/50'} ${isB1 ? 'p-2' : isB2 ? 'p-3' : 'p-4'} flex flex-col items-center relative overflow-hidden`}>
                   {(isGlory || isChampion || isProX) && <div className="absolute top-0 left-0 w-full h-0.5" style={{ background: (isChampion || isProX) ? '#eab308' : cardAccent }} />}
-                  <span className={`text-[7px] font-black uppercase tracking-widest mb-1 ${(isChampion || isProX) ? 'text-yellow-500' : 'text-slate-700'}`}>Session</span>
-                  <span className={`text-2xl font-black ${textPrimary}`}>{person.wave}</span>
+                  <span className={`text-[7px] font-black uppercase tracking-widest mb-0.5 ${(isChampion || isProX) ? 'text-yellow-500' : 'text-slate-700'}`}>Session</span>
+                  <span className={`${isB1 ? 'text-base' : isB2 ? 'text-xl' : 'text-2xl'} font-black ${textPrimary}`}>{person.wave}</span>
                </div>
             </div>
           )}
           
           {isOfficial && (
-            <div className={`mt-auto w-full p-4 rounded-3xl border flex items-center justify-between ${(isChampion || isProX) ? 'border-yellow-500/30 bg-yellow-500/5 backdrop-blur-md' : isStealth || isGlory ? 'border-white/10 bg-white/5' : 'border-slate-100 bg-slate-50'}`}>
-               <div className="flex items-center gap-4">
-                  <div className={`p-2.5 rounded-xl shadow-lg ${(isChampion || isProX) ? 'bg-yellow-500' : 'bg-blue-600'}`}>
-                     <ShieldCheck className="w-5 h-5 text-white" />
+            <div className={`mt-auto w-full ${isB1 ? 'p-2.5 rounded-xl' : 'p-3.5 rounded-2xl'} border flex items-center justify-between ${(isChampion || isProX) ? 'border-yellow-500/30 bg-yellow-500/5 backdrop-blur-md' : isStealth || isGlory ? 'border-white/10 bg-white/5' : 'border-slate-100 bg-slate-50'}`}>
+               <div className="flex items-center gap-3">
+                  <div className={`${isB1 ? 'p-1.5 rounded-lg' : 'p-2 rounded-xl'} shadow-md ${(isChampion || isProX) ? 'bg-yellow-500' : 'bg-blue-600'}`}>
+                     <ShieldCheck className={`${isB1 ? 'w-4 h-4' : 'w-5 h-5'} text-white`} />
                   </div>
                   <div className="text-left">
-                     <p className={`text-[12px] font-black leading-none uppercase ${(isChampion || isProX) ? 'text-white' : isGlory ? 'text-slate-900' : textPrimary}`}>Full Access</p>
-                     <p className={`text-[8px] font-bold uppercase mt-1.5 ${(isChampion || isProX) ? 'text-yellow-500' : 'text-slate-700'}`}>Verified Personnel</p>
+                     <p className={`${isB1 ? 'text-[10px]' : 'text-[12px]'} font-black leading-none uppercase ${(isChampion || isProX) ? 'text-white' : isGlory ? 'text-slate-900' : textPrimary}`}>Full Access</p>
+                     <p className={`text-[7px] font-bold uppercase mt-1 ${(isChampion || isProX) ? 'text-yellow-500' : 'text-slate-700'}`}>Verified Personnel</p>
                   </div>
                </div>
-               <div className={`text-[10px] font-black font-mono rotate-90 opacity-40 italic ${(isChampion || isProX) ? 'text-yellow-500' : ''}`}>AUTHORIZED</div>
+               <div className={`text-[9px] font-black font-mono rotate-90 opacity-40 italic ${(isChampion || isProX) ? 'text-yellow-500' : ''}`}>AUTHORIZED</div>
             </div>
           )}
         </div>
 
         {/* Global Footer */}
         {(!isAsymmetric && !isGlory && !isChampion && !isProX) && (
-          <div className="h-12 flex items-center justify-center relative z-10 pt-2" style={{ borderTop: `1px solid ${cardAccent}22` }}>
-             <span className={`text-[9px] font-black uppercase tracking-[0.4em] ${textSecondary}`}>
+          <div className={`${isB1 ? 'h-8' : isB2 ? 'h-10' : 'h-12'} flex items-center justify-center relative z-10 px-3`} style={{ borderTop: `1px solid ${cardAccent}22` }}>
+             <span className={`${isB1 ? 'text-[8px] tracking-[0.2em]' : 'text-[9px] tracking-[0.3em]'} font-black uppercase truncate ${textSecondary}`}>
                 • {cardSubtitle} •
              </span>
           </div>
         )}
 
         {(isGlory || isChampion || isProX) && (
-           <div className={`h-12 flex items-center justify-between px-6 relative z-10 overflow-hidden shadow-[0_-4px_20px_rgba(0,0,0,0.2)]`} 
+           <div className={`${isB1 ? 'h-9 px-3' : isB2 ? 'h-10 px-4' : 'h-12 px-6'} flex items-center justify-between relative z-10 overflow-hidden shadow-[0_-4px_20px_rgba(0,0,0,0.2)]`} 
                 style={{ backgroundColor: (isChampion || isProX) ? (isProX ? '#eab308' : '#ca8a04') : cardAccent }}>
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg] translate-x-[-100%] animate-[shimmer_3s_infinite]" />
-              <div className="flex flex-col items-start relative z-10">
-                 <span className={`text-[11px] font-black uppercase italic tracking-[0.2em] ${isProX ? 'text-slate-900' : 'text-white'} drop-shadow-sm`}>
+              <div className="flex flex-col items-start relative z-10 truncate mr-2">
+                 <span className={`${isB1 ? 'text-[9px]' : 'text-[11px]'} font-black uppercase italic tracking-[0.2em] ${isProX ? 'text-slate-900' : 'text-white'} drop-shadow-sm truncate`}>
                    {cardSubtitle}
                  </span>
               </div>
-              {isProX && <Target className="w-5 h-5 text-slate-900 opacity-80 relative z-10" />}
+              {isProX && <Target className="w-4 h-4 text-slate-900 opacity-80 relative z-10 shrink-0" />}
            </div>
         )}
       </div>
@@ -783,6 +978,26 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
                   Preview Semua ({archers.length})
                 </button>
               </div>
+
+              {/* Quick Card Size Selector in Top Bar */}
+              <div className="flex items-center bg-white p-1 rounded-2xl border border-slate-200 shadow-sm">
+                <span className="px-2.5 text-[9px] font-black uppercase text-slate-700 tracking-wider hidden lg:inline">Ukuran:</span>
+                {(['B1', 'B2', 'B3', 'B4'] as IdCardSize[]).map(sizeKey => (
+                  <button
+                    key={sizeKey}
+                    type="button"
+                    onClick={() => setCardSize(sizeKey)}
+                    className={`px-3 py-1.5 rounded-xl text-[10px] font-black font-mono transition-all ${
+                      cardSize === sizeKey
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    }`}
+                    title={`${ID_CARD_SIZES[sizeKey].name} - ${ID_CARD_SIZES[sizeKey].badge}`}
+                  >
+                    {sizeKey}
+                  </button>
+                ))}
+              </div>
               
               <div className="hidden md:flex items-center gap-2 bg-slate-200/50 p-1.5 rounded-xl">
                  <div className="px-3 text-[9px] font-black text-slate-800 uppercase tracking-widest">
@@ -805,7 +1020,101 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
               {/* Left Column: Design Controls */}
               <div className="space-y-6">
                 
-                {/* 1. Mode Selection Tab (Template Bawaan vs Upload Desain Sendiri) */}
+                {/* 1. ID Card Size Selection (B1, B2, B3, B4) */}
+                <div className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 space-y-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 bg-blue-50 rounded-xl text-blue-600">
+                        <Layout className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h3 className="font-black font-oswald uppercase italic text-slate-900 text-base">Ukuran ID Card</h3>
+                        <p className="text-[9px] font-bold text-slate-700 uppercase tracking-widest">Standar B1, B2, B3, B4 Panitia</p>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg text-[10px] font-black font-mono">
+                      {sizeConfig.name} ({sizeConfig.badge})
+                    </span>
+                  </div>
+
+                  {/* 4 Size Cards Grid */}
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {(['B1', 'B2', 'B3', 'B4'] as IdCardSize[]).map(sizeKey => {
+                      const cfg = ID_CARD_SIZES[sizeKey];
+                      const isSelected = cardSize === sizeKey;
+                      return (
+                        <button
+                          key={sizeKey}
+                          type="button"
+                          onClick={() => setCardSize(sizeKey)}
+                          className={`p-3 rounded-2xl border-2 text-left transition-all relative flex flex-col justify-between ${
+                            isSelected 
+                              ? 'border-blue-600 bg-blue-50/70 shadow-sm' 
+                              : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between w-full mb-1">
+                            <span className={`text-base font-black font-oswald tracking-wide ${isSelected ? 'text-blue-900' : 'text-slate-800'}`}>
+                              {cfg.name}
+                            </span>
+                            {isSelected && (
+                              <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">
+                                <Check className="w-2.5 h-2.5 stroke-[3]" />
+                              </span>
+                            )}
+                          </div>
+                          <div className="space-y-0.5">
+                            <span className={`text-[10px] font-mono font-bold block ${isSelected ? 'text-blue-700' : 'text-slate-700'}`}>
+                              {cfg.badge}
+                            </span>
+                            <span className="text-[8px] font-medium text-slate-700 line-clamp-1 block">
+                              {cfg.pouchName.split('(')[0]}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Size Detail Description */}
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-[10px] text-slate-700 space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-600 inline-block" />
+                      <span>{sizeConfig.pouchName}</span>
+                    </div>
+                    <p className="text-[9px] text-slate-700 leading-relaxed">{sizeConfig.description}</p>
+                  </div>
+
+                  {/* Crop Marks Toggle (Garis Bantu Potong Cutter) */}
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Scissors className="w-4 h-4 text-slate-700" />
+                      <div>
+                        <span className="text-[10px] font-black uppercase text-slate-800 tracking-wider block">
+                          Garis Bantu Potong
+                        </span>
+                        <span className="text-[8px] font-medium text-slate-700 block">
+                          Corner crop marks untuk memotong rapi
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowCropMarks(!showCropMarks)}
+                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        showCropMarks ? 'bg-blue-600' : 'bg-slate-300'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          showCropMarks ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+
+                {/* 2. Mode Selection Tab (Template Bawaan vs Upload Desain Sendiri) */}
                 <div className="bg-white p-3 rounded-[2rem] shadow-sm border border-slate-100">
                   <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1.5 rounded-2xl">
                     <button
@@ -1374,7 +1683,10 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
                       
                       <div className="max-w-xs mx-auto">
                          {participants[0] ? renderCard(participants[0], false) : (
-                            <div className="aspect-[2/3] bg-slate-100 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-700 p-10 text-center">
+                            <div 
+                              className="w-full bg-slate-100 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-700 p-10 text-center"
+                              style={{ aspectRatio: sizeConfig.aspectRatio }}
+                            >
                                <User className="w-12 h-12 mb-4 opacity-20" />
                                <span className="text-[10px] font-black uppercase tracking-widest">Belum Ada Data Atlet</span>
                             </div>
@@ -1394,7 +1706,10 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
 
                       <div className="max-w-xs mx-auto">
                          {officials[0] ? renderCard(officials[0], true) : (
-                            <div className="aspect-[2/3] bg-slate-100 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-700 p-10 text-center">
+                            <div 
+                              className="w-full bg-slate-100 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-700 p-10 text-center"
+                              style={{ aspectRatio: sizeConfig.aspectRatio }}
+                            >
                                <ShieldCheck className="w-12 h-12 mb-4 opacity-20" />
                                <span className="text-[10px] font-black uppercase tracking-widest">Belum Ada Data Official</span>
                             </div>
@@ -1407,15 +1722,22 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
           ) : (
             /* FULL PREVIEW ALL CARDS */
             <div className="bg-white p-8 rounded-[3rem] shadow-sm border border-slate-100 min-h-screen">
-              <div className="flex items-center justify-between mb-12 px-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-12 px-6">
                  <div>
-                   <h3 className="text-2xl font-black font-oswald uppercase italic text-slate-900">Pre-Print Inspection</h3>
-                   <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest mt-1">Reviewing {archers.length} generated identifiers</p>
+                   <div className="flex items-center gap-3">
+                     <h3 className="text-2xl font-black font-oswald uppercase italic text-slate-900">Pre-Print Inspection</h3>
+                     <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-xl text-xs font-black font-mono">
+                       {sizeConfig.name} ({sizeConfig.badge})
+                     </span>
+                   </div>
+                   <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest mt-1">
+                     Reviewing {archers.length} generated identifiers • {sizeConfig.pouchName}
+                   </p>
                  </div>
-                 <div className="flex gap-4">
+                 <div className="flex items-center gap-6">
                     <div className="flex flex-col items-end">
                        <span className="text-[10px] font-black text-slate-700 uppercase">Perkiraan Kertas</span>
-                       <span className="text-xl font-black text-slate-900">{Math.ceil(archers.length / 4)} × Lembar A4</span>
+                       <span className="text-xl font-black text-slate-900">{Math.ceil(archers.length / sizeConfig.cardsPerPage)} × Lembar A4</span>
                     </div>
                  </div>
               </div>
@@ -1494,11 +1816,12 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
           .animate-in {
             animation: none !important;
           }
-          .aspect-[2/3] {
-             width: 9.5cm !important;
-             height: 14.25cm !important;
+          .id-card-item {
+             width: ${sizeConfig.printWidthCm}cm !important;
+             height: ${sizeConfig.printHeightCm}cm !important;
              margin: 0 auto;
              page-break-inside: avoid;
+             box-sizing: border-box !important;
           }
         }
       `}} />

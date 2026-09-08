@@ -18,6 +18,9 @@ import {
   Target, Trophy, Users, Activity, Info, FileText, Landmark, Smartphone,
   Camera, Loader2, ExternalLink, ShieldAlert, QrCode, RefreshCw, Printer, AlertTriangle
 } from 'lucide-react';
+import { Barcode } from './Barcode';
+import { QRCodeSVG } from 'qrcode.react';
+import ParticipantTicketModal, { TicketParticipant } from './ParticipantTicketModal';
 
 interface Props {
   event: ArcheryEvent;
@@ -32,6 +35,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
   const [step, setStep] = useState(1);
   const [recentRegistrations, setRecentRegistrations] = useState<ParticipantRegistration[]>([]);
   const [showInvoice, setShowInvoice] = useState(false);
+  const [showTicketModal, setShowTicketModal] = useState(false);
   const [activePaymentSession, setActivePaymentSession] = useState<{
     orderId: string;
     redirectUrl: string;
@@ -724,28 +728,41 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
             <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-xl border border-slate-100 max-w-sm mx-auto space-y-6">
               <div className="space-y-3">
                 <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest leading-none">Pendaftaran Anda Berhasil</p>
+                
+                {/* TOMBOL SIMPAN / UNDUH TIKET BARCODE HP */}
+                <button 
+                  onClick={() => setShowTicketModal(true)} 
+                  className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase text-xs hover:bg-emerald-700 transition-all flex items-center justify-center gap-3 shadow-xl shadow-emerald-600/25 active:scale-95"
+                >
+                  <QrCode className="w-4 h-4" /> SIMPAN TIKET / BARCODE HP
+                </button>
+
+                {/* Info Box Barcode untuk Daftar Ulang */}
+                <div className="p-3.5 bg-amber-50 border border-amber-200/80 rounded-2xl text-left space-y-1">
+                  <div className="flex items-center gap-1.5 text-amber-900 text-[10px] font-black uppercase tracking-wider">
+                    <Smartphone className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    Wajib Disimpan untuk Daftar Ulang
+                  </div>
+                  <p className="text-[9px] text-slate-600 font-semibold leading-relaxed">
+                    Simpan Barcode di atas atau di Invoice. Tunjukkan barcode saat tiba di lokasi untuk <strong>absen / daftar ulang otomatis</strong>.
+                  </p>
+                </div>
+
+                <button 
+                  onClick={() => setShowInvoice(true)} 
+                  className="w-full py-3.5 bg-slate-900 text-white rounded-2xl font-black uppercase text-xs hover:bg-slate-800 transition-all flex items-center justify-center gap-3 shadow-md"
+                >
+                  <FileText className="w-4 h-4" /> UNDUH / CETAK INVOICE + BARCODE
+                </button>
+
                 <button 
                   onClick={onViewParticipants} 
-                  className="w-full py-4 bg-slate-950 text-white rounded-2xl font-black uppercase text-xs hover:bg-arcus-red transition-all flex items-center justify-center gap-3"
+                  className="w-full py-3 bg-slate-100 text-slate-700 rounded-2xl font-black uppercase text-xs hover:bg-slate-200 transition-all flex items-center justify-center gap-3"
                 >
                   <Users className="w-4 h-4" /> CEK DAFTAR PESERTA
                 </button>
-                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-2xl text-center space-y-1">
-                  <div className="flex items-center justify-center gap-1.5 text-slate-700 text-[10px] font-black uppercase tracking-wider">
-                    <ShieldCheck className="w-3.5 h-3.5 text-arcus-red" />
-                    ID Card Resmi Panitia
-                  </div>
-                  <p className="text-[8.5px] text-slate-500 font-semibold leading-relaxed">
-                    Kartu tanda peserta (ID Card) akan disiapkan dan dicetak resmi oleh panitia turnamen.
-                  </p>
-                </div>
-                <button 
-                  onClick={() => setShowInvoice(true)} 
-                  className="w-full py-4 bg-amber-500 text-white rounded-2xl font-black uppercase text-xs hover:bg-amber-600 transition-all flex items-center justify-center gap-3 shadow-lg shadow-amber-500/20"
-                >
-                  <FileText className="w-4 h-4" /> UNDUH / CETAK INVOICE
-                </button>
-                <p className="text-[9px] font-bold text-slate-700 italic">Pastikan nama Anda sudah muncul di daftar peserta.</p>
+
+                <p className="text-[9px] font-bold text-slate-500 italic">Pastikan nama Anda sudah muncul di daftar peserta.</p>
               </div>
 
               {event.settings?.waGroupLink && (
@@ -1668,6 +1685,96 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
               </div>
             </div>
 
+            {/* Barcode & QR Code Section for Daftar Ulang */}
+            <div className="border-t-2 border-dashed border-slate-200 pt-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-black font-oswald text-slate-900 uppercase tracking-wide">
+                    BARCODE DAFTAR ULANG / CHECK-IN RESMI
+                  </h4>
+                  <p className="text-[9px] text-slate-500 font-semibold">
+                    Tunjukkan barcode di bawah ini kepada panitia saat registrasi ulang di lokasi pertandingan.
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 bg-red-100 text-red-700 rounded-full text-[8px] font-black uppercase tracking-wider shrink-0">
+                  WAJIB DISIMPAN
+                </span>
+              </div>
+
+              {/* Grid of participant barcodes */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {(() => {
+                  const items = recentRegistrations.length > 0 
+                    ? recentRegistrations 
+                    : (regMode === 'INDIVIDUAL' 
+                        ? [{
+                            id: recentRegistrations[0]?.id || `reg_${Date.now()}`,
+                            registrationNo: recentRegistrations[0]?.registrationNo || `REG-${Date.now().toString().slice(-6)}`,
+                            name: formData.name || 'Pendaftar',
+                            category: formData.regType === 'OFFICIAL' ? 'OFFICIAL' : formData.category,
+                            club: formData.club || '-'
+                          }]
+                        : collectiveMembers.map((m, idx) => ({
+                            id: `reg_${Date.now()}_${idx}`,
+                            registrationNo: `REG-${Date.now().toString().slice(-6)}-${idx + 1}`,
+                            name: m.name,
+                            category: m.category,
+                            club: formData.club || '-'
+                          }))
+                      );
+
+                  return items.map((item: any, idx) => {
+                    const barcodeVal = item.id || item.registrationNo || `REG-${idx + 1}`;
+                    const catLabel = item.category === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (CATEGORY_LABELS[item.category as CategoryType] || item.category);
+                    return (
+                      <div key={idx} className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 flex flex-col items-center justify-between text-center space-y-2">
+                        <div className="w-full text-left border-b border-slate-200/60 pb-1.5 flex justify-between items-center">
+                          <div className="truncate pr-2">
+                            <p className="font-extrabold text-slate-900 text-[11px] truncate uppercase">{item.name}</p>
+                            <p className="text-[8px] font-black text-slate-500 uppercase">{catLabel}</p>
+                          </div>
+                          <span className="text-[8px] font-mono font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded shrink-0">
+                            {item.registrationNo || barcodeVal}
+                          </span>
+                        </div>
+
+                        {/* Barcode & QR Display */}
+                        <div className="flex items-center justify-center gap-3 w-full py-1">
+                          <div className="bg-white p-1 rounded-lg border border-slate-200 shrink-0 shadow-sm">
+                            <QRCodeSVG value={barcodeVal} size={54} level="M" />
+                          </div>
+                          <div className="flex-1 overflow-hidden flex flex-col items-center justify-center">
+                            <Barcode 
+                              value={barcodeVal} 
+                              width={1.2} 
+                              height={34} 
+                              fontSize={9} 
+                              displayValue={true} 
+                            />
+                          </div>
+                        </div>
+
+                        <p className="text-[7.5px] font-bold text-slate-500 uppercase tracking-tight">
+                          Pindai saat daftar ulang di lokasi
+                        </p>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+
+              {/* Instructions Callout */}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-slate-700 text-[10px] space-y-1">
+                <div className="flex items-center gap-1.5 text-amber-900 font-black uppercase text-[10px]">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  PERINTAH PENTING UNTUK PESERTA & OFFICIAL:
+                </div>
+                <p className="leading-relaxed text-slate-600 font-medium">
+                  Harap simpan lembar Invoice ini atau tangkapan layar (screenshot) barcode di atas. Saat tiba di lokasi turnamen, tunjukkan barcode kepada panitia di meja registrasi untuk dipindai (scan) agar status kehadiran Anda langsung <strong>otomatis tercatat HADIR (Check-in)</strong>.
+                </p>
+              </div>
+            </div>
+
             {/* Action Buttons */}
             <div className="flex gap-2.5 justify-end border-t border-slate-100 pt-5 no-print">
               <button 
@@ -1732,6 +1839,55 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
             </div>
           </div>
         </div>
+      )}
+
+      {/* Participant E-Ticket & Barcode Modal */}
+      {showTicketModal && (
+        <ParticipantTicketModal
+          isOpen={showTicketModal}
+          onClose={() => setShowTicketModal(false)}
+          tournamentName={event.settings?.tournamentName}
+          tournamentDate={event.settings?.eventDate}
+          tournamentLocation={event.settings?.location}
+          mapsUrl={event.settings?.mapsUrl}
+          logoUrl={event.settings?.logoUrl}
+          secondaryLogoUrl={event.settings?.secondaryLogoUrl}
+          clubLogoUrl={event.settings?.clubLogoUrl}
+          participants={(() => {
+            if (recentRegistrations.length > 0) {
+              return recentRegistrations.map(r => ({
+                id: r.id,
+                name: r.name,
+                club: r.club || formData.club,
+                category: r.category,
+                registrationNo: r.registrationNo || r.id,
+                status: r.status,
+                ktaNumber: r.ktaNumber
+              }));
+            }
+            if (regMode === 'INDIVIDUAL') {
+              return [{
+                id: `reg_${Date.now()}`,
+                name: formData.name || 'Peserta',
+                club: formData.club || 'Umum',
+                category: formData.regType === 'OFFICIAL' ? 'OFFICIAL' : formData.category,
+                registrationNo: `REG-${Date.now().toString().slice(-6)}`,
+                status: RegistrationStatus.PENDING,
+                ktaNumber: formData.ktaNumber
+              }];
+            }
+            return collectiveMembers.map((m, idx) => ({
+              id: `reg_${Date.now()}_${idx}`,
+              name: m.name,
+              club: formData.club || 'Umum',
+              category: m.category,
+              registrationNo: `REG-${Date.now().toString().slice(-6)}-${idx + 1}`,
+              status: RegistrationStatus.PENDING,
+              ktaNumber: m.ktaNumber
+            }));
+          })()}
+          onOpenInvoice={() => setShowInvoice(true)}
+        />
       )}
     </div>
   );

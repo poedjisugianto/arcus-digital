@@ -16,6 +16,8 @@ import { resolveGoogleDriveUrl } from '../lib/photoService';
 import ArcherList from './ArcherList';
 import OfficialList from './OfficialList';
 import PrintRoundReportModal from './PrintRoundReportModal';
+import PrintScoreSheetsModal from './PrintScoreSheetsModal';
+import { getGoogleMapsUrl } from '../lib/mapsHelper';
 
 interface Props {
   eventId: string;
@@ -83,6 +85,7 @@ const AdminPanel: React.FC<Props> = ({
   isSuperAdmin = false 
 }) => {
   const [showPrintReportModal, setShowPrintReportModal] = useState(false);
+  const [showPrintScoreSheetsModal, setShowPrintScoreSheetsModal] = useState(false);
   const [localSettings, setLocalSettings] = useState<TournamentSettings>(() => {
     const savedDraft = localStorage.getItem(`admin_draft_${eventId}`);
     if (savedDraft) {
@@ -704,13 +707,20 @@ const AdminPanel: React.FC<Props> = ({
                     </p>
                   </div>
                 </div>
-                <div className="pt-8">
+                <div className="pt-8 flex flex-col sm:flex-row gap-2.5">
                   <button
                     type="button"
                     onClick={() => setShowPrintReportModal(true)}
-                    className="w-full py-4 text-center bg-arcus-red hover:bg-red-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                    className="flex-1 py-3.5 text-center bg-arcus-red hover:bg-red-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
                   >
-                    <Printer className="w-4 h-4" /> Buka Menu Cetak
+                    <Printer className="w-4 h-4" /> Hasil & Babak
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPrintScoreSheetsModal(true)}
+                    className="flex-1 py-3.5 text-center bg-slate-900 hover:bg-slate-800 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <FileText className="w-4 h-4 text-amber-400" /> Lembar Skor
                   </button>
                 </div>
               </div>
@@ -835,14 +845,44 @@ const AdminPanel: React.FC<Props> = ({
                     </label>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <label className="block group">
-                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1">Lokasi</span>
-                        <input type="text" placeholder="Stadion..." value={localSettings.location} onChange={e => updateSettings({ location: e.target.value })} className="block mt-1 w-full rounded-lg border-slate-200 p-3 border font-bold outline-none focus:border-arcus-red text-slate-900" />
+                      <label className="block group md:col-span-2">
+                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1">Lokasi / Nama Venue</span>
+                        <input type="text" placeholder="Nama Stadion / Lapangan..." value={localSettings.location} onChange={e => updateSettings({ location: e.target.value })} className="block mt-1 w-full rounded-lg border-slate-200 p-3 border font-bold outline-none focus:border-arcus-red text-slate-900" />
                       </label>
 
                       <label className="block group">
                         <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1 italic">Tanggal</span>
                         <input type="text" placeholder="DD - DD MM YYYY" value={localSettings.eventDate} onChange={e => updateSettings({ eventDate: e.target.value })} className="block mt-1 w-full rounded-lg border-slate-200 p-3 border font-bold outline-none focus:border-arcus-red text-slate-900" />
+                      </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <label className="block group">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1 flex items-center gap-1.5">
+                            <MapPin className="w-3.5 h-3.5 text-red-600" /> Tautan / Pin Google Maps (URL / Share Link)
+                          </span>
+                          {(localSettings.mapsUrl || localSettings.location) && (
+                            <a 
+                              href={getGoogleMapsUrl(localSettings.location, localSettings.mapsUrl) || '#'}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[9px] font-black text-blue-600 hover:underline flex items-center gap-1"
+                            >
+                              <ExternalLink className="w-2.5 h-2.5" /> Tes Buka Peta
+                            </a>
+                          )}
+                        </div>
+                        <input 
+                          type="url" 
+                          placeholder="https://maps.app.goo.gl/... (atau kosongkan untuk pencarian otomatis)" 
+                          value={localSettings.mapsUrl || ''} 
+                          onChange={e => updateSettings({ mapsUrl: e.target.value })} 
+                          className="block w-full rounded-lg border-slate-200 p-3 border font-bold text-xs outline-none focus:border-arcus-red text-slate-900" 
+                        />
+                        <span className="text-[9px] text-slate-500 font-medium mt-1 block">
+                          Tip: Buka Google Maps di HP/Laptop &gt; Cari lokasi &gt; Klik Bagikan &gt; Salin tautan.
+                        </span>
                       </label>
 
                       <label className="block group">
@@ -1123,6 +1163,190 @@ const AdminPanel: React.FC<Props> = ({
                         <p className="text-[10px] font-black uppercase italic tracking-[0.2em]">Belum Ada Preview Pamflet</p>
                      </div>
                    )}
+                </div>
+              </div>
+
+              {/* Multi-Logo Official Branding for Printed Documents */}
+              <div className="pt-8 border-t border-slate-200 space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600 border border-amber-200">
+                      <Award className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-base font-black font-oswald uppercase italic text-slate-800">
+                        Logo Resmi Dokumen Cetak (Multi-Logo PERPANI / World Archery)
+                      </h4>
+                      <p className="text-[10px] text-slate-600 font-semibold">
+                        Gunakan tautan Google Drive atau URL gambar (.png transparan disarankan) agar penyimpanan tetap 0 KB dan hasil cetak scoresheet/dokumen beresolusi tinggi.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-[9px] font-black uppercase tracking-wider hidden sm:inline-block">
+                    Standar Kop 3 Titik
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Logo 1: Event / Tournament Logo */}
+                  <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200/80 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">
+                        Logo 1: Event / Turnamen (Utama)
+                      </span>
+                      <span className="text-[8px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded uppercase">
+                        Kiri Atas
+                      </span>
+                    </div>
+                    <input 
+                      type="url" 
+                      placeholder="Link Google Drive / URL Logo Event..."
+                      value={localSettings.logoUrl || ''} 
+                      onChange={e => updateSettings({ logoUrl: resolveGoogleDriveUrl(e.target.value) })} 
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs outline-none focus:border-arcus-red transition-all" 
+                    />
+                    <div className="h-16 bg-white rounded-xl border border-dashed border-slate-300 flex items-center justify-center p-2">
+                      {localSettings.logoUrl ? (
+                        <img 
+                          src={resolveGoogleDriveUrl(localSettings.logoUrl)} 
+                          alt="Logo Event" 
+                          className="h-12 max-w-full object-contain"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <span className="text-[9px] text-slate-600 font-bold uppercase italic">Belum Ada Logo Event</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Logo 2: PERPANI / KONI / Federation Logo */}
+                  <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200/80 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">
+                        Logo 2: PERPANI / KONI / Organisasi
+                      </span>
+                      <span className="text-[8px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">
+                        Kanan Atas
+                      </span>
+                    </div>
+                    <input 
+                      type="url" 
+                      placeholder="Link Google Drive / URL Logo PERPANI..."
+                      value={localSettings.secondaryLogoUrl || ''} 
+                      onChange={e => updateSettings({ secondaryLogoUrl: resolveGoogleDriveUrl(e.target.value) })} 
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs outline-none focus:border-blue-600 transition-all" 
+                    />
+                    <div className="h-16 bg-white rounded-xl border border-dashed border-slate-300 flex items-center justify-center p-2">
+                      {localSettings.secondaryLogoUrl ? (
+                        <img 
+                          src={resolveGoogleDriveUrl(localSettings.secondaryLogoUrl)} 
+                          alt="Logo Organisasi" 
+                          className="h-12 max-w-full object-contain"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <span className="text-[9px] text-slate-600 font-bold uppercase italic">Belum Ada Logo PERPANI</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Logo 3: Host Club / Organizer Logo */}
+                  <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200/80 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">
+                        Logo 3: Klub Penyelenggara / Tuan Rumah
+                      </span>
+                      <span className="text-[8px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded uppercase">
+                        Kiri Pendamping
+                      </span>
+                    </div>
+                    <input 
+                      type="url" 
+                      placeholder="Link Google Drive / URL Logo Klub..."
+                      value={localSettings.clubLogoUrl || ''} 
+                      onChange={e => updateSettings({ clubLogoUrl: resolveGoogleDriveUrl(e.target.value) })} 
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs outline-none focus:border-emerald-600 transition-all" 
+                    />
+                    <div className="h-16 bg-white rounded-xl border border-dashed border-slate-300 flex items-center justify-center p-2">
+                      {localSettings.clubLogoUrl ? (
+                        <img 
+                          src={resolveGoogleDriveUrl(localSettings.clubLogoUrl)} 
+                          alt="Logo Klub" 
+                          className="h-12 max-w-full object-contain"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <span className="text-[9px] text-slate-600 font-bold uppercase italic">Belum Ada Logo Klub</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Simulated Print Kop Document Preview */}
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <span className="text-[9px] font-black text-white/80 uppercase tracking-widest flex items-center gap-1.5">
+                      <Printer className="w-3.5 h-3.5 text-amber-400" />
+                      Simulasi Kop Dokumen Cetak (Scoresheet, Hasil Lomba & Data Peserta)
+                    </span>
+                    <span className="text-[8px] font-mono text-slate-400">Ukuran A4 Standar</span>
+                  </div>
+
+                  {/* Document Header Representation */}
+                  <div className="bg-white text-slate-900 p-4 rounded-xl border-2 border-slate-800 shadow-sm flex items-center justify-between gap-3">
+                    {/* Left: Event + Club */}
+                    <div className="flex items-center gap-2 max-w-[150px]">
+                      {localSettings.logoUrl ? (
+                        <img 
+                          src={resolveGoogleDriveUrl(localSettings.logoUrl)} 
+                          alt="Event Logo" 
+                          className="h-10 max-w-[65px] object-contain" 
+                          referrerPolicy="no-referrer" 
+                        />
+                      ) : (
+                        <div className="w-9 h-9 rounded bg-red-50 border border-red-200 flex items-center justify-center text-[7px] font-black text-red-600 text-center leading-none">
+                          LOGO EVENT
+                        </div>
+                      )}
+
+                      {localSettings.clubLogoUrl && (
+                        <img 
+                          src={resolveGoogleDriveUrl(localSettings.clubLogoUrl)} 
+                          alt="Club Logo" 
+                          className="h-9 max-w-[55px] object-contain" 
+                          referrerPolicy="no-referrer" 
+                        />
+                      )}
+                    </div>
+
+                    {/* Center: Tournament Info */}
+                    <div className="text-center flex-1 min-w-0 px-2">
+                      <p className="text-[7.5px] font-black uppercase text-red-600 tracking-widest leading-none">
+                        DOKUMEN RESMI TURNAMEN
+                      </p>
+                      <h5 className="text-xs sm:text-sm font-black font-oswald uppercase truncate text-slate-900 mt-0.5">
+                        {localSettings.tournamentName || 'NAMA TURNAMEN'}
+                      </h5>
+                      <p className="text-[8px] font-bold text-slate-500 uppercase">
+                        {localSettings.eventDate || 'Tanggal'} • {localSettings.location || 'Lokasi'}
+                      </p>
+                    </div>
+
+                    {/* Right: PERPANI + Arcus */}
+                    <div className="flex items-center gap-2 max-w-[150px] justify-end">
+                      {localSettings.secondaryLogoUrl && (
+                        <img 
+                          src={resolveGoogleDriveUrl(localSettings.secondaryLogoUrl)} 
+                          alt="PERPANI Logo" 
+                          className="h-9 max-w-[55px] object-contain" 
+                          referrerPolicy="no-referrer" 
+                        />
+                      )}
+                      <div className="w-8 h-8 rounded bg-slate-900 text-white flex items-center justify-center text-[7px] font-black tracking-tighter">
+                        ARCUS
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2364,6 +2588,26 @@ const AdminPanel: React.FC<Props> = ({
             scoreLogs: event?.scoreLogs || []
           } as any)}
           onClose={() => setShowPrintReportModal(false)}
+        />
+      )}
+
+      {/* Official Score Sheet Print Modal */}
+      {showPrintScoreSheetsModal && (
+        <PrintScoreSheetsModal 
+          isOpen={showPrintScoreSheetsModal}
+          event={({
+            ...(event || {}),
+            id: eventId,
+            status: event?.status || 'ACTIVE',
+            settings: localSettings,
+            archers: archers.length > 0 ? archers : (event?.archers || []),
+            officials: officials.length > 0 ? officials : (event?.officials || []),
+            scores: event?.scores || [],
+            matches: event?.matches || {},
+            registrations: event?.registrations || [],
+            scoreLogs: event?.scoreLogs || []
+          } as any)}
+          onClose={() => setShowPrintScoreSheetsModal(false)}
         />
       )}
     </div>
