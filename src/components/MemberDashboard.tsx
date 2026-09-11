@@ -9,12 +9,13 @@ import {
   QrCode, Loader2, Smartphone, Share2, Shield, ChevronRight, ShieldAlert,
   Bell, BellRing, Mail, Inbox, Send, MessageSquare, History, RefreshCw,
   TrendingUp, BarChart2, Database, Search, Users, Filter, Calendar, MapPin,
-  ExternalLink, ChevronDown, Sparkles
+  ExternalLink, ChevronDown, Sparkles, Headphones, Wrench, Lock
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ArcusLogo from './ArcusLogo';
 import AdminDashboard from './AdminDashboard';
 import { safeFormatDateTime, safeFormatDate, safeFormatTime } from '../lib/dateUtils';
+import { isSupportAccessActive, getRemainingSupportTime } from '../lib/supportAccess';
 
 interface Props {
   userName?: string;
@@ -47,6 +48,18 @@ interface Props {
 type CreationStep = 'LIST' | 'AGREEMENT' | 'NAME_INPUT' | 'FINAL_CONFIRM' | 'PRACTICE_INPUT';
 type BillingStep = 'INVOICE' | 'PAYMENT_SELECTION' | 'GATEWAY_PROCESS' | 'SUCCESS';
 type InboxTab = 'RECEIVED' | 'COMPOSE' | 'SENT';
+
+const getEventArcherCount = (event: ArcheryEvent) => {
+  const fromArchers = (event.archers || []).filter(a => a.category !== CategoryType.OFFICIAL);
+  const fromRegs = (event.registrations || [])
+    .filter((r: any) => r.regType !== 'OFFICIAL' && r.category !== CategoryType.OFFICIAL);
+  const uniqueArchers = new Set([...fromArchers.map(a => a.id), ...fromRegs.map((r: any) => r.id)]);
+  
+  if (uniqueArchers.size > 0 || (event.archers && event.archers.length > 0) || event.isDetailedLoaded) {
+    return uniqueArchers.size;
+  }
+  return Number((event as any).registrationCount) || (event.archers || []).length || 0;
+};
 
 const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentUser, isSuperAdmin, onGoToSuperAdmin, notifications, onMarkNotifRead, globalSettings, events, onCreateEvent, onCreatePractice, onCreateSelfPractice, onManageEvent, onViewLive, onUpdateEvent, onDeleteEvent, onRefreshData, onSyncNow, isSyncing, lastSync, onActivateEvent, onShare, onSendNotif, onLogout }) => {
   const [step, setStep] = useState<CreationStep>('LIST');
@@ -884,6 +897,9 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
             ) : (
               filteredEvents.map(event => {
                 const expiration = getExpirationStatus(event);
+                const isOwner = (event as any).organizerId === userId || event.settings?.organizerId === userId;
+                const isSuper = userRole === UserRole.SUPERADMIN || userRole === UserRole.ADMIN || userRole === UserRole.MASTER_ADMIN || isSuperAdmin;
+                const hasSupport = isSupportAccessActive(event.settings?.technicalSupport);
                 return (
                   <div key={event.id} className={`p-4 md:px-8 md:py-6 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4 md:gap-8 hover:bg-slate-50 transition-all group relative overflow-hidden ${deletingId === event.id ? 'opacity-50 grayscale pointer-events-none' : ''}`}>
                     <div className="flex items-center gap-4 md:gap-8 relative z-10 min-w-0">
@@ -912,12 +928,17 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                              {event.status === 'ACTIVE' && (
                                <span className="bg-arcus-red text-white text-[7px] font-black px-2 py-0.5 rounded uppercase tracking-widest italic animate-pulse">REGISTRASI BUKA</span>
                              )}
+                             {hasSupport && (
+                               <span className="bg-amber-100 text-amber-900 border border-amber-300 text-[7px] font-black px-2 py-0.5 rounded uppercase tracking-widest flex items-center gap-1 animate-pulse">
+                                 <Headphones className="w-2.5 h-2.5 text-amber-600" /> BANTUAN TEKNIS AKTIF
+                               </span>
+                             )}
                           </div>
                         </div>
                         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
                       <div className="flex items-center gap-2 text-[10px] font-black text-slate-700 uppercase tracking-wider">
                         <Users className={`w-4 h-4 ${event.settings?.isPractice ? 'text-teal-500' : 'text-arcus-red'}`} />
-                        {(event as any).registrationCount || (event.archers || []).length || 0} Archer <span className="hidden sm:inline">Terdaftar</span>
+                        {getEventArcherCount(event)} Archer <span className="hidden sm:inline">Terdaftar</span>
                       </div>
                           {event.settings?.location && (
                             <div className="flex items-center gap-2 text-[10px] font-black text-slate-700 uppercase tracking-wider">
@@ -939,7 +960,7 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                           )}
                           {expiration?.isUrgent && (
                              <div className="bg-red-50 text-red-600 px-3 py-1.5 rounded-xl flex items-center gap-2 border border-red-100 font-black text-[9px] uppercase tracking-widest animate-pulse">
-                               <AlertTriangle className="w-3.5 h-3.5" /> {expiration.message}
+                                <AlertTriangle className="w-3.5 h-3.5" /> {expiration.message}
                              </div>
                           )}
                         </div>
@@ -977,6 +998,26 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                           >
                             <ShieldCheck className="w-5 h-5" /> AKTIVASI
                           </button>
+                        ) : !isOwner && isSuper ? (
+                          hasSupport ? (
+                            <button 
+                              onClick={() => onManageEvent(event.id)} 
+                              className="col-span-2 px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2.5 transition-all active:scale-95 bg-amber-500 hover:bg-amber-600 text-white shadow-md shadow-amber-500/20"
+                              title="Masuk Mode Bantuan Teknis"
+                            >
+                              <Headphones className="w-5 h-5" /> BANTUAN TEKNIS
+                            </button>
+                          ) : (
+                            <button 
+                              onClick={() => {
+                                toast.error(`Akses Terkunci: Penyelenggara "${event.settings?.tournamentName}" belum memberikan izin bantuan teknis.`);
+                              }} 
+                              className="col-span-2 px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all bg-slate-100 hover:bg-slate-200 text-slate-400 border border-slate-200"
+                              title="Dashboard terkunci - membutuhkan izin bantuan dari penyelenggara"
+                            >
+                              <Lock className="w-4 h-4 text-slate-400" /> TERKUNCI
+                            </button>
+                          )
                         ) : (
                           <button onClick={() => onManageEvent(event.id)} className={`col-span-2 px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-3 transition-all active:scale-95 ${event.settings?.isPractice ? 'bg-teal-900 text-white hover:bg-black' : 'bg-slate-900 text-white hover:bg-arcus-red'}`}>
                             <Settings className={`w-5 h-5 ${event.settings?.isPractice ? 'text-teal-400' : 'text-arcus-red'}`} /> 

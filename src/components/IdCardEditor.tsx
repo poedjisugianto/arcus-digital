@@ -211,7 +211,7 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
     if (settings?.secondaryLogoUrl) {
       list.push({
         id: 'logo_org',
-        name: 'Logo Organisasi / PERPANI',
+        name: 'Logo INORGA / Organisasi',
         url: resolveGoogleDriveUrl(settings.secondaryLogoUrl),
         x: 0,
         y: 0,

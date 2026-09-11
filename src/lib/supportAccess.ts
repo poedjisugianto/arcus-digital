@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { TechnicalSupportAccess } from '../types';
 
 export const isSupportAccessActive = (support?: TechnicalSupportAccess | null): boolean => {
@@ -40,4 +41,26 @@ export const getRemainingSupportTime = (support?: TechnicalSupportAccess | null)
     totalMs: diff,
     formatted: `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
   };
+};
+
+export const useSupportCountdown = (support?: TechnicalSupportAccess | null): SupportTimeRemaining => {
+  const [remaining, setRemaining] = useState<SupportTimeRemaining>(() => getRemainingSupportTime(support));
+
+  useEffect(() => {
+    setRemaining(getRemainingSupportTime(support));
+
+    if (!isSupportAccessActive(support)) return;
+
+    const interval = setInterval(() => {
+      const next = getRemainingSupportTime(support);
+      setRemaining(next);
+      if (!next.active) {
+        clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [support?.enabled, support?.expiresAt]);
+
+  return remaining;
 };

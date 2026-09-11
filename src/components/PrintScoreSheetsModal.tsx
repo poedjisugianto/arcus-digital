@@ -158,7 +158,7 @@ export const PrintScoreSheetsModal: React.FC<Props> = ({
                 Cetak Lembar Skor Resmi (Score Sheet)
               </h3>
               <p className="text-[10px] text-slate-400">
-                Format Standar World Archery / PERPANI dengan Kop Multi-Logo Turnamen
+                Format Standar World Archery / INORGA dengan Kop Multi-Logo Turnamen
               </p>
             </div>
           </div>
@@ -298,12 +298,12 @@ export const PrintScoreSheetsModal: React.FC<Props> = ({
                     </div>
                   </div>
 
-                  {/* Right Logos: Organization / PERPANI + Arcus */}
+                  {/* Right Logos: Organization / INORGA + Arcus */}
                   <div className="flex items-center justify-end gap-2.5 max-w-[140px] shrink-0">
                     {secondaryLogo && (
                       <img 
                         src={secondaryLogo} 
-                        alt="PERPANI Logo" 
+                        alt="Logo INORGA" 
                         className="h-11 max-w-[65px] object-contain"
                         referrerPolicy="no-referrer"
                       />

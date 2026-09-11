@@ -18,6 +18,8 @@ import OfficialList from './OfficialList';
 import PrintRoundReportModal from './PrintRoundReportModal';
 import PrintScoreSheetsModal from './PrintScoreSheetsModal';
 import { getGoogleMapsUrl } from '../lib/mapsHelper';
+import { TechnicalSupportCard, TechnicalSupportModeBanner } from './TechnicalSupportCard';
+import { isSupportAccessActive } from '../lib/supportAccess';
 
 interface Props {
   eventId: string;
@@ -374,6 +376,14 @@ const AdminPanel: React.FC<Props> = ({
 
   return (
     <div className="min-h-screen bg-slate-50" id="settings-form">
+      {/* Super Admin Support Mode Banner */}
+      <TechnicalSupportModeBanner 
+        settings={localSettings} 
+        onExit={onBack} 
+        onRevokeAccess={() => updateSettings({ technicalSupport: { enabled: false, expiresAt: Date.now() } })} 
+        isSuperAdmin={isSuperAdmin} 
+      />
+
       {/* Saved Success Flag */}
       {showSavedFlag && (
         <div className="fixed top-32 left-1/2 -translate-x-1/2 z-[200] animate-in slide-in-from-top-4 duration-300">
@@ -412,6 +422,12 @@ const AdminPanel: React.FC<Props> = ({
                 {!isPractice && (
                   <div className={`px-1.5 py-0.5 rounded text-[6px] md:text-[7px] font-black uppercase tracking-widest border ${localSettings.isActivated !== false ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-orange-100 text-orange-700 border-orange-200'}`}>
                     {localSettings.isActivated !== false ? 'AKTIF' : 'PENDING'}
+                  </div>
+                )}
+                {!isPractice && isSupportAccessActive(localSettings.technicalSupport) && (
+                  <div className="px-1.5 py-0.5 rounded text-[6px] md:text-[7px] font-black uppercase tracking-widest border bg-amber-100 text-amber-800 border-amber-300 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    BANTUAN AKTIF
                   </div>
                 )}
               </div>
@@ -1175,7 +1191,7 @@ const AdminPanel: React.FC<Props> = ({
                     </div>
                     <div>
                       <h4 className="text-base font-black font-oswald uppercase italic text-slate-800">
-                        Logo Resmi Dokumen Cetak (Multi-Logo PERPANI / World Archery)
+                        Logo Resmi Dokumen Cetak (Multi-Logo INORGA / World Archery)
                       </h4>
                       <p className="text-[10px] text-slate-600 font-semibold">
                         Gunakan tautan Google Drive atau URL gambar (.png transparan disarankan) agar penyimpanan tetap 0 KB dan hasil cetak scoresheet/dokumen beresolusi tinggi.
@@ -1219,11 +1235,11 @@ const AdminPanel: React.FC<Props> = ({
                     </div>
                   </div>
 
-                  {/* Logo 2: PERPANI / KONI / Federation Logo */}
+                  {/* Logo 2: LOGO INORGA */}
                   <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200/80 space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">
-                        Logo 2: PERPANI / KONI / Organisasi
+                        Logo 2: LOGO INORGA
                       </span>
                       <span className="text-[8px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">
                         Kanan Atas
@@ -1231,7 +1247,7 @@ const AdminPanel: React.FC<Props> = ({
                     </div>
                     <input 
                       type="url" 
-                      placeholder="Link Google Drive / URL Logo PERPANI..."
+                      placeholder="Link Google Drive / URL Logo INORGA..."
                       value={localSettings.secondaryLogoUrl || ''} 
                       onChange={e => updateSettings({ secondaryLogoUrl: resolveGoogleDriveUrl(e.target.value) })} 
                       className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs outline-none focus:border-blue-600 transition-all" 
@@ -1240,12 +1256,12 @@ const AdminPanel: React.FC<Props> = ({
                       {localSettings.secondaryLogoUrl ? (
                         <img 
                           src={resolveGoogleDriveUrl(localSettings.secondaryLogoUrl)} 
-                          alt="Logo Organisasi" 
+                          alt="Logo INORGA" 
                           className="h-12 max-w-full object-contain"
                           referrerPolicy="no-referrer"
                         />
                       ) : (
-                        <span className="text-[9px] text-slate-600 font-bold uppercase italic">Belum Ada Logo PERPANI</span>
+                        <span className="text-[9px] text-slate-600 font-bold uppercase italic">Belum Ada Logo INORGA</span>
                       )}
                     </div>
                   </div>
@@ -1332,12 +1348,12 @@ const AdminPanel: React.FC<Props> = ({
                       </p>
                     </div>
 
-                    {/* Right: PERPANI + Arcus */}
+                    {/* Right: INORGA + Arcus */}
                     <div className="flex items-center gap-2 max-w-[150px] justify-end">
                       {localSettings.secondaryLogoUrl && (
                         <img 
                           src={resolveGoogleDriveUrl(localSettings.secondaryLogoUrl)} 
-                          alt="PERPANI Logo" 
+                          alt="Logo INORGA" 
                           className="h-9 max-w-[55px] object-contain" 
                           referrerPolicy="no-referrer" 
                         />
@@ -1868,6 +1884,16 @@ const AdminPanel: React.FC<Props> = ({
 
           {activeTab === 'SCORERS' && (
             <div className="space-y-16 animate-in fade-in duration-500">
+              {/* Delegasi Izin Bantuan Teknis Super Admin */}
+              {!isPractice && (
+                <TechnicalSupportCard 
+                  settings={localSettings} 
+                  onUpdateSettings={updateSettings} 
+                  isSuperAdmin={isSuperAdmin} 
+                  currentUserEmail={(event as any)?.organizerEmail || (localSettings as any)?.organizerEmail || globalSettings?.contactSupport || ''} 
+                />
+              )}
+
               <div className="space-y-8">
                 <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 pb-4 gap-4">
                   <div className="flex items-center gap-4">

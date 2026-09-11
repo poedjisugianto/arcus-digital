@@ -260,7 +260,7 @@ export interface TournamentSettings {
   location?: string;
   mapsUrl?: string; // Link Google Maps / Share pin lokasi turnamen
   logoUrl?: string; // Logo Utama Event / Turnamen (URL / Google Drive)
-  secondaryLogoUrl?: string; // Logo Induk Organisasi (PERPANI / KONI / World Archery)
+  secondaryLogoUrl?: string; // Logo INORGA / Induk Organisasi (URL / Google Drive)
   clubLogoUrl?: string; // Logo Klub Penyelenggara / Tuan Rumah
   eventDate?: string;
   executionTime?: string;

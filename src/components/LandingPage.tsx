@@ -14,18 +14,30 @@ import {
   LayoutGrid,
   RefreshCw,
   AlertTriangle,
-  Download,
-  Laptop,
   Navigation
 } from 'lucide-react';
-import { ArcheryEvent, User } from '../types';
+import { ArcheryEvent, User, CategoryType } from '../types';
 import { resolveGoogleDriveUrl } from '../lib/photoService';
 import { getGoogleMapsUrl } from '../lib/mapsHelper';
 import ArcusLogo from './ArcusLogo';
 import TournamentCalendar from './TournamentCalendar';
-import { usePWAInstall } from '../hooks/usePWAInstall';
-import InstallAppModal from './InstallAppModal';
-import InstallAppSection from './InstallAppSection';
+
+const getEventArcherCount = (event: ArcheryEvent) => {
+  const hasLoadedList = (event.archers && event.archers.length > 0) || (event.registrations && event.registrations.length > 0) || event.isDetailedLoaded;
+  if (hasLoadedList) {
+    const fromArchers = (event.archers || []).filter(a => {
+      const status = (a.status || 'PENDING').toUpperCase();
+      return !['REJECTED', 'CANCELLED'].includes(status) && a.category !== CategoryType.OFFICIAL;
+    });
+    const fromRegs = (event.registrations || []).filter((r: any) => {
+      const status = (r.status || 'PENDING').toUpperCase();
+      return !['REJECTED', 'CANCELLED'].includes(status) && r.regType !== 'OFFICIAL' && r.category !== CategoryType.OFFICIAL;
+    });
+    const set = new Set([...fromArchers.map(a => a.id), ...fromRegs.map((r: any) => r.id)]);
+    return set.size;
+  }
+  return Number((event as any).registrationCount) || (event.archers || []).length || 0;
+};
 
 interface Props {
   events: ArcheryEvent[];
@@ -64,20 +76,6 @@ export default function LandingPage({
 }: Props) {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<'GRID' | 'CALENDAR'>('GRID');
-  
-  // PWA Install State & Hook
-  const { isInstallable, isInstalled, platform, promptInstall } = usePWAInstall();
-  const [isInstallModalOpen, setIsInstallModalOpen] = React.useState(false);
-  const [installModalTab, setInstallModalTab] = React.useState<'mobile' | 'desktop'>('mobile');
-
-  const handleOpenInstallModal = (defaultTab?: 'mobile' | 'desktop') => {
-    if (defaultTab) {
-      setInstallModalTab(defaultTab);
-    } else {
-      setInstallModalTab(platform === 'desktop' ? 'desktop' : 'mobile');
-    }
-    setIsInstallModalOpen(true);
-  };
   
   // Debug log untuk memastikan data sampai ke komponen
   React.useEffect(() => {
@@ -163,10 +161,6 @@ export default function LandingPage({
             
             <div className="hidden md:flex items-center gap-8">
               <a href="#events" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-700 hover:text-slate-900 transition-colors">Event</a>
-              <a href="#install-app" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-700 hover:text-arcus-red transition-colors flex items-center gap-1.5">
-                <Download className="w-3.5 h-3.5 text-arcus-red" />
-                Instal App
-              </a>
               <a href="#features" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-700 hover:text-slate-900 transition-colors">Fitur</a>
               
               <a 
@@ -222,18 +216,6 @@ export default function LandingPage({
             className="md:hidden bg-white border-t border-slate-100 p-6 space-y-6"
           >
             <a href="#events" onClick={() => setIsMenuOpen(false)} className="block text-sm font-black uppercase tracking-widest text-slate-900">Event Terkini</a>
-            <button 
-              onClick={() => {
-                setIsMenuOpen(false);
-                handleOpenInstallModal('mobile');
-              }}
-              className="w-full text-left flex items-center justify-between text-sm font-black uppercase tracking-widest text-arcus-red"
-            >
-              <span className="flex items-center gap-2">
-                <Download className="w-4 h-4" /> Instal di PC & HP
-              </span>
-              <span className="text-[8px] bg-red-100 text-arcus-red px-2 py-0.5 rounded-full">PWA</span>
-            </button>
             <a href="#features" onClick={() => setIsMenuOpen(false)} className="block text-sm font-black uppercase tracking-widest text-slate-900">Fitur Sistem</a>
             <a 
               href="https://ais-pre-ihwvpfbazwbyenzfsn3unw-238734823836.asia-southeast1.run.app/" 
@@ -300,13 +282,13 @@ export default function LandingPage({
                 SCORER ACCESS
               </button>
 
-              <button 
-                onClick={() => handleOpenInstallModal()}
-                className="w-full sm:w-auto px-8 py-3.5 bg-slate-900 hover:bg-slate-800 text-white border-2 border-slate-900 rounded-xl font-black font-oswald uppercase italic text-lg transition-all shadow-xl flex items-center justify-center gap-3 active:scale-95 group"
+              <a 
+                href="#events"
+                className="w-full sm:w-auto px-8 py-3.5 bg-slate-900 hover:bg-slate-800 text-white border-2 border-slate-900 rounded-xl font-black font-oswald uppercase italic text-lg transition-all shadow-xl flex items-center justify-center gap-2 active:scale-95 group"
               >
-                <Download className="w-5 h-5 text-arcus-red group-hover:animate-bounce" />
-                <span>INSTAL DI PC & HP</span>
-              </button>
+                <Trophy className="w-5 h-5 text-yellow-400" />
+                <span>JELAJAHI EVENT</span>
+              </a>
             </div>
           </motion.div>
         </div>
@@ -466,7 +448,7 @@ export default function LandingPage({
                             <Users className="w-4 h-4" />
                           </div>
                           <span className="text-[10px] font-black uppercase tracking-widest truncate">
-                            {(event as any).registrationCount || (event.archers || []).length || 0} ARCHER TERDAFTAR
+                            {getEventArcherCount(event)} ARCHER TERDAFTAR
                           </span>
                         </div>
                         <div className="flex items-center justify-between gap-2 text-slate-600">
@@ -613,15 +595,6 @@ export default function LandingPage({
         </div>
       </section>
 
-      {/* Install App Section (PWA for PC & Mobile) */}
-      <InstallAppSection 
-        onOpenInstallModal={handleOpenInstallModal}
-        platform={platform}
-        isInstallable={isInstallable}
-        isInstalled={isInstalled}
-        onPromptInstall={promptInstall}
-      />
-
       {/* Features Section - Simple & Compact */}
       <section id="features" className="py-20 md:py-24 px-6 lg:px-12 bg-slate-950 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-px bg-white/10" />
@@ -653,23 +626,6 @@ export default function LandingPage({
               </div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-16 bg-white border-b border-slate-50 px-6">
-        <div className="max-w-[1200px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-8">
-            {[
-              { label: "EVENT ARCHER", value: "2.4K+" },
-              { label: "TOURNAMENT HELD", value: "850+" },
-              { label: "ARROW SHOT", value: "1.2M+" },
-              { label: "SYNC UPTIME", value: "99.9%" }
-            ].map((s, i) => (
-              <div key={i} className="text-center space-y-1">
-                <div className="text-3xl md:text-4xl font-black font-oswald italic text-slate-900 tracking-tighter">{s.value}</div>
-                <div className="text-[8px] font-black text-slate-700 uppercase tracking-widest">{s.label}</div>
-              </div>
-            ))}
         </div>
       </section>
 
@@ -716,26 +672,10 @@ export default function LandingPage({
               
               <div className="grid grid-cols-2 gap-8">
                 <div className="space-y-6">
-                  <div className="tech-label opacity-40">APLIKASI & SISTEM</div>
+                  <div className="tech-label opacity-40">NAVIGASI SISTEM</div>
                   <ul className="space-y-4">
-                    <li>
-                      <button 
-                        onClick={() => handleOpenInstallModal('desktop')}
-                        className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-arcus-red transition-all flex items-center gap-1.5"
-                      >
-                        <Laptop className="w-3.5 h-3.5" />
-                        Instal di PC / Laptop
-                      </button>
-                    </li>
-                    <li>
-                      <button 
-                        onClick={() => handleOpenInstallModal('mobile')}
-                        className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-arcus-red transition-all flex items-center gap-1.5"
-                      >
-                        <Smartphone className="w-3.5 h-3.5" />
-                        Instal di HP (Android/iOS)
-                      </button>
-                    </li>
+                    <li><a href="#events" className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-arcus-red transition-all">Daftar Event</a></li>
+                    <li><a href="#features" className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-arcus-red transition-all">Fitur Unggulan</a></li>
                     <li><button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-[11px] font-black uppercase tracking-widest text-slate-700 hover:text-arcus-red transition-all">Kembali ke Atas</button></li>
                   </ul>
                 </div>
@@ -778,17 +718,6 @@ export default function LandingPage({
           </div>
         </div>
       </footer>
-
-      {/* PWA Install Modal */}
-      <InstallAppModal 
-        isOpen={isInstallModalOpen}
-        onClose={() => setIsInstallModalOpen(false)}
-        platform={platform}
-        isInstallable={isInstallable}
-        isInstalled={isInstalled}
-        onPromptInstall={promptInstall}
-        initialTab={installModalTab}
-      />
     </div>
   );
 }

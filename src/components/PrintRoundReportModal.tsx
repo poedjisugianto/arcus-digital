@@ -565,7 +565,7 @@ export default function PrintRoundReportModal({
                 {event.settings?.secondaryLogoUrl && (
                   <img 
                     src={resolveGoogleDriveUrl(event.settings.secondaryLogoUrl)} 
-                    alt="PERPANI Logo" 
+                    alt="Logo INORGA" 
                     className="h-11 max-w-[65px] object-contain shrink-0"
                     referrerPolicy="no-referrer"
                   />

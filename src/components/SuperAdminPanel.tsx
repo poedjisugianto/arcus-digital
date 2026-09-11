@@ -5,10 +5,11 @@ import {
   ShieldCheck, CheckCircle2, 
   AlertCircle, Save, ArrowLeft, Trash2, 
   Search, Eye, ShieldAlert, Activity, Landmark, Check, Mail, Send, RefreshCw,
-  Zap, AlertTriangle
+  Zap, AlertTriangle, Headphones, Wrench, Lock
 } from 'lucide-react';
 import { AppState, GlobalSettings, ArcheryEvent, User, AppNotification, CategoryType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
+import { isSupportAccessActive, getRemainingSupportTime } from '../lib/supportAccess';
 
 interface Props {
   state: AppState;
@@ -19,10 +20,11 @@ interface Props {
   onDeleteUser: (userId: string) => void;
   onUpdateUser: (user: User) => void;
   onSendNotif: (notif: AppNotification) => void;
+  onManageEvent?: (eventId: string) => void;
   onBack: () => void;
 }
 
-const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSystemData, onUpdateEvent, onDeleteEvent, onDeleteUser, onUpdateUser, onSendNotif, onBack }) => {
+const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSystemData, onUpdateEvent, onDeleteEvent, onDeleteUser, onUpdateUser, onSendNotif, onManageEvent, onBack }) => {
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'EVENTS' | 'USERS' | 'SETTINGS'>('OVERVIEW');
   const [searchTerm, setSearchTerm] = useState('');
   const [localSettings, setLocalSettings] = useState<GlobalSettings>(state.globalSettings);
@@ -241,6 +243,7 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                     <th className="p-6 text-center">Peserta</th>
                     <th className="p-6 text-center">Penagihan</th>
                     <th className="p-6 text-center">Konfirmasi</th>
+                    <th className="p-6 text-center">Bantuan Teknis</th>
                     <th className="p-6 text-right">Aksi</th>
                 </tr>
               </thead>
@@ -248,11 +251,20 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                 {state.events.filter(e => (e.settings?.tournamentName || '').toLowerCase().includes((searchTerm || '').toLowerCase())).map(event => {
                   const organizer = state.users.find(u => u.id === (event.settings?.organizerId || ''));
                   const activeCategories = Object.keys(event.settings?.categoryConfigs || {}).map(cat => CATEGORY_LABELS[cat as CategoryType]);
+                  const hasSupport = isSupportAccessActive(event.settings?.technicalSupport);
+                  const timeLeft = getRemainingSupportTime(event.settings?.technicalSupport);
                   
                     return (
-                      <tr key={event.id} className="hover:bg-slate-50 transition-colors">
+                      <tr key={event.id} className={`transition-colors ${hasSupport ? 'bg-amber-50/40 hover:bg-amber-50/70' : 'hover:bg-slate-50'}`}>
                         <td className="p-6">
-                          <p className="font-black uppercase text-slate-900">{event.settings?.tournamentName || 'Untitled'}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-black uppercase text-slate-900">{event.settings?.tournamentName || 'Untitled'}</p>
+                            {hasSupport && (
+                              <span className="px-1.5 py-0.5 rounded bg-amber-500 text-white text-[7px] font-black uppercase tracking-wider animate-pulse">
+                                BANTUAN
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[10px] text-slate-800 font-bold uppercase flex items-center gap-1 mt-1">
                             <Calendar className="w-3 h-3" /> {event.settings?.eventDate || 'TBA'}
                           </p>
@@ -296,7 +308,50 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                             {event.settings?.isConfirmed !== false ? 'Terkonfirmasi' : 'Belum Konfirmasi'}
                           </button>
                         </td>
+                        <td className="p-6 text-center">
+                          {hasSupport ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <span className="px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 shadow-xs animate-pulse">
+                                <Headphones className="w-3 h-3 text-amber-600" /> Bantuan Aktif
+                              </span>
+                              <span className="font-mono text-[9px] font-black text-amber-800">
+                                ⏱️ {timeLeft.formatted}
+                              </span>
+                              {event.settings?.technicalSupport?.issueNote && (
+                                <span className="text-[8px] text-slate-500 italic max-w-[130px] truncate" title={event.settings.technicalSupport.issueNote}>
+                                  "{event.settings.technicalSupport.issueNote}"
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center gap-0.5 text-slate-400">
+                              <span className="px-2 py-0.5 rounded-full text-[8px] font-bold uppercase bg-slate-100 text-slate-500 border border-slate-200 flex items-center gap-1">
+                                <Lock className="w-2.5 h-2.5" /> Terkunci
+                              </span>
+                              <span className="text-[7.5px] text-slate-400">Privat</span>
+                            </div>
+                          )}
+                        </td>
                         <td className="p-6 text-right space-x-2">
+                           {hasSupport && onManageEvent ? (
+                             <button
+                               onClick={() => onManageEvent(event.id)}
+                               className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-[9px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                               title="Masuk ke Dashboard Event dalam Mode Bantuan Teknis"
+                             >
+                               <Wrench className="w-3.5 h-3.5" /> Masuk Bantuan
+                             </button>
+                           ) : onManageEvent ? (
+                             <button
+                               onClick={() => {
+                                 alert(`Akses terkunci. Penyelenggara event "${event.settings?.tournamentName}" belum mengaktifkan Izin Bantuan Teknis. Minta penyelenggara membuka izin bantuan di tab Akses Panitia jika memerlukan perbaikan.`);
+                               }}
+                               className="p-2 text-slate-300 hover:text-slate-500 transition-colors inline-block"
+                               title="Akses Dashboard Terkunci (Perlu Izin Penyelenggara)"
+                             >
+                               <Lock className="w-4 h-4" />
+                             </button>
+                           ) : null}
                            <button 
                              onClick={async () => {
                                if (!confirm(`Reset data untuk "${event.settings?.tournamentName}"? Semua pendaftaran dan skor akan dihapus.`)) return;

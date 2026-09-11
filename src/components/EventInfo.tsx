@@ -25,20 +25,34 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
   const isExpired = event.settings?.registrationDeadline && new Date() > new Date(event.settings?.registrationDeadline);
   const isRegistrationOpen = event.status !== 'DRAFT' && event.status !== 'COMPLETED';
   
-  const verifiedArchers = (event.archers || []).filter(a => {
-    const status = (a.status || 'PENDING').toUpperCase();
-    return !['REJECTED', 'CANCELLED'].includes(status) && a.category !== CategoryType.OFFICIAL;
-  });
-  const verifiedRegs = (event.registrations || []).filter((r: any) => {
-    const status = (r.status || 'PENDING').toUpperCase();
-    return !['REJECTED', 'CANCELLED'].includes(status) && r.regType !== 'OFFICIAL' && r.category !== CategoryType.OFFICIAL;
-  });
-  
-  const allParticipantIds = new Set([
-    ...verifiedArchers.map(a => a.id),
-    ...verifiedRegs.map((r: any) => r.id)
-  ]);
-  const totalParticipants = Math.max(allParticipantIds.size, event.registrationCount || 0);
+  // Gabungkan peserta dari archers dan registrations secara unik berdasarkan ID (hanya kategori atlet yang valid)
+  const activeArchers = React.useMemo(() => {
+    const fromArchers = (event.archers || []).filter(a => {
+      const status = (a.status || 'PENDING').toUpperCase();
+      return !['REJECTED', 'CANCELLED'].includes(status) && a.category !== CategoryType.OFFICIAL;
+    });
+    const fromRegs = (event.registrations || [])
+      .filter((r: any) => {
+        const status = (r.status || 'PENDING').toUpperCase();
+        return !['REJECTED', 'CANCELLED'].includes(status) && r.regType !== 'OFFICIAL' && r.category !== CategoryType.OFFICIAL;
+      })
+      .map((r: any) => ({
+        ...r,
+        category: r.category as CategoryType,
+        targetNo: r.targetNo || 0,
+        wave: r.wave || 1
+      }));
+
+    const map = new Map<string, any>();
+    fromRegs.forEach(r => map.set(r.id, r));
+    fromArchers.forEach(a => map.set(a.id, { ...(map.get(a.id) || {}), ...a }));
+
+    return Array.from(map.values());
+  }, [event.archers, event.registrations]);
+
+  // Total atlet terdaftar yang valid dan selaras 100% dengan daftar peserta
+  const hasLoadedList = (event.archers && event.archers.length > 0) || (event.registrations && event.registrations.length > 0) || event.isDetailedLoaded;
+  const totalParticipants = hasLoadedList ? activeArchers.length : (event.registrationCount || activeArchers.length || 0);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-arcus-red selection:text-white">
@@ -244,9 +258,9 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
                 </button>
               </div>
 
-              {verifiedArchers.length > 0 ? (
+              {activeArchers.length > 0 ? (
                 <div className="space-y-3">
-                  {verifiedArchers.slice(0, 10).map((archer) => (
+                  {activeArchers.slice(0, 10).map((archer) => (
                     <div key={archer.id} className={`flex items-center justify-between p-4 bg-slate-50 rounded-2xl border transition-all ${['APPROVED', 'PAID', 'CONFIRMED'].includes((archer.status || 'PENDING').toUpperCase()) ? 'border-slate-100 group hover:border-emerald-500' : 'border-slate-100 group hover:border-amber-500'}`}>
                       <div className="flex items-center gap-4">
                         <div className="w-8 h-8 md:w-10 md:h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-xs md:text-sm font-black font-oswald italic text-slate-700 transition-all">
@@ -279,12 +293,12 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
                       </div>
                     </div>
                   ))}
-                  {verifiedArchers.length > 10 && (
+                  {activeArchers.length > 10 && (
                     <button 
                       onClick={onViewParticipants}
                       className="w-full py-4 text-center text-[10px] font-black uppercase tracking-widest text-slate-700 hover:text-slate-900 transition-colors"
                     >
-                      + {verifiedArchers.length - 10} Peserta Lainnya
+                      + {activeArchers.length - 10} Peserta Lainnya
                     </button>
                   )}
                 </div>

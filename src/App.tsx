@@ -89,6 +89,22 @@ import { auth, db } from './firebase';
 import { sanitizeForFirestore } from './lib/firestoreUtils';
 const googleProvider = new GoogleAuthProvider();
 
+const getAccurateParticipantCount = (archers: any[] = [], regs: any[] = [], fallbackCount?: number) => {
+  const activeArchers = archers.filter(a => {
+    const status = (a.status || 'PENDING').toUpperCase();
+    return !['REJECTED', 'CANCELLED'].includes(status) && a.category !== CategoryType.OFFICIAL;
+  });
+  const activeRegs = regs.filter(r => {
+    const status = (r.status || 'PENDING').toUpperCase();
+    return !['REJECTED', 'CANCELLED'].includes(status) && r.regType !== 'OFFICIAL' && r.category !== CategoryType.OFFICIAL;
+  });
+  const uniqueIds = new Set([...activeArchers.map(a => a.id), ...activeRegs.map(r => r.id)]);
+  if (uniqueIds.size > 0 || archers.length > 0 || regs.length > 0) {
+    return uniqueIds.size;
+  }
+  return fallbackCount || 0;
+};
+
 // Helper to parse route from URL search params & session storage
 const parseRouteFromUrl = (): { view: string; eventId: string | null; club: string; search: string } => {
   try {
@@ -471,12 +487,7 @@ export default function App() {
               registrations: finalRegs,
               archers: finalArchers,
               officials: finalOfficials,
-              registrationCount: Math.max(
-                existing.registrationCount || 0,
-                pe.registrationCount || 0,
-                finalRegs.length,
-                finalArchers.length
-              ),
+              registrationCount: getAccurateParticipantCount(finalArchers, finalRegs, pe.registrationCount || existing.registrationCount),
               scores: existing.scores?.length ? existing.scores : (pe.scores || []),
               scoreLogs: existing.scoreLogs?.length ? existing.scoreLogs : (pe.scoreLogs || []),
               isDetailedLoaded: existing.isDetailedLoaded || false
@@ -565,12 +576,7 @@ export default function App() {
                   registrations: finalRegs,
                   archers: finalArchers,
                   officials: finalOfficials,
-                  registrationCount: Math.max(
-                    existing.registrationCount || 0,
-                    ue.registrationCount || 0,
-                    finalRegs.length,
-                    finalArchers.length
-                  ),
+                  registrationCount: getAccurateParticipantCount(finalArchers, finalRegs, ue.registrationCount || existing.registrationCount),
                   scores: existing.scores?.length ? existing.scores : (ue.scores || []),
                   scoreLogs: existing.scoreLogs?.length ? existing.scoreLogs : (ue.scoreLogs || []),
                   isDetailedLoaded: existing.isDetailedLoaded || false
@@ -661,12 +667,7 @@ export default function App() {
                       registrations: finalRegs,
                       archers: finalArchers,
                       officials: finalOfficials,
-                      registrationCount: Math.max(
-                        evData.registrationCount || 0,
-                        e.registrationCount || 0,
-                        finalRegs.length,
-                        finalArchers.length
-                      ),
+                      registrationCount: getAccurateParticipantCount(finalArchers, finalRegs, evData.registrationCount || e.registrationCount),
                       scores: cloudScores.length ? cloudScores : (e.scores || []),
                       scoreLogs: cloudScoreLogs.length ? cloudScoreLogs : (e.scoreLogs || []),
                       isDetailedLoaded: true
@@ -681,7 +682,7 @@ export default function App() {
                   registrations: rawSubmissions,
                   archers: cloudArchers,
                   officials: cloudOfficials,
-                  registrationCount: Math.max(evData.registrationCount || 0, rawSubmissions.length, cloudArchers.length),
+                  registrationCount: getAccurateParticipantCount(cloudArchers, rawSubmissions, evData.registrationCount),
                   scores: cloudScores,
                   scoreLogs: cloudScoreLogs,
                   isDetailedLoaded: true
@@ -760,12 +761,7 @@ export default function App() {
                       registrations: finalRegs,
                       archers: finalArchers,
                       officials: finalOfficials,
-                      registrationCount: Math.max(
-                        d.registrationCount || 0,
-                        e.registrationCount || 0,
-                        finalRegs.length,
-                        finalArchers.length
-                      ),
+                      registrationCount: getAccurateParticipantCount(finalArchers, finalRegs, d.registrationCount || e.registrationCount),
                       scores: rawScores.length ? rawScores : (e.scores || []),
                       scoreLogs: rawLogs.length ? rawLogs : (e.scoreLogs || []),
                       isDetailedLoaded: true
@@ -782,7 +778,7 @@ export default function App() {
                   registrations: rawSubmissions,
                   archers: cloudArchers,
                   officials: cloudOfficials,
-                  registrationCount: Math.max(d.registrationCount || 0, rawSubmissions.length, cloudArchers.length),
+                  registrationCount: getAccurateParticipantCount(cloudArchers, rawSubmissions, d.registrationCount),
                   scores: rawScores,
                   scoreLogs: rawLogs,
                   isDetailedLoaded: true
@@ -848,12 +844,7 @@ export default function App() {
                   registrations: mergedRegistrations,
                   archers: mergedArchers,
                   officials: mergedOfficials,
-                  registrationCount: Math.max(
-                    parentEvent.registrationCount || 0,
-                    e.registrationCount || 0,
-                    mergedRegistrations.length,
-                    mergedArchers.length
-                  ),
+                  registrationCount: getAccurateParticipantCount(mergedArchers, mergedRegistrations, parentEvent.registrationCount || e.registrationCount),
                   status: parentEvent.status as any
                 };
               }
@@ -952,11 +943,7 @@ export default function App() {
                   registrations: finalRegs,
                   archers: finalArchers,
                   officials: finalOfficials,
-                  registrationCount: Math.max(
-                    e.registrationCount || 0,
-                    finalRegs.length,
-                    finalArchers.length
-                  ),
+                  registrationCount: getAccurateParticipantCount(finalArchers, finalRegs, e.registrationCount),
                   isDetailedLoaded: true
                 };
               }
@@ -969,7 +956,7 @@ export default function App() {
               registrations: rawSubmissions,
               archers: cloudArchers,
               officials: cloudOfficials,
-              registrationCount: rawSubmissions.length || cloudArchers.length,
+              registrationCount: getAccurateParticipantCount(cloudArchers, rawSubmissions),
               scores: [],
               scoreLogs: [],
               isDetailedLoaded: true
@@ -1632,17 +1619,22 @@ export default function App() {
       const filteredArchers = currentArchers.filter((a: any) => a.id !== participantId).map(a => sanitizeForFirestore(a));
       const filteredOfficials = currentOfficials.filter((o: any) => o.id !== participantId).map(o => sanitizeForFirestore(o));
 
+      const remainingRegs = (activeEvent.registrations || []).filter((r: any) => r.id !== participantId);
+      const accurateCount = getAccurateParticipantCount(filteredArchers, remainingRegs);
+
       const updatePayload: any = {
         archers: filteredArchers,
         officials: filteredOfficials,
-        registrationCount: Math.max(0, (activeEvent.registrationCount || 0) - 1)
+        registrations: remainingRegs,
+        registrationCount: accurateCount
       };
 
       const activeEventAny = activeEvent as any;
       if (activeEventAny.data && typeof activeEventAny.data === 'object') {
-        updatePayload["data.registrationCount"] = Math.max(0, (activeEventAny.data.registrationCount || 0) - 1);
+        updatePayload["data.registrationCount"] = accurateCount;
         updatePayload["data.archers"] = filteredArchers;
         updatePayload["data.officials"] = filteredOfficials;
+        updatePayload["data.registrations"] = remainingRegs;
       }
 
       await handleUpdateEvent(activeEvent.id, updatePayload);
@@ -1705,17 +1697,18 @@ export default function App() {
         updatedArchers.push(participant as Archer);
       }
 
+      const accurateCount = getAccurateParticipantCount(updatedArchers, activeEvent.registrations || []);
       const updatePayload: any = {
         archers: updatedArchers,
         officials: updatedOfficials,
-        registrationCount: (activeEvent.registrationCount || 0) + 1
+        registrationCount: accurateCount
       };
 
       const activeEventAny = activeEvent as any;
       if (activeEventAny.data && typeof activeEventAny.data === 'object') {
         updatePayload["data.archers"] = updatedArchers;
         updatePayload["data.officials"] = updatedOfficials;
-        updatePayload["data.registrationCount"] = (activeEventAny.data.registrationCount || 0) + 1;
+        updatePayload["data.registrationCount"] = accurateCount;
       }
 
       await handleUpdateEvent(activeEvent.id, updatePayload);
@@ -1757,16 +1750,17 @@ export default function App() {
       const filteredNew = newArchers.filter(a => !existingIds.has(a.id));
       const updatedArchers = [...currentArchers, ...filteredNew];
 
+      const accurateCount = getAccurateParticipantCount(updatedArchers, activeEvent.registrations || []);
       const updatePayload: any = {
         archers: updatedArchers,
-        registrationCount: updatedArchers.length + currentOfficials.length,
+        registrationCount: accurateCount,
         lastRegistrationAt: new Date().toISOString()
       };
 
       const activeEventAny = activeEvent as any;
       if (activeEventAny.data && typeof activeEventAny.data === 'object') {
         updatePayload["data.archers"] = updatedArchers;
-        updatePayload["data.registrationCount"] = updatedArchers.length + currentOfficials.length;
+        updatePayload["data.registrationCount"] = accurateCount;
       }
 
       await handleUpdateEvent(activeEvent.id, updatePayload);
@@ -2104,7 +2098,7 @@ export default function App() {
                     archers: Array.from(archerMap.values()),
                     officials: Array.from(officialMap.values()),
                     registrations: Array.from(regMap.values()),
-                    registrationCount: regMap.size
+                    registrationCount: getAccurateParticipantCount(Array.from(archerMap.values()), Array.from(regMap.values()))
                   };
                 }
                 return e;
@@ -2553,6 +2547,10 @@ export default function App() {
           onDeleteUser={(uid) => {}}
           onUpdateUser={(u) => {}}
           onSendNotif={(n) => pushNotification(n.title, n.message, n.type as any)}
+          onManageEvent={(eventId) => {
+            setAppState(prev => ({ ...prev, activeEventId: eventId }));
+            setView('EVENT_ADMIN');
+          }}
           onBack={() => setView('MEMBER_DASHBOARD')}
         />;
 
