@@ -14,7 +14,8 @@ import {
   LayoutGrid,
   RefreshCw,
   AlertTriangle,
-  Navigation
+  Navigation,
+  Search
 } from 'lucide-react';
 import { ArcheryEvent, User, CategoryType } from '../types';
 import { resolveGoogleDriveUrl } from '../lib/photoService';
@@ -76,6 +77,8 @@ export default function LandingPage({
 }: Props) {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<'GRID' | 'CALENDAR'>('GRID');
+  const [showAllEvents, setShowAllEvents] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState('');
   
   // Debug log untuk memastikan data sampai ke komponen
   React.useEffect(() => {
@@ -104,7 +107,10 @@ export default function LandingPage({
         const location = settings.location || baseData.location || "Lokasi Belum Diatur";
         const eventDate = settings.eventDate || baseData.eventDate || "Jadwal Menyusul";
         
-        const createdAt = raw.createdAt || baseData.createdAt || settings.createdAt || 0;
+        const idTimestamp = (typeof id === 'string' && id.startsWith('evt_')) 
+          ? (parseInt(id.split('_')[1], 10) || 0) 
+          : 0;
+        const createdAt = raw.createdAt || baseData.createdAt || settings.createdAt || idTimestamp || 0;
 
         return {
           ...raw,
@@ -124,20 +130,33 @@ export default function LandingPage({
       })
       .filter(ev => ev.id && ev.status !== 'DELETED' && ev.settings?.isActivated === true)
       .sort((a, b) => {
-        // Prioritize ACTIVE/UPCOMING status
-        if (a.status === 'ACTIVE' && b.status !== 'ACTIVE') return -1;
-        if (a.status !== 'ACTIVE' && b.status === 'ACTIVE') return 1;
-        
-        // Secondary: Sort by creation date descending (newest first)
-        const timeA = typeof a.createdAt === 'number' ? a.createdAt : new Date(a.createdAt).getTime() || 0;
-        const timeB = typeof b.createdAt === 'number' ? b.createdAt : new Date(b.createdAt).getTime() || 0;
+        // Sort by creation date descending (newest first)
+        const timeA = typeof a.createdAt === 'number' ? a.createdAt : (new Date(a.createdAt).getTime() || 0);
+        const timeB = typeof b.createdAt === 'number' ? b.createdAt : (new Date(b.createdAt).getTime() || 0);
         
         if (timeA !== timeB) return timeB - timeA;
         
-        // Tertiary: Alphabetical
+        // Secondary: Alphabetical
         return (a.settings?.tournamentName || "").localeCompare(b.settings?.tournamentName || "");
       });
   }, [events]);
+
+  const filteredEvents = React.useMemo(() => {
+    if (!searchQuery.trim()) return activeEvents;
+    const q = searchQuery.toLowerCase().trim();
+    return activeEvents.filter(ev => {
+      const name = (ev.settings?.tournamentName || '').toLowerCase();
+      const loc = (ev.settings?.location || '').toLowerCase();
+      const desc = (ev.settings?.description || '').toLowerCase();
+      const id = (ev.id || '').toLowerCase();
+      return name.includes(q) || loc.includes(q) || desc.includes(q) || id.includes(q);
+    });
+  }, [activeEvents, searchQuery]);
+
+  const displayedEvents = React.useMemo(() => {
+    if (showAllEvents) return filteredEvents;
+    return filteredEvents.slice(0, 6);
+  }, [filteredEvents, showAllEvents]);
 
   return (
     <div className="min-h-screen bg-[#FBFBFD] font-sans selection:bg-arcus-red selection:text-white overflow-x-hidden">
@@ -374,19 +393,68 @@ export default function LandingPage({
             </div>
           </div>
 
+          {/* Search & Event Filter Bar */}
+          {activeEvents.length > 0 && (
+            <div className="mb-10 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/70 p-3 sm:p-4 rounded-3xl border border-slate-100">
+              <div className="relative w-full sm:max-w-md">
+                <Search className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input 
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Cari nama event, lokasi, atau ID turnamen..."
+                  className="w-full pl-11 pr-10 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-900 placeholder:text-slate-600 placeholder:font-medium outline-none focus:border-arcus-red focus:ring-4 focus:ring-red-500/10 transition-all shadow-xs"
+                />
+                {searchQuery && (
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-all"
+                    title="Hapus pencarian"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 self-end sm:self-center">
+                <span className="px-3.5 py-1.5 bg-white border border-slate-200/80 text-slate-700 rounded-full text-[10px] font-black uppercase tracking-wider shadow-2xs">
+                  Menampilkan {displayedEvents.length} dari {filteredEvents.length} Event
+                </span>
+              </div>
+            </div>
+          )}
+
           {activeEvents.length > 0 ? (
             viewMode === 'GRID' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {activeEvents.map((event, idx) => (
-                  <motion.div 
-                    key={event.id}
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: idx * 0.1, duration: 0.8, ease: [0.21, 0.45, 0.32, 0.9] }}
-                    className="group bg-white rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-700 relative overflow-hidden"
+              filteredEvents.length === 0 ? (
+                <div className="bg-slate-50 rounded-[2.5rem] p-12 text-center border-2 border-dashed border-slate-200 space-y-3 my-8">
+                  <Search className="w-10 h-10 mx-auto text-slate-400" />
+                  <h4 className="text-xl font-black font-oswald uppercase italic text-slate-800">
+                    Turnamen Tidak Ditemukan
+                  </h4>
+                  <p className="text-xs text-slate-600 max-w-sm mx-auto">
+                    Tidak ada event yang cocok dengan pencarian &quot;{searchQuery}&quot;. Silakan coba kata kunci nama atau lokasi lain.
+                  </p>
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    className="px-5 py-2.5 bg-slate-900 text-white hover:bg-arcus-red rounded-xl text-xs font-black uppercase tracking-wider transition-all"
                   >
-                    <div className="p-8">
+                    Reset Pencarian
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {displayedEvents.map((event, idx) => (
+                      <motion.div 
+                        key={event.id}
+                        initial={{ opacity: 0, y: 30 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ delay: idx * 0.08, duration: 0.7, ease: [0.21, 0.45, 0.32, 0.9] }}
+                        className="group bg-white rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-700 relative overflow-hidden"
+                      >
+                        <div className="p-8">
                       {event.settings?.pamphletUrl && (
                         <div className="mb-6 rounded-2xl overflow-hidden aspect-[4/5] bg-slate-100 border border-slate-100 shadow-inner group-hover:shadow-md transition-shadow">
                           <img 
@@ -534,15 +602,38 @@ export default function LandingPage({
                   </motion.div>
                 ))}
               </div>
-            ) : (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5 }}
-              >
-                <TournamentCalendar events={activeEvents} onViewInfo={onViewInfo} />
-              </motion.div>
-            )
+
+              {/* Button Lihat Semua Event */}
+              {filteredEvents.length > 6 && (
+                <div className="mt-12 text-center">
+                  <button 
+                    onClick={() => setShowAllEvents(prev => !prev)}
+                    className="inline-flex items-center gap-3 px-8 py-3.5 bg-white border-2 border-slate-900 hover:bg-slate-900 hover:text-white text-slate-900 rounded-2xl font-black font-oswald uppercase italic text-sm tracking-wider transition-all shadow-md hover:shadow-xl active:scale-95 group"
+                  >
+                    {showAllEvents ? (
+                      <>
+                        <span>TAMPILKAN LEBIH SEDIKIT (6 EVENT)</span>
+                        <ChevronRight className="w-4 h-4 -rotate-90 group-hover:-translate-y-0.5 transition-transform" />
+                      </>
+                    ) : (
+                      <>
+                        <span>LIHAT SEMUA EVENT ({filteredEvents.length} TURNAMEN)</span>
+                        <ChevronRight className="w-4 h-4 rotate-90 group-hover:translate-y-0.5 transition-transform" />
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+            </>
+          )) : (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5 }}
+            >
+              <TournamentCalendar events={filteredEvents} onViewInfo={onViewInfo} />
+            </motion.div>
+          )
           ) : (
             <div className="bg-white rounded-[2.5rem] p-16 md:p-24 text-center border-2 border-dashed border-slate-200 shadow-sm relative overflow-hidden group">
                <div className="relative z-10">
