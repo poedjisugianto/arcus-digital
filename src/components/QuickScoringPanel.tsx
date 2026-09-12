@@ -93,7 +93,36 @@ export function getArrowTargetStyle(val: number | 'X' | 'M' | string | -1, targe
     return { bg: 'bg-emerald-800', text: 'text-white', border: 'border-emerald-950', label: 'M' };
   }
 
-  // 4. STANDARD 10-RING FACE (FACE_122, FACE_80, FACE_60, FACE_40, FACE_3X20, STANDARD, FACE_MEGA_MENDUNG)
+  // 4. FACE MEGA MENDUNG (FESPATI STANDAR RESMI)
+  // Spot Atas: 10 & 9 (Kuning), 8 (Merah), 7 (Putih)
+  // Spot Bawah: 6 (Kuning), 5 (Merah), 4 (Putih), 3 (Biru Muda/Cyan)
+  // Kontur Luar: 2 (Biru Tua/Navy)
+  // Lingkaran Luar 100cm: 1 (Putih)
+  // Luar Target: M (Hitam)
+  if (targetType === TargetType.FACE_MEGA_MENDUNG) {
+    if (val === 'X') {
+      return { bg: 'bg-yellow-400', text: 'text-slate-900', border: 'border-yellow-500', label: 'X' };
+    }
+    const num = Number(val);
+    if (num === 10 || num === 9 || num === 6) {
+      return { bg: 'bg-yellow-400', text: 'text-slate-900', border: 'border-yellow-500', label: String(num) };
+    }
+    if (num === 8 || num === 5) {
+      return { bg: 'bg-red-600', text: 'text-white', border: 'border-red-700', label: String(num) };
+    }
+    if (num === 7 || num === 4 || num === 1) {
+      return { bg: 'bg-white', text: 'text-slate-900', border: 'border-slate-400', label: String(num) };
+    }
+    if (num === 3) {
+      return { bg: 'bg-sky-400', text: 'text-slate-900', border: 'border-sky-500', label: '3' };
+    }
+    if (num === 2) {
+      return { bg: 'bg-blue-900', text: 'text-white', border: 'border-blue-950', label: '2' };
+    }
+    return { bg: 'bg-slate-900', text: 'text-white', border: 'border-slate-700', label: 'M' };
+  }
+
+  // 5. STANDARD 10-RING FACE (FACE_122, FACE_80, FACE_60, FACE_40, FACE_3X20, STANDARD)
   if (val === 'X' || val === 10 || val === '10' || val === 9 || val === '9') {
     return { bg: 'bg-yellow-400', text: 'text-slate-900', border: 'border-yellow-500', label: String(val) };
   }
@@ -1052,6 +1081,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
                          targetType === TargetType.TRADITIONAL_PUTA ? 'Trad Puta (2-1)' :
                          targetType === TargetType.TRADITIONAL_6_RING ? '6-Ring (6-1)' :
                          targetType === TargetType.FACE_5_RING ? '5-Ring (5-1)' :
+                         targetType === TargetType.FACE_MEGA_MENDUNG ? 'Mega Mendung FESPATI' :
                          'WA Standard (10-1)'}
                       </div>
                     </td>

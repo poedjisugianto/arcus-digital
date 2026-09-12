@@ -54,9 +54,12 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   bankAccountName: '',
   dataRetentionDays: 90, 
   practiceRetentionDays: 7,
+  paymentGatewayEnabled: false,
   paymentGatewayProvider: 'NONE',
   paymentGatewayServerKey: '',
   paymentGatewayClientKey: '',
   paymentGatewayIsProduction: false,
-  platformFeePercentage: 0
+  platformFeePercentage: 0,
+  superAdminEmail: 'poedji.sugianto@gmail.com',
+  notifyOnTournamentCreated: true
 };

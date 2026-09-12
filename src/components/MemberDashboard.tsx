@@ -46,7 +46,7 @@ interface Props {
 }
 
 type CreationStep = 'LIST' | 'AGREEMENT' | 'NAME_INPUT' | 'FINAL_CONFIRM' | 'PRACTICE_INPUT';
-type BillingStep = 'INVOICE' | 'PAYMENT_SELECTION' | 'GATEWAY_PROCESS' | 'SUCCESS';
+type BillingStep = 'INVOICE' | 'PAYMENT_SELECTION' | 'GATEWAY_PROCESS' | 'MANUAL_INFO' | 'SUCCESS';
 type InboxTab = 'RECEIVED' | 'COMPOSE' | 'SENT';
 
 const getEventArcherCount = (event: ArcheryEvent) => {
@@ -1338,44 +1338,177 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
               </div>
             )}
 
-            {billingStep === 'PAYMENT_SELECTION' && (
-              <div className="p-10 space-y-8">
-                 <div className="flex items-center gap-4">
-                    <button onClick={() => setBillingStep('INVOICE')} className="p-2 bg-slate-50 rounded-xl"><X className="w-5 h-5 rotate-90 text-slate-700" /></button>
-                    <h3 className="text-2xl font-black font-oswald uppercase italic">Metode Pembayaran</h3>
-                 </div>
-                 
-                 <div className="grid grid-cols-1 gap-4">
-                    <button 
-                      onClick={() => { setPaymentMode('GATEWAY'); handlePayPlatformFee(); }}
-                      className="p-6 bg-white border-2 border-slate-100 rounded-3xl flex items-center justify-between hover:border-blue-600 transition-all text-left"
-                    >
-                       <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600"><Zap className="w-6 h-6" /></div>
-                          <div>
-                             <p className="font-black text-sm uppercase">Instant QRIS / VA</p>
-                             <p className="text-[10px] font-bold text-slate-700 uppercase">Otomatis Terverifikasi</p>
-                          </div>
+            {billingStep === 'PAYMENT_SELECTION' && (() => {
+              const isGlobalGatewayActive = (globalSettings.paymentGatewayEnabled !== false && globalSettings.paymentGatewayProvider !== 'NONE');
+              return (
+                <div className="p-10 space-y-8">
+                   <div className="flex items-center gap-4">
+                      <button onClick={() => setBillingStep('INVOICE')} className="p-2 bg-slate-50 rounded-xl"><X className="w-5 h-5 rotate-90 text-slate-700" /></button>
+                      <h3 className="text-2xl font-black font-oswald uppercase italic">Pilih Metode Pembayaran</h3>
+                   </div>
+
+                   {!isGlobalGatewayActive && (
+                     <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-3">
+                       <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                       <div className="text-xs text-amber-900 space-y-1">
+                         <p className="font-black uppercase">Payment Gateway Dinonaktifkan Sementara</p>
+                         <p className="text-[11px] text-amber-800 leading-relaxed">
+                           Pembayaran instan online sedang dinonaktifkan oleh Superadmin (menunggu verifikasi merchant). Silakan gunakan metode <strong>Transfer Bank Manual</strong> untuk aktivasi turnamen Anda.
+                         </p>
                        </div>
-                       <ChevronRight className="w-5 h-5 text-slate-600" />
-                    </button>
-                    
-                    <button 
-                      onClick={() => setPaymentMode('MANUAL')}
-                      className="p-6 bg-white border-2 border-slate-100 rounded-3xl flex items-center justify-between hover:border-slate-900 transition-all text-left"
-                    >
-                       <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-700"><Landmark className="w-6 h-6" /></div>
-                          <div>
-                             <p className="font-black text-sm uppercase">Transfer Manual</p>
-                             <p className="text-[10px] font-bold text-slate-700 uppercase">WA Support: {globalSettings.contactSupport}</p>
-                          </div>
-                       </div>
-                       <ChevronRight className="w-5 h-5 text-slate-600" />
-                    </button>
-                 </div>
-              </div>
-            )}
+                     </div>
+                   )}
+                   
+                   <div className="grid grid-cols-1 gap-4">
+                      {isGlobalGatewayActive ? (
+                        <button 
+                          onClick={() => { setPaymentMode('GATEWAY'); handlePayPlatformFee(); }}
+                          className="p-6 bg-white border-2 border-slate-100 rounded-3xl flex items-center justify-between hover:border-blue-600 transition-all text-left group"
+                        >
+                           <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all"><Zap className="w-6 h-6" /></div>
+                              <div>
+                                 <p className="font-black text-sm uppercase">Instant QRIS / Virtual Account</p>
+                                 <p className="text-[10px] font-bold text-slate-500 uppercase">Otomatis Terverifikasi via Midtrans</p>
+                              </div>
+                           </div>
+                           <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-all" />
+                        </button>
+                      ) : (
+                        <div className="p-5 bg-slate-50 border border-slate-200 rounded-3xl opacity-60 flex items-center justify-between">
+                           <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 bg-slate-200 rounded-xl flex items-center justify-center text-slate-500"><Zap className="w-5 h-5" /></div>
+                              <div>
+                                 <p className="font-black text-xs uppercase text-slate-500">Instant QRIS / VA (Midtrans)</p>
+                                 <p className="text-[9px] font-bold text-slate-400 uppercase">Nonaktif Sementara oleh Superadmin</p>
+                              </div>
+                           </div>
+                           <span className="text-[9px] font-black uppercase px-2 py-1 bg-slate-200 text-slate-600 rounded-md">Off</span>
+                        </div>
+                      )}
+                      
+                      <button 
+                        onClick={() => {
+                          setPaymentMode('MANUAL');
+                          setBillingStep('MANUAL_INFO');
+                        }}
+                        className={`p-6 bg-white border-2 rounded-3xl flex items-center justify-between transition-all text-left ${
+                          !isGlobalGatewayActive ? 'border-arcus-red shadow-sm' : 'border-slate-100 hover:border-slate-900'
+                        }`}
+                      >
+                         <div className="flex items-center gap-4">
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                              !isGlobalGatewayActive ? 'bg-red-50 text-arcus-red' : 'bg-slate-50 text-slate-700'
+                            }`}><Landmark className="w-6 h-6" /></div>
+                            <div>
+                               <p className="font-black text-sm uppercase">Transfer Bank Manual</p>
+                               <p className="text-[10px] font-bold text-slate-500 uppercase">Rekening Pusat ARCUS &bull; WA Support</p>
+                            </div>
+                         </div>
+                         <ChevronRight className="w-5 h-5 text-slate-400" />
+                      </button>
+                   </div>
+                </div>
+              );
+            })()}
+
+            {billingStep === 'MANUAL_INFO' && (() => {
+              const totalFee = selectedInvoiceEvent ? calculateEventFees(selectedInvoiceEvent) : 0;
+              const waText = encodeURIComponent(
+                `Halo Superadmin ARCUS, saya ingin konfirmasi transfer biaya aktivasi turnamen:\n\n` +
+                `🏆 Nama Turnamen: ${selectedInvoiceEvent?.settings?.tournamentName || 'Turnamen'}\n` +
+                `🆔 ID Event: ${selectedInvoiceEvent?.id}\n` +
+                `💰 Total Nominal: Rp ${totalFee.toLocaleString('id-ID')}\n\n` +
+                `Berikut bukti transfer saya terlampir. Mohon bantuan untuk aktivasi turnamen. Terima kasih!`
+              );
+              const waLink = `https://wa.me/${(globalSettings.contactSupport || '087834193339').replace(/\D/g, '')}?text=${waText}`;
+
+              return (
+                <div className="p-8 sm:p-10 space-y-6">
+                   <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                         <button onClick={() => setBillingStep('PAYMENT_SELECTION')} className="p-2 bg-slate-50 rounded-xl hover:bg-slate-100"><X className="w-5 h-5 rotate-90 text-slate-700" /></button>
+                         <h3 className="text-xl font-black font-oswald uppercase italic">Instruksi Transfer Manual</h3>
+                      </div>
+                      <span className="text-[9px] font-black uppercase px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full">Verifikasi Manual</span>
+                   </div>
+
+                   {/* Total Amount Card */}
+                   <div className="bg-slate-900 text-white rounded-3xl p-6 text-center space-y-1 shadow-lg">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">TOTAL BIAYA AKTIVASI</p>
+                      <p className="text-3xl font-black font-mono text-emerald-400">Rp {totalFee.toLocaleString('id-ID')}</p>
+                      <p className="text-[10px] text-slate-400 uppercase font-semibold">{selectedInvoiceEvent?.settings?.tournamentName}</p>
+                   </div>
+
+                   {/* Superadmin Bank Info */}
+                   <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6 space-y-4">
+                      <div className="flex items-center justify-between border-b pb-3">
+                         <div>
+                            <p className="text-[9px] font-black uppercase text-slate-500">Bank Tujuan</p>
+                            <p className="text-base font-black text-slate-900">{globalSettings.bankProvider || 'BCA / Bank Transfer'}</p>
+                         </div>
+                         <Landmark className="w-6 h-6 text-slate-400" />
+                      </div>
+
+                      <div className="flex items-center justify-between border-b pb-3">
+                         <div>
+                            <p className="text-[9px] font-black uppercase text-slate-500">Nomor Rekening</p>
+                            <p className="text-xl font-black font-mono text-slate-900 tracking-wider">{globalSettings.bankAccountNumber || 'Hubungi Admin'}</p>
+                         </div>
+                         {globalSettings.bankAccountNumber && (
+                           <button
+                             type="button"
+                             onClick={() => {
+                               navigator.clipboard.writeText(globalSettings.bankAccountNumber);
+                               toast.success("Nomor rekening berhasil disalin!");
+                             }}
+                             className="px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-black uppercase hover:bg-slate-100 transition-all shadow-sm"
+                           >
+                             Salin
+                           </button>
+                         )}
+                      </div>
+
+                      <div>
+                         <p className="text-[9px] font-black uppercase text-slate-500">Atas Nama</p>
+                         <p className="text-sm font-black text-slate-800">{globalSettings.bankAccountName || 'ARCUS Archery'}</p>
+                      </div>
+                   </div>
+
+                   {/* Instruction Box */}
+                   <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl text-xs text-blue-900 space-y-1.5 leading-relaxed">
+                      <p className="font-black uppercase">Langkah Konfirmasi:</p>
+                      <ol className="list-decimal pl-4 space-y-1 text-[11px] text-blue-800 font-medium">
+                         <li>Transfer sesuai nominal di atas ke rekening resmi ARCUS.</li>
+                         <li>Simpan bukti transfer / struk pembayaran.</li>
+                         <li>Klik tombol WhatsApp di bawah untuk mengirimkan bukti transfer ke Superadmin.</li>
+                         <li>Superadmin akan langsung mengaktifkan status turnamen Anda.</li>
+                      </ol>
+                   </div>
+
+                   {/* Action Buttons */}
+                   <div className="space-y-3 pt-2">
+                      <a
+                        href={waLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black uppercase text-xs tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-600/20"
+                      >
+                         <Send className="w-4 h-4" />
+                         <span>Konfirmasi ke WhatsApp Superadmin</span>
+                      </a>
+
+                      <button
+                        type="button"
+                        onClick={resetBilling}
+                        className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-bold uppercase text-[10px] transition-all"
+                      >
+                         Tutup
+                      </button>
+                   </div>
+                </div>
+              );
+            })()}
 
             {billingStep === 'GATEWAY_PROCESS' && (
               <div className="p-10 space-y-8">

@@ -22,8 +22,9 @@ export const PrintScoreSheetsModal: React.FC<Props> = ({
   const [selectedCategory, setSelectedCategory] = useState<CategoryType | 'ALL'>('ALL');
   const [sheetType, setSheetType] = useState<'REGISTERED' | 'BLANK'>('REGISTERED');
   const [blankCount, setBlankCount] = useState<number>(4);
-  const [endsCount, setEndsCount] = useState<number>(6);
-  const [arrowsPerEnd, setArrowsPerEnd] = useState<number>(6);
+  const [formatMode, setFormatMode] = useState<'AUTO' | '6x6' | '10x3' | '6x3' | '5x3' | 'CUSTOM'>('AUTO');
+  const [customEnds, setCustomEnds] = useState<number>(6);
+  const [customArrows, setCustomArrows] = useState<number>(6);
 
   if (!isOpen) return null;
 
@@ -33,6 +34,36 @@ export const PrintScoreSheetsModal: React.FC<Props> = ({
   const eventLogo = event.settings?.logoUrl ? resolveGoogleDriveUrl(event.settings.logoUrl) : null;
   const secondaryLogo = event.settings?.secondaryLogoUrl ? resolveGoogleDriveUrl(event.settings.secondaryLogoUrl) : null;
   const clubLogo = event.settings?.clubLogoUrl ? resolveGoogleDriveUrl(event.settings.clubLogoUrl) : null;
+
+  // Helper to extract category configuration from Admin settings
+  const getCategoryConfig = (cat?: string) => {
+    if (!cat) return null;
+    return event.settings?.categoryConfigs?.[cat as CategoryType] || null;
+  };
+
+  // Helper to calculate effective ends and arrows for any category
+  const getEffectiveFormat = (cat?: string) => {
+    if (formatMode === '6x6') return { ends: 6, arrows: 6 };
+    if (formatMode === '10x3') return { ends: 10, arrows: 3 };
+    if (formatMode === '6x3') return { ends: 6, arrows: 3 };
+    if (formatMode === '5x3') return { ends: 5, arrows: 3 };
+    if (formatMode === 'CUSTOM') return { ends: Math.max(1, customEnds), arrows: Math.max(1, customArrows) };
+
+    // AUTO Mode: Synchronize directly with category config from admin dashboard
+    const catConfig = getCategoryConfig(cat);
+    const configuredEnds = Number(catConfig?.ends);
+    const configuredArrows = Number(catConfig?.arrows);
+
+    const ends = configuredEnds > 0 
+      ? configuredEnds 
+      : (Number(event.settings?.totalEnds) > 0 ? Number(event.settings?.totalEnds) : 6);
+
+    const arrows = configuredArrows > 0 
+      ? configuredArrows 
+      : (Number(event.settings?.arrowsPerEnd) > 0 ? Number(event.settings?.arrowsPerEnd) : 6);
+
+    return { ends, arrows, distance: catConfig?.distance };
+  };
 
   // Filter archers based on category selection
   const filteredArchers = useMemo(() => {
@@ -56,51 +87,88 @@ export const PrintScoreSheetsModal: React.FC<Props> = ({
         set.add(a.category as CategoryType);
       }
     });
+    // Also include categories configured in settings if not present in archers yet
+    if (event.settings?.categoryConfigs) {
+      Object.keys(event.settings.categoryConfigs).forEach(cat => {
+        if (cat !== 'OFFICIAL' && cat !== CategoryType.OFFICIAL) {
+          set.add(cat as CategoryType);
+        }
+      });
+    }
     return Array.from(set);
-  }, [event.archers]);
+  }, [event.archers, event.settings?.categoryConfigs]);
 
-  // Sheets to render
+  // Sheets to render with per-category ends and arrows
   const sheetsToRender: Array<{
     id: string;
     archerName: string;
     club: string;
     category: string;
+    rawCategory?: string;
+    distance?: string;
     targetNo?: number | string;
     position?: string;
+    endsCount: number;
+    arrowsPerEnd: number;
   }> = useMemo(() => {
     if (sheetType === 'BLANK') {
+      const targetCat = selectedCategory !== 'ALL' ? selectedCategory : (categories[0] || undefined);
+      const format = getEffectiveFormat(targetCat);
+      const catConfig = getCategoryConfig(targetCat);
+
       return Array.from({ length: blankCount }).map((_, idx) => ({
         id: `blank_${idx}`,
         archerName: '',
         club: '',
         category: selectedCategory === 'ALL' ? '' : (CATEGORY_LABELS[selectedCategory as CategoryType] || selectedCategory),
+        rawCategory: selectedCategory === 'ALL' ? undefined : selectedCategory,
+        distance: catConfig?.distance || '',
         targetNo: '',
-        position: ''
+        position: '',
+        endsCount: format.ends,
+        arrowsPerEnd: format.arrows
       }));
     }
 
     if (filteredArchers.length === 0) {
+      const targetCat = selectedCategory !== 'ALL' ? selectedCategory : (categories[0] || undefined);
+      const format = getEffectiveFormat(targetCat);
+      const catConfig = getCategoryConfig(targetCat);
+
       return [
         {
           id: 'sample_blank',
           archerName: '',
           club: '',
           category: selectedCategory === 'ALL' ? '' : (CATEGORY_LABELS[selectedCategory as CategoryType] || selectedCategory),
+          rawCategory: selectedCategory === 'ALL' ? undefined : selectedCategory,
+          distance: catConfig?.distance || '',
           targetNo: '',
-          position: ''
+          position: '',
+          endsCount: format.ends,
+          arrowsPerEnd: format.arrows
         }
       ];
     }
 
-    return filteredArchers.map(a => ({
-      id: a.id,
-      archerName: a.name,
-      club: a.club || '-',
-      category: CATEGORY_LABELS[a.category as CategoryType] || a.category,
-      targetNo: a.targetNo || '',
-      position: a.position || ''
-    }));
-  }, [sheetType, blankCount, filteredArchers, selectedCategory]);
+    return filteredArchers.map(a => {
+      const format = getEffectiveFormat(a.category);
+      const catConfig = getCategoryConfig(a.category);
+
+      return {
+        id: a.id,
+        archerName: a.name,
+        club: a.club || '-',
+        category: CATEGORY_LABELS[a.category as CategoryType] || a.category,
+        rawCategory: a.category,
+        distance: catConfig?.distance || '',
+        targetNo: a.targetNo || '',
+        position: a.position || '',
+        endsCount: format.ends,
+        arrowsPerEnd: format.arrows
+      };
+    });
+  }, [sheetType, blankCount, filteredArchers, selectedCategory, formatMode, customEnds, customArrows, event.settings?.categoryConfigs, categories]);
 
   const handlePrint = () => {
     window.print();
@@ -232,21 +300,57 @@ export const PrintScoreSheetsModal: React.FC<Props> = ({
           )}
 
           {/* Ends & Arrows Config */}
-          <div className="flex items-center gap-2 ml-auto">
-            <span className="text-[10px] font-black uppercase text-slate-400">Format:</span>
+          <div className="flex flex-wrap items-center gap-2 ml-auto">
+            <span className="text-[10px] font-black uppercase text-slate-400">Format Lembar Skor:</span>
             <select
-              value={`${endsCount}x${arrowsPerEnd}`}
-              onChange={e => {
-                const [eCount, aCount] = e.target.value.split('x').map(Number);
-                setEndsCount(eCount);
-                setArrowsPerEnd(aCount);
-              }}
+              value={formatMode}
+              onChange={e => setFormatMode(e.target.value as any)}
               className="bg-slate-900 border border-slate-750 text-white rounded-xl px-3 py-1.5 font-bold text-xs outline-none focus:border-red-500"
             >
-              <option value="6x6">6 Rambahan × 6 Panah (Total 36)</option>
-              <option value="10x3">10 Rambahan × 3 Panah (Total 30)</option>
-              <option value="5x3">5 Rambahan × 3 Panah (Aduan / 15)</option>
+              <option value="AUTO">
+                {selectedCategory !== 'ALL'
+                  ? `🎯 Sesuai Kategori (${getEffectiveFormat(selectedCategory).ends} Rambahan × ${getEffectiveFormat(selectedCategory).arrows} Panah)`
+                  : '🎯 Otomatis Sesuai Kategori (Dashboard Admin)'}
+              </option>
+              <option value="6x6">Manual: 6 Rambahan × 6 Panah (Total 36)</option>
+              <option value="10x3">Manual: 10 Rambahan × 3 Panah (Total 30)</option>
+              <option value="6x3">Manual: 6 Rambahan × 3 Panah (Total 18)</option>
+              <option value="5x3">Manual: 5 Rambahan × 3 Panah (Aduan / 15)</option>
+              <option value="CUSTOM">Manual: Custom (Tentukan Sendiri)...</option>
             </select>
+
+            {/* Custom Ends & Arrows Inputs when CUSTOM is picked */}
+            {formatMode === 'CUSTOM' && (
+              <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-750">
+                <span className="text-[9px] font-bold text-slate-400 pl-1">Rambahan:</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={24}
+                  value={customEnds}
+                  onChange={e => setCustomEnds(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-12 bg-slate-950 border border-slate-700 text-white rounded-lg px-2 py-1 text-center font-bold text-xs"
+                />
+                <span className="text-[9px] font-bold text-slate-400">Panah:</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={customArrows}
+                  onChange={e => setCustomArrows(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-12 bg-slate-950 border border-slate-700 text-white rounded-lg px-2 py-1 text-center font-bold text-xs"
+                />
+              </div>
+            )}
+
+            {/* Auto Mode Info Tag */}
+            {formatMode === 'AUTO' && (
+              <span className="text-[9px] font-black uppercase px-2.5 py-1 bg-red-950/60 border border-red-500/30 text-red-300 rounded-lg hidden sm:inline-block">
+                {selectedCategory !== 'ALL'
+                  ? `${getEffectiveFormat(selectedCategory).ends} Rambahan × ${getEffectiveFormat(selectedCategory).arrows} Panah`
+                  : 'Sinkron Kategori Masing-masing'}
+              </span>
+            )}
           </div>
         </div>
 
@@ -334,6 +438,9 @@ export const PrintScoreSheetsModal: React.FC<Props> = ({
                     <span className="text-[10px] sm:text-xs font-black uppercase text-slate-900 leading-tight block">
                       {sheet.category || '......................................'}
                     </span>
+                    <span className="text-[8px] font-black text-red-600 uppercase tracking-tight block mt-0.5">
+                      {sheet.endsCount} Rambahan × {sheet.arrowsPerEnd} Panah {sheet.distance ? `• Jarak ${sheet.distance}` : ''}
+                    </span>
                   </div>
                 </div>
 
@@ -343,7 +450,7 @@ export const PrintScoreSheetsModal: React.FC<Props> = ({
                     <thead>
                       <tr className="bg-slate-900 text-white font-black text-[9px] uppercase tracking-wider">
                         <th className="p-1.5 border-r border-slate-700 w-10">End</th>
-                        {Array.from({ length: arrowsPerEnd }).map((_, aIdx) => (
+                        {Array.from({ length: sheet.arrowsPerEnd }).map((_, aIdx) => (
                           <th key={aIdx} className="p-1.5 border-r border-slate-700">
                             {aIdx + 1}
                           </th>
@@ -356,12 +463,12 @@ export const PrintScoreSheetsModal: React.FC<Props> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-300 font-mono text-[11px]">
-                      {Array.from({ length: endsCount }).map((_, eIdx) => (
-                        <tr key={eIdx} className="h-8">
+                      {Array.from({ length: sheet.endsCount }).map((_, eIdx) => (
+                        <tr key={eIdx} className={sheet.endsCount > 8 ? "h-7" : "h-8"}>
                           <td className="font-bold bg-slate-100 border-r border-slate-300 font-sans text-xs">
                             {eIdx + 1}
                           </td>
-                          {Array.from({ length: arrowsPerEnd }).map((_, aIdx) => (
+                          {Array.from({ length: sheet.arrowsPerEnd }).map((_, aIdx) => (
                             <td key={aIdx} className="border-r border-slate-300">
                               {/* Empty box for score writing */}
                             </td>
@@ -375,8 +482,8 @@ export const PrintScoreSheetsModal: React.FC<Props> = ({
                       ))}
                       {/* Total Row */}
                       <tr className="bg-slate-100 font-bold h-9 border-t-2 border-slate-900 font-sans text-xs">
-                        <td colSpan={arrowsPerEnd + 1} className="text-right pr-3 uppercase font-black tracking-wider">
-                          TOTAL SKOR SESI:
+                        <td colSpan={sheet.arrowsPerEnd + 1} className="text-right pr-3 uppercase font-black tracking-wider">
+                          TOTAL SKOR SESI ({sheet.endsCount * sheet.arrowsPerEnd} PANAH):
                         </td>
                         <td className="border-r border-slate-400 font-black text-sm"></td>
                         <td className="border-r border-slate-400 font-black text-sm"></td>

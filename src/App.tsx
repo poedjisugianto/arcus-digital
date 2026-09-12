@@ -1134,7 +1134,9 @@ export default function App() {
         return {
           ...prev,
           globalSettings: {
+            ...DEFAULT_GLOBAL_SETTINGS,
             ...cloudSettings,
+            paymentGatewayEnabled: cloudSettings.paymentGatewayEnabled !== undefined ? cloudSettings.paymentGatewayEnabled : (cloudSettings.paymentGatewayProvider && cloudSettings.paymentGatewayProvider !== 'NONE'),
             paymentGatewayProvider: (cloudSettings.paymentGatewayProvider as any) || 'NONE'
           } as GlobalSettings,
           events: Array.from(eventMap.values()).filter(e => e.status !== 'DELETED'),
@@ -2217,7 +2219,7 @@ export default function App() {
              const isScorer = (e as any).scorerAccess?.some((s: any) => s && s.email === appState.currentUser?.email);
              return !!(isOwner || isScorer);
           })}
-          onCreateEvent={async (name) => {
+          onCreateEvent={async (name, isFree, description) => {
              const id = `evt_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
              const newEvent: ArcheryEvent = {
                id,
@@ -2228,7 +2230,8 @@ export default function App() {
                  organizerId: appState.currentUser?.id || appState.currentUser?.email || '',
                  eventDate: new Date().toISOString(),
                  location: '',
-                 isFreeEvent: false,
+                 isFreeEvent: !!isFree,
+                 description: description || '',
                  archersPerTarget: 2,
                  totalTargets: 1,
                  totalArrows: 36,
@@ -2259,6 +2262,38 @@ export default function App() {
                }
              } else {
                setHasPendingChanges(true);
+             }
+
+             // Trigger Superadmin Email Notification
+             try {
+               fetch('/api/notify-tournament-created', {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({
+                   tournamentId: id,
+                   tournamentName: name || 'Turnamen Baru',
+                   organizerName: appState.currentUser?.name || appState.currentUser?.email || 'Penyelenggara',
+                   organizerEmail: appState.currentUser?.email || '',
+                   organizerPhone: appState.currentUser?.phone || '',
+                   location: '',
+                   eventDate: new Date().toISOString(),
+                   isFreeEvent: !!isFree,
+                   description: description || '',
+                   appUrl: window.location.origin
+                 })
+               }).then(async res => {
+                 if (res.ok) {
+                   const data = await res.json();
+                   console.log("[NOTIF] Superadmin email notification result:", data);
+                   if (data.success && !data.skipped) {
+                     pushNotification('Notifikasi Superadmin', 'Pemberitahuan turnamen dikirim ke email Superadmin.', 'INFO');
+                   }
+                 }
+               }).catch(e => {
+                 console.warn("[NOTIF] Failed to trigger superadmin email notification:", e);
+               });
+             } catch (notifErr) {
+               console.warn("[NOTIF] Notification dispatch error:", notifErr);
              }
           }}
           onCreatePractice={() => {}}

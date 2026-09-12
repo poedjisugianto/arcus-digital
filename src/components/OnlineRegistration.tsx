@@ -80,7 +80,8 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [paymentErrorDetail, setPaymentErrorDetail] = useState<{ title: string; message: string; isAuthError?: boolean } | null>(null);
 
-  const isGatewayEnabled = event.settings?.enableGateway !== false;
+  const isGlobalGatewayActive = (globalSettings.paymentGatewayEnabled ?? (globalSettings.paymentGatewayProvider !== 'NONE')) && globalSettings.paymentGatewayProvider !== 'NONE';
+  const isGatewayEnabled = isGlobalGatewayActive && event.settings?.enableGateway !== false;
 
   const [formData, setFormData] = useState<{
     name: string;
@@ -99,6 +100,12 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
     paymentType: isGatewayEnabled ? 'GATEWAY' : 'MANUAL', 
     selectedPaymentMethodId: '', regType: 'ARCHER', photoUrl: ''
   });
+
+  useEffect(() => {
+    if (!isGatewayEnabled && formData.paymentType === 'GATEWAY') {
+      setFormData(prev => ({ ...prev, paymentType: 'MANUAL' }));
+    }
+  }, [isGatewayEnabled, formData.paymentType]);
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>, isForNewMember: boolean = false) => {
     const file = e.target.files?.[0];
@@ -167,14 +174,14 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
   };
 
   useEffect(() => {
-    if (globalSettings.paymentGatewayProvider === 'MIDTRANS') {
+    if (isGatewayEnabled && globalSettings.paymentGatewayProvider === 'MIDTRANS') {
       const clientKey = (globalSettings.paymentGatewayClientKey && globalSettings.paymentGatewayClientKey !== 'YOUR_MIDTRANS_CLIENT_KEY') 
         ? globalSettings.paymentGatewayClientKey 
         : "Mid-client-dZqaZ7wEUS4n0Cxc";
       const isProduction = globalSettings.paymentGatewayIsProduction === true || String(globalSettings.paymentGatewayIsProduction) === "true";
       ensureSnapLoaded(clientKey, isProduction);
     }
-  }, [globalSettings.paymentGatewayClientKey, globalSettings.paymentGatewayProvider, globalSettings.paymentGatewayIsProduction]);
+  }, [isGatewayEnabled, globalSettings.paymentGatewayClientKey, globalSettings.paymentGatewayProvider, globalSettings.paymentGatewayIsProduction]);
 
   const categories = event.settings?.categoryConfigs && Object.keys(event.settings.categoryConfigs).length > 0
     ? Object.keys(event.settings.categoryConfigs).filter(cat => cat !== CategoryType.OFFICIAL) 

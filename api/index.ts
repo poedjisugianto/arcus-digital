@@ -298,6 +298,10 @@ const getGlobalSettings = async () => {
 // Initialize Midtrans Snap with dynamic keys
 const getSnapInstance = async () => {
   const settings = await getGlobalSettings();
+  if (settings?.paymentGatewayEnabled === false) {
+    console.log("[MIDTRANS-RESOLVE] Payment gateway is disabled globally by Superadmin.");
+    return null;
+  }
   const provider = settings?.paymentGatewayProvider || process.env.PAYMENT_GATEWAY_PROVIDER;
   if (provider === 'NONE') {
     return null;
@@ -335,43 +339,46 @@ const getSnapInstance = async () => {
 // Cache the transporter outside the request handler for serverless efficiency
 let cachedTransporter: any = null;
 
-app.post("/api/send-email-otp", async (req, res) => {
-  const { email, message, subject } = req.body;
+// Reusable System Email Sender (Resend API -> SMTP / Gmail -> Simulation fallback)
+interface SendEmailParams {
+  to: string | string[];
+  subject: string;
+  html: string;
+  text?: string;
+}
+
+const sendSystemEmail = async ({ to, subject, html, text }: SendEmailParams) => {
+  const rawList = Array.isArray(to) ? to : [to];
+  const recipients = rawList
+    .flatMap(r => (typeof r === 'string' ? r.split(',') : []))
+    .map(r => r.trim())
+    .filter(Boolean);
+
+  if (recipients.length === 0) {
+    return { success: false, message: "Email penerima (to) kosong atau tidak valid." };
+  }
+
   const resendApiKey = (process.env.RESEND_API_KEY || "").trim();
-  
   const startTime = Date.now();
 
-  // 1. If Resend API Key is set, prefer sending via Resend REST API (highly reliable, no IP/port blocks)
+  // 1. If Resend API Key is set, prefer sending via Resend REST API (highly reliable, no port blocks)
   if (resendApiKey) {
     try {
-      console.log(`[RESEND-EMAIL] Sending to ${email} using Resend API...`);
+      console.log(`[RESEND-EMAIL] Sending to ${recipients.join(', ')} with subject: "${subject}"...`);
       let resendFrom = (process.env.RESEND_FROM || "").trim();
       if (!resendFrom || !resendFrom.includes("@")) {
-        // If empty or just a display name without an email address (e.g. "Arcus Archery"), format correctly with the default domain
-        const displayName = resendFrom || "ARCUS Archery";
+        const displayName = resendFrom || "ARCUS Archery System";
         resendFrom = `${displayName} <onboarding@resend.dev>`;
       }
-      
+
       const response = await axios.post(
         "https://api.resend.com/emails",
         {
           from: resendFrom,
-          to: email,
-          subject: subject || "Kode OTP Anda",
-          html: `
-            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; background-color: #f8fafc; color: #1e293b;">
-              <div style="background-color: #0f172a; padding: 20px; border-radius: 20px 20px 0 0; text-align: center;">
-                <h1 style="color: white; margin: 0; font-style: italic; letter-spacing: -0.05em;">ARCUS DIGITAL</h1>
-              </div>
-              <div style="background-color: white; padding: 40px; border-radius: 0 0 20px 20px; border: 1px solid #e2e8f0; border-top: none;">
-                <h2 style="color: #0f172a; margin-top: 0;">Verifikasi Akun</h2>
-                <p style="font-size: 16px; line-height: 1.6; color: #475569;">${message.replace(/\n/g, '<br>')}</p>
-                <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #f1f5f9; font-size: 12px; color: #94a3b8; text-align: center;">
-                  &copy; ${new Date().getFullYear()} Arcus Digital Archery System. Pesan ini dikirim secara otomatis ke <b>${email}</b>.
-                </div>
-              </div>
-            </div>
-          `
+          to: recipients,
+          subject,
+          html,
+          text: text || html.replace(/<[^>]*>?/gm, '')
         },
         {
           headers: {
@@ -383,113 +390,100 @@ app.post("/api/send-email-otp", async (req, res) => {
       );
 
       const duration = Date.now() - startTime;
-      console.log(`[RESEND SUCCESS] Sent of email to ${email} with ID: ${response.data.id} in ${duration}ms`);
-      return res.json({ success: true, message: "OTP sent via Resend API", id: response.data.id, duration });
+      console.log(`[RESEND SUCCESS] Sent to ${recipients.join(', ')} (ID: ${response.data.id}) in ${duration}ms`);
+      return { 
+        success: true, 
+        method: "RESEND", 
+        id: response.data.id, 
+        duration, 
+        recipients 
+      };
     } catch (resendError: any) {
       console.error("[RESEND ERROR] Failed to send email via Resend API:", resendError.response?.data || resendError.message);
-      // Fallback to SMTP if Resend failed due to API Key issues
       console.log("[RESEND FALLBACK] Falling back to SMTP...");
     }
   }
 
-  // 2. SMTP Flow (If Resend API Key is not set or failed)
+  // 2. SMTP Flow
   const smtpHost = (process.env.SMTP_HOST || "smtp.gmail.com").trim();
   const smtpUser = (process.env.SMTP_USER || "").trim().replace(/\s/g, "");
   const smtpPass = (process.env.SMTP_PASS || "").trim().replace(/\s/g, "");
   const smtpPortStr = process.env.SMTP_PORT || "587";
   const smtpPort = parseInt(smtpPortStr);
-  
+
   const missingVars = [];
   if (!smtpUser) missingVars.push("SMTP_USER");
   if (!smtpPass) missingVars.push("SMTP_PASS");
-  
+
   if (missingVars.length > 0) {
-    console.log(`[SIMULATION] Email OTP: ${email} | Subject: ${subject} | Port: ${smtpPortStr} | Code: ${message.match(/\d{4}/)?.[0] || 'N/A'}`);
-    return res.json({ 
-      success: true, 
-      message: `Email dikirim (SIMULASI - ${missingVars.join(', ')} belum ada)`,
+    console.log(`[SIMULATION EMAIL] To: ${recipients.join(', ')} | Subject: ${subject} (Credentials ${missingVars.join(', ')} not configured)`);
+    return {
+      success: true,
+      method: "SIMULATION",
       isSimulated: true,
-      otp: message.match(/\d{4}/)?.[0]
-    });
+      message: `Email tercatat dalam log server (Mode Simulasi - ${missingVars.join(', ')} belum diisi di environment)`,
+      recipients
+    };
   }
 
   const isGmail = smtpHost.includes("gmail.com");
   const cleanPass = smtpPass.replace(/\s/g, "");
 
-  console.log(`[EMAIL-CONFIG] Host: ${smtpHost}, User: ${smtpUser}, Port: ${smtpPortStr}, PassLen: ${cleanPass.length}`);
-
   try {
-    let transporter;
-    
-    if (isGmail) {
-      const cleanUser = smtpUser.trim().toLowerCase();
-      const finalPass = cleanPass.trim();
-      
-      console.log(`[EMAIL-GMAIL] Attempting with service:gmail, user: ${cleanUser}, passLen: ${finalPass.length}`);
-      
-      transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: {
-          user: cleanUser,
-          pass: finalPass,
-        },
-        connectionTimeout: 15000,
-        greetingTimeout: 15000,
-      });
-    } else {
-      let smtpSecure = process.env.SMTP_SECURE === "true";
-      if (!process.env.SMTP_SECURE) {
-        smtpSecure = smtpPort === 465;
-      }
-      
-      transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpSecure,
-        auth: {
-          user: smtpUser,
-          pass: cleanPass,
-        },
-        tls: {
-          rejectUnauthorized: false
+    let transporter = cachedTransporter;
+    if (!transporter) {
+      if (isGmail) {
+        const cleanUser = smtpUser.trim().toLowerCase();
+        transporter = nodemailer.createTransport({
+          service: 'gmail',
+          auth: {
+            user: cleanUser,
+            pass: cleanPass,
+          },
+          connectionTimeout: 15000,
+          greetingTimeout: 15000,
+        });
+      } else {
+        let smtpSecure = process.env.SMTP_SECURE === "true";
+        if (!process.env.SMTP_SECURE) {
+          smtpSecure = smtpPort === 465;
         }
-      });
+
+        transporter = nodemailer.createTransport({
+          host: smtpHost,
+          port: smtpPort,
+          secure: smtpSecure,
+          auth: {
+            user: smtpUser,
+            pass: cleanPass,
+          },
+          tls: {
+            rejectUnauthorized: false
+          }
+        });
+      }
+      cachedTransporter = transporter;
     }
-    
-    console.log(`[EMAIL-ATTEMPT] Sending to ${email} using ${isGmail ? 'Gmail Service' : smtpHost}`);
 
     await transporter.sendMail({
       from: `"ARCUS Archery System" <${smtpUser}>`,
-      to: email,
-      subject: subject || "Kode OTP Anda",
-      text: message,
-      html: `
-        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; background-color: #f8fafc; color: #1e293b;">
-          <div style="background-color: #0f172a; padding: 20px; border-radius: 20px 20px 0 0; text-align: center;">
-            <h1 style="color: white; margin: 0; font-style: italic; letter-spacing: -0.05em;">ARCUS DIGITAL</h1>
-          </div>
-          <div style="background-color: white; padding: 40px; border-radius: 0 0 20px 20px; border: 1px solid #e2e8f0; border-top: none;">
-            <h2 style="color: #0f172a; margin-top: 0;">Verifikasi Akun</h2>
-            <p style="font-size: 16px; line-height: 1.6; color: #475569;">${message.replace(/\n/g, '<br>')}</p>
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #f1f5f9; font-size: 12px; color: #94a3b8; text-align: center;">
-              &copy; ${new Date().getFullYear()} Arcus Digital Archery System. Pesan ini dikirim secara otomatis ke <b>${email}</b>.
-            </div>
-          </div>
-        </div>
-      `,
+      to: recipients.join(', '),
+      subject,
+      text: text || html.replace(/<[^>]*>?/gm, ''),
+      html
     });
 
     const duration = Date.now() - startTime;
-    console.log(`[EMAIL SUCCESS] Sent to ${email} in ${duration}ms`);
-    return res.json({ success: true, message: "OTP sent to email", duration });
+    console.log(`[EMAIL SUCCESS] Sent to ${recipients.join(', ')} in ${duration}ms`);
+    return { success: true, method: "SMTP", duration, recipients };
   } catch (error: any) {
+    cachedTransporter = null; // Clear cache on failure
     const duration = Date.now() - startTime;
     let errorMessage = error.message;
-    
-    // Auth failures (535)
+
     if (errorMessage.includes("535") || errorMessage.includes("authentication failed") || error.code === "EAUTH") {
       if (isGmail) {
-        errorMessage = `Autentikasi Gmail Gagal. Password terbaca sebagai ${cleanPass.length} karakter. Jika sudah 16 karakter namun masih gagal, pastikan Anda membuat App Password khusus untuk "Mail" dan jangan ada spasi di antaranya.`;
+        errorMessage = `Autentikasi Gmail Gagal. Password terbaca sebagai ${cleanPass.length} karakter. Gunakan Google App Password (16 digit) tanpa spasi.`;
       }
     }
 
@@ -500,10 +494,238 @@ app.post("/api/send-email-otp", async (req, res) => {
       passLen: cleanPass.length
     });
 
+    return {
+      success: false,
+      error: error.message,
+      message: errorMessage || "Gagal mengirim email via SMTP.",
+      duration
+    };
+  }
+};
+
+app.post("/api/send-email-otp", async (req, res) => {
+  const { email, message, subject } = req.body;
+
+  if (!email || !message) {
+    return res.status(400).json({ success: false, message: "Email dan pesan OTP wajib diisi." });
+  }
+
+  const html = `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; background-color: #f8fafc; color: #1e293b;">
+      <div style="background-color: #0f172a; padding: 20px; border-radius: 20px 20px 0 0; text-align: center; border-bottom: 3px solid #dc2626;">
+        <h1 style="color: white; margin: 0; font-style: italic; letter-spacing: -0.05em;">ARCUS DIGITAL</h1>
+      </div>
+      <div style="background-color: white; padding: 40px; border-radius: 0 0 20px 20px; border: 1px solid #e2e8f0; border-top: none;">
+        <h2 style="color: #0f172a; margin-top: 0;">Verifikasi Akun</h2>
+        <p style="font-size: 16px; line-height: 1.6; color: #475569;">${message.replace(/\n/g, '<br>')}</p>
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #f1f5f9; font-size: 12px; color: #94a3b8; text-align: center;">
+          &copy; ${new Date().getFullYear()} Arcus Digital Archery System. Pesan ini dikirim secara otomatis ke <b>${email}</b>.
+        </div>
+      </div>
+    </div>
+  `;
+
+  const delivery = await sendSystemEmail({
+    to: email,
+    subject: subject || "Kode OTP Anda",
+    html,
+    text: message
+  });
+
+  if (delivery.success) {
+    return res.json({ 
+      success: true, 
+      message: delivery.isSimulated ? delivery.message : "OTP berhasil dikirim ke email", 
+      delivery,
+      otp: delivery.isSimulated ? message.match(/\d{4}/)?.[0] : undefined
+    });
+  } else {
     return res.status(500).json({ 
       success: false, 
-      error: error.message,
-      message: errorMessage || "Gagal mengirim email. Silakan cek koneksi atau kredensial SMTP." 
+      error: delivery.error, 
+      message: delivery.message 
+    });
+  }
+});
+
+// API Route: Send Email Notification to Superadmin when a tournament is created
+app.post("/api/notify-tournament-created", async (req, res) => {
+  try {
+    const { 
+      tournamentId, 
+      tournamentName, 
+      organizerName, 
+      organizerEmail, 
+      organizerPhone,
+      location, 
+      eventDate, 
+      isFreeEvent,
+      description,
+      appUrl,
+      isTest
+    } = req.body || {};
+
+    // 1. Fetch Global Settings to check recipient and notification toggle
+    const settings = await getGlobalSettings();
+
+    if (!isTest && settings?.notifyOnTournamentCreated === false) {
+      console.log("[NOTIF-TOURNAMENT] Notification skipped because notifyOnTournamentCreated is set to false.");
+      return res.json({ 
+        success: true, 
+        skipped: true, 
+        message: "Notifikasi email dinonaktifkan di Pengaturan Global." 
+      });
+    }
+
+    // 2. Resolve Superadmin email recipient(s)
+    let recipientEmail = (settings?.superAdminEmail || process.env.SUPERADMIN_EMAIL || "poedji.sugianto@gmail.com").trim();
+    if (!recipientEmail) {
+      recipientEmail = "poedji.sugianto@gmail.com";
+    }
+
+    const cleanName = tournamentName || (isTest ? "Turnamen Uji Coba (Test Notification)" : "Turnamen Panahan Baru");
+    const cleanOrganizer = organizerName || organizerEmail || "Pengguna Terdaftar";
+    const cleanDate = eventDate 
+      ? new Date(eventDate).toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+      : (isTest ? "Contoh: Minggu, 20 Oktober 2026" : "Belum ditentukan");
+    const cleanLocation = location || (isTest ? "Lapangan Panahan Utama" : "Belum diisi");
+    const eventType = isFreeEvent ? "Gratis (Free Event)" : "Turnamen Berbayar (Platform Fee)";
+    
+    // Determine link to tournament
+    const baseUrl = settings?.productionUrl || appUrl || process.env.APP_URL || "https://arcus-archery.id";
+    const manageUrl = tournamentId ? `${baseUrl}?event=${tournamentId}&view=EVENT_ADMIN` : baseUrl;
+    const currentYear = new Date().getFullYear();
+    const formattedTimestamp = new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) + " WIB";
+
+    const subject = isTest 
+      ? `🧪 [TEST NOTIFIKASI] Turnamen Baru Dibuat - ${cleanName}`
+      : `🏹 [Turnamen Baru Dibuat] ${cleanName}`;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${subject}</title>
+      </head>
+      <body style="margin:0; padding:20px; background-color:#f1f5f9; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color:#1e293b;">
+        <div style="max-width: 620px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05), 0 8px 10px -6px rgba(0,0,0,0.01); border: 1px solid #e2e8f0;">
+          
+          <!-- Header Banner -->
+          <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 32px 28px; text-align: center; border-bottom: 4px solid #dc2626;">
+            <div style="display: inline-block; padding: 5px 14px; background-color: rgba(220, 38, 38, 0.2); border: 1px solid rgba(220, 38, 38, 0.4); border-radius: 9999px; margin-bottom: 12px;">
+              <span style="color: #fca5a5; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em;">
+                ${isTest ? '🧪 UJI COBA SISTEM' : '🔔 PEMBERITAHUAN SUPERADMIN'}
+              </span>
+            </div>
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 900; letter-spacing: -0.03em;">ARCUS ARCHERY SYSTEM</h1>
+            <p style="color: #94a3b8; margin: 6px 0 0 0; font-size: 13px; font-weight: 500;">Notifikasi Pembuatan Turnamen Baru</p>
+          </div>
+
+          <!-- Main Content -->
+          <div style="padding: 32px 28px;">
+            <p style="font-size: 15px; line-height: 1.6; color: #334155; margin-top: 0;">
+              Halo <strong>Superadmin</strong>,<br>
+              ${isTest 
+                ? 'Ini adalah email uji coba untuk memverifikasi bahwa pengiriman notifikasi pembuatan turnamen ke superadmin berjalan dengan normal.' 
+                : 'Pemberitahuan bahwa ada pengguna yang baru saja membuat turnamen baru di platform <strong>ARCUS Digital Archery</strong>.'}
+            </p>
+
+            <!-- Event Card Summary -->
+            <div style="background-color: #f8fafc; border-radius: 14px; padding: 22px; margin: 24px 0; border: 1px solid #e2e8f0;">
+              <table style="width: 100%; border-collapse: collapse; font-size: 13.5px;">
+                <tr>
+                  <td style="padding: 9px 0; color: #64748b; width: 38%; font-weight: 600; border-bottom: 1px solid #edf2f7;">Nama Turnamen:</td>
+                  <td style="padding: 9px 0; color: #0f172a; font-weight: 800; font-size: 15px; border-bottom: 1px solid #edf2f7;">${cleanName}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 9px 0; color: #64748b; font-weight: 600; border-bottom: 1px solid #edf2f7;">Penyelenggara:</td>
+                  <td style="padding: 9px 0; color: #0f172a; font-weight: 700; border-bottom: 1px solid #edf2f7;">
+                    ${cleanOrganizer} ${organizerEmail ? `<span style="color:#64748b; font-weight:normal;">(${organizerEmail})</span>` : ''}
+                  </td>
+                </tr>
+                ${organizerPhone ? `
+                <tr>
+                  <td style="padding: 9px 0; color: #64748b; font-weight: 600; border-bottom: 1px solid #edf2f7;">WhatsApp Penyelenggara:</td>
+                  <td style="padding: 9px 0; color: #0f172a; font-weight: 700; border-bottom: 1px solid #edf2f7;">${organizerPhone}</td>
+                </tr>` : ''}
+                <tr>
+                  <td style="padding: 9px 0; color: #64748b; font-weight: 600; border-bottom: 1px solid #edf2f7;">Tanggal Kegiatan:</td>
+                  <td style="padding: 9px 0; color: #0f172a; font-weight: 600; border-bottom: 1px solid #edf2f7;">${cleanDate}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 9px 0; color: #64748b; font-weight: 600; border-bottom: 1px solid #edf2f7;">Lokasi Turnamen:</td>
+                  <td style="padding: 9px 0; color: #0f172a; font-weight: 600; border-bottom: 1px solid #edf2f7;">${cleanLocation}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 9px 0; color: #64748b; font-weight: 600; border-bottom: 1px solid #edf2f7;">Kategori Pembayaran:</td>
+                  <td style="padding: 9px 0; color: #0f172a; font-weight: 600; border-bottom: 1px solid #edf2f7;">
+                    <span style="display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 11.5px; font-weight: 700; ${isFreeEvent ? 'background-color: #dbeafe; color: #1e40af;' : 'background-color: #dcfce7; color: #166534;'}">
+                      ${eventType}
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 9px 0; color: #64748b; font-weight: 600; border-bottom: 1px solid #edf2f7;">Waktu Dibuat:</td>
+                  <td style="padding: 9px 0; color: #0f172a; font-weight: 600; border-bottom: 1px solid #edf2f7;">${formattedTimestamp}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 9px 0; color: #64748b; font-weight: 600; ${description ? 'border-bottom: 1px solid #edf2f7;' : ''}">ID Turnamen:</td>
+                  <td style="padding: 9px 0; font-family: monospace; font-size: 12px; color: #475569; ${description ? 'border-bottom: 1px solid #edf2f7;' : ''}">${tournamentId || 'evt_test_mode'}</td>
+                </tr>
+                ${description ? `
+                <tr>
+                  <td style="padding: 9px 0; color: #64748b; font-weight: 600; vertical-align: top;">Deskripsi:</td>
+                  <td style="padding: 9px 0; color: #334155; font-size: 13px; line-height: 1.5;">${description.replace(/\n/g, '<br>')}</td>
+                </tr>` : ''}
+              </table>
+            </div>
+
+            <!-- Action Button -->
+            <div style="text-align: center; margin: 32px 0 16px 0;">
+              <a href="${manageUrl}" style="display: inline-block; background-color: #dc2626; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 12px; font-weight: 800; font-size: 13px; letter-spacing: 0.05em; text-transform: uppercase; box-shadow: 0 4px 10px rgba(220, 38, 38, 0.3);">
+                Kelola Turnamen di ARCUS &rarr;
+              </a>
+            </div>
+            
+            <p style="text-align: center; font-size: 11.5px; color: #94a3b8; margin: 12px 0 0 0;">
+              Superadmin dapat memantau pendaftaran peserta, mengaktifkan lisensi, dan mengelola tagihan platform melalui Superadmin Panel.
+            </p>
+          </div>
+
+          <!-- Footer -->
+          <div style="background-color: #f8fafc; padding: 22px 28px; border-top: 1px solid #e2e8f0; font-size: 11.5px; color: #64748b; text-align: center; line-height: 1.6;">
+            Pemberitahuan otomatis dari <strong>ARCUS Digital Archery Platform</strong>.<br>
+            Terkirim ke email Superadmin: <strong style="color: #334155;">${recipientEmail}</strong>.<br>
+            Untuk mengatur alamat email penerima notifikasi, kunjungi <em>Superadmin Panel &gt; Settings &gt; Notifikasi Email Superadmin</em>.
+          </div>
+
+        </div>
+      </body>
+      </html>
+    `;
+
+    const delivery = await sendSystemEmail({
+      to: recipientEmail,
+      subject,
+      html
+    });
+
+    return res.json({
+      success: true,
+      message: delivery.isSimulated 
+        ? "Simulasi notifikasi turnamen berhasil dicatat di log server" 
+        : `Email notifikasi turnamen berhasil dikirim ke ${recipientEmail}`,
+      recipient: recipientEmail,
+      delivery
+    });
+  } catch (err: any) {
+    console.error("[NOTIFY-TOURNAMENT-CREATED ERROR]:", err);
+    return res.status(500).json({ 
+      success: false, 
+      error: err.message,
+      message: "Gagal mengirim notifikasi turnamen ke superadmin" 
     });
   }
 });
@@ -608,6 +830,16 @@ app.post("/api/admin/test-midtrans", async (req, res) => {
 
 // API Route for creating a payment transaction
 app.post("/api/payment/create", async (req, res) => {
+  const settings = await getGlobalSettings();
+  const isEnabled = settings?.paymentGatewayEnabled !== false && settings?.paymentGatewayProvider !== 'NONE';
+
+  if (!isEnabled) {
+    return res.status(403).json({ 
+      success: false, 
+      message: "Payment Gateway sedang dinonaktifkan oleh Superadmin. Silakan lakukan pembayaran melalui Transfer Bank Manual." 
+    });
+  }
+
   const { amount, method, provider, customerDetails, itemDetails } = req.body;
   const cleanAmount = Math.round(Number(amount) || 0);
   const orderId = "ARCUS-" + Date.now().toString().slice(-8) + "-" + Math.random().toString(36).toUpperCase().substring(2, 6);

@@ -400,11 +400,31 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
       return 'bg-slate-900 text-white border-slate-700';
     }
 
+    if (targetType === TargetType.FACE_5_RING) {
+      if (val === 5) return 'bg-yellow-400 text-slate-900 border-yellow-600';
+      if (val === 4) return 'bg-red-600 text-white border-red-800';
+      if (val === 3) return 'bg-blue-600 text-white border-blue-800';
+      if (val === 2) return 'bg-slate-900 text-white border-slate-700';
+      if (val === 1) return 'bg-white text-slate-900 border-slate-300';
+      return 'bg-slate-900 text-white border-slate-700';
+    }
+
+    // FACE MEGA MENDUNG FESPATI (10, 9, 6 Kuning; 8, 5 Merah; 7, 4, 1 Putih; 3 Biru Muda; 2 Biru Tua; M Hitam)
+    if (targetType === TargetType.FACE_MEGA_MENDUNG) {
+      if (val === 'X' || val === 10 || val === 9 || val === 6) return 'bg-yellow-400 text-slate-900 border-yellow-600';
+      if (val === 8 || val === 5) return 'bg-red-600 text-white border-red-800';
+      if (val === 7 || val === 4 || val === 1) return 'bg-white text-slate-900 border-slate-300';
+      if (val === 3) return 'bg-sky-400 text-slate-900 border-sky-500';
+      if (val === 2) return 'bg-blue-900 text-white border-blue-950';
+      return 'bg-slate-900 text-white border-slate-700';
+    }
+
     if (val === 'X' || val === 10 || val === 9) return 'bg-yellow-400 text-slate-900 border-yellow-600';
     if (val === 8 || val === 7) return 'bg-red-600 text-white border-red-800';
     if (val === 6 || val === 5) return 'bg-blue-600 text-white border-blue-800';
     if (val === 4 || val === 3) return 'bg-slate-900 text-white border-slate-700';
-    return 'bg-white text-slate-900 border-slate-200';
+    if (val === 2 || val === 1) return 'bg-white text-slate-900 border-slate-300';
+    return 'bg-slate-900 text-white border-slate-700';
   };
 
   return (
@@ -558,6 +578,7 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
                   {tempArrows.map((a, i) => {
                     const isActive = activeArrowIndex === i;
                     const isFilled = a !== -1;
+                    const filledStyle = isFilled ? getButtonStyles(a === 0 ? 'M' : a) : '';
                     return (
                       <button
                         key={i} 
@@ -565,20 +586,24 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
                         onClick={() => setActiveArrowIndex(i === activeArrowIndex ? null : i)}
                         className={`w-14 h-16 sm:w-20 sm:h-22 rounded-2xl border-2 flex flex-col items-center justify-between p-1.5 sm:p-2 transition-all relative ${
                           isActive 
-                            ? 'border-blue-600 bg-blue-50/60 ring-4 ring-blue-500/30 shadow-md scale-105' 
+                            ? isFilled 
+                              ? `${filledStyle} ring-4 ring-blue-500 shadow-md scale-105`
+                              : 'border-blue-600 bg-blue-50/80 ring-4 ring-blue-500/40 shadow-md scale-105 text-blue-900'
                             : isFilled 
-                              ? 'border-slate-800 bg-white text-slate-900 shadow-xs hover:border-slate-600' 
+                              ? `${filledStyle} shadow-xs hover:scale-102` 
                               : 'border-dashed border-slate-300 bg-slate-50/70 text-slate-300 hover:border-slate-400'
                         }`}
                         title={`Anak panah ${i + 1} - Klik untuk koreksi nilai`}
                       >
-                        <span className={`text-[8px] sm:text-[9px] font-black uppercase tracking-wider ${isActive ? 'text-blue-700 font-extrabold' : 'text-slate-400'}`}>
+                        <span className={`text-[8px] sm:text-[9px] font-black uppercase tracking-wider ${
+                          isFilled ? 'opacity-80' : isActive ? 'text-blue-700 font-extrabold' : 'text-slate-400'
+                        }`}>
                           P{i + 1}
                         </span>
                         <span className="text-2xl sm:text-4xl font-black leading-none mb-1">
-                          {a === -1 ? '-' : (a === 0 && config?.targetType === TargetType.PUTA ? 'M' : a)}
+                          {a === -1 ? '-' : (a === 0 ? 'M' : a)}
                         </span>
-                        <span className="text-[7px] font-bold uppercase tracking-wider text-slate-400">
+                        <span className={`text-[7px] font-bold uppercase tracking-wider ${isFilled ? 'opacity-70' : 'text-slate-400'}`}>
                           {isActive ? 'Aktif' : isFilled ? 'Ubah' : 'Isi'}
                         </span>
                       </button>

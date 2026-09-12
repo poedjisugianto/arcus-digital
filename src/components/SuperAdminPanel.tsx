@@ -5,7 +5,7 @@ import {
   ShieldCheck, CheckCircle2, 
   AlertCircle, Save, ArrowLeft, Trash2, 
   Search, Eye, ShieldAlert, Activity, Landmark, Check, Mail, Send, RefreshCw,
-  Zap, AlertTriangle, Headphones, Wrench, Lock
+  Zap, AlertTriangle, Headphones, Wrench, Lock, Power
 } from 'lucide-react';
 import { AppState, GlobalSettings, ArcheryEvent, User, AppNotification, CategoryType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
@@ -49,6 +49,8 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
   const [testEmail, setTestEmail] = useState('');
   const [isTestingEmail, setIsTestingEmail] = useState(false);
   const [testEmailResult, setTestEmailResult] = useState<{ success: boolean, message: string } | null>(null);
+  const [isTestingNotif, setIsTestingNotif] = useState(false);
+  const [notifTestResult, setNotifTestResult] = useState<{ success: boolean, message: string } | null>(null);
   const [smtpStatus, setSmtpStatus] = useState<any>(null);
   const [isTestingMidtrans, setIsTestingMidtrans] = useState(false);
   const [midtransTestResult, setMidtransTestResult] = useState<{ success: boolean, message: string } | null>(null);
@@ -185,6 +187,49 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
       setTestEmailResult({ success: false, message: err.message || "Terjadi kesalahan sistem." });
     } finally {
       setIsTestingEmail(false);
+    }
+  };
+
+  const handleTestTournamentNotif = async () => {
+    setIsTestingNotif(true);
+    setNotifTestResult(null);
+    try {
+      const res = await fetch('/api/notify-tournament-created', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tournamentId: 'evt_sample_demo_123',
+          tournamentName: 'Kejuaraan Panahan Sriwedari Open 2026',
+          organizerName: state.currentUser?.name || 'Panitia Turnamen Panahan',
+          organizerEmail: state.currentUser?.email || 'panitia@arcus.id',
+          organizerPhone: state.currentUser?.phone || '081234567890',
+          location: 'Lapangan Panahan Utama Sriwedari',
+          eventDate: new Date(Date.now() + 86400000 * 14).toISOString(),
+          isFreeEvent: false,
+          description: 'Turnamen Panahan Tingkat Nasional dengan kategori U-15, Barebow, dan Compound.',
+          appUrl: localSettings.productionUrl || window.location.origin,
+          isTest: true
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setNotifTestResult({ 
+          success: true, 
+          message: data.message || `Notifikasi berhasil dikirim ke: ${data.recipient || localSettings.superAdminEmail || 'Superadmin'}` 
+        });
+      } else {
+        setNotifTestResult({ 
+          success: false, 
+          message: data.message || data.error || 'Gagal mengirim email notifikasi turnamen.' 
+        });
+      }
+    } catch (err: any) {
+      setNotifTestResult({ 
+        success: false, 
+        message: err.message || 'Terjadi kesalahan sistem saat mengirim notifikasi turnamen.' 
+      });
+    } finally {
+      setIsTestingNotif(false);
     }
   };
 
@@ -550,22 +595,127 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
               </div>
            </div>
 
+          {/* Payment Gateway Configuration with Master Kill-Switch */}
           <div className="space-y-6 border-t pt-10">
-             <div className="flex items-center justify-between">
-                <h4 className="font-black text-xs uppercase text-slate-700">Konfigurasi Payment Gateway</h4>
-                <div className="flex items-center gap-2">
-                   <span className={`text-[8px] font-black uppercase px-2 py-1 rounded-md ${localSettings.paymentGatewayIsProduction ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
-                      {localSettings.paymentGatewayIsProduction ? 'Production Mode' : 'Sandbox Mode'}
-                   </span>
+             {/* Master Header & Toggle */}
+             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-6 bg-slate-50 border border-slate-200 rounded-3xl">
+                <div className="space-y-1">
+                   <div className="flex items-center gap-2">
+                      <h4 className="font-black text-sm uppercase text-slate-800">Master Sakelar Payment Gateway</h4>
+                      <span className={`text-[9px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                        (localSettings.paymentGatewayEnabled !== false && localSettings.paymentGatewayProvider !== 'NONE')
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {(localSettings.paymentGatewayEnabled !== false && localSettings.paymentGatewayProvider !== 'NONE') ? 'STATUS: AKTIF (AUTO)' : 'STATUS: NONAKTIF (MANUAL)'}
+                      </span>
+                   </div>
+                   <p className="text-[11px] text-slate-600 max-w-2xl leading-relaxed">
+                     Superadmin dapat mematikan payment gateway kapan saja. Jika dinonaktifkan, semua transaksi pendaftaran turnamen & aktivasi turnamen dialihkan ke transfer bank manual dan panitia/admin wajib memverifikasi manual.
+                   </p>
+                </div>
+
+                {/* Quick Action Buttons */}
+                <div className="flex items-center gap-2 shrink-0">
+                   <button
+                     type="button"
+                     onClick={() => {
+                       setIsDirty(true);
+                       setLocalSettings(prev => ({
+                         ...prev,
+                         paymentGatewayEnabled: false,
+                         paymentGatewayProvider: 'NONE'
+                       }));
+                     }}
+                     className={`px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${
+                       (localSettings.paymentGatewayEnabled === false || localSettings.paymentGatewayProvider === 'NONE')
+                         ? 'bg-amber-600 text-white shadow-md'
+                         : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-300'
+                     }`}
+                   >
+                     <ShieldAlert className="w-4 h-4" />
+                     <span>Nonaktifkan (Mode Manual)</span>
+                   </button>
+
+                   <button
+                     type="button"
+                     onClick={() => {
+                       setIsDirty(true);
+                       setLocalSettings(prev => ({
+                         ...prev,
+                         paymentGatewayEnabled: true,
+                         paymentGatewayProvider: prev.paymentGatewayProvider === 'NONE' ? 'MIDTRANS' : prev.paymentGatewayProvider
+                       }));
+                     }}
+                     className={`px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${
+                       (localSettings.paymentGatewayEnabled !== false && localSettings.paymentGatewayProvider !== 'NONE')
+                         ? 'bg-emerald-600 text-white shadow-md'
+                         : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-300'
+                     }`}
+                   >
+                     <Zap className="w-4 h-4" />
+                     <span>Aktifkan (Midtrans)</span>
+                   </button>
                 </div>
              </div>
+
+             {/* Dynamic Status Explanation Banner */}
+             {(localSettings.paymentGatewayEnabled === false || localSettings.paymentGatewayProvider === 'NONE') ? (
+               <div className="p-5 bg-amber-50 border border-amber-200 rounded-3xl flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-700 shrink-0 mt-0.5">
+                     <ShieldAlert className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1.5 text-xs text-amber-900 leading-relaxed">
+                     <p className="font-black uppercase tracking-wide">
+                        🛡️ Payment Gateway Dinonaktifkan (Sistem Aman untuk Turnamen)
+                     </p>
+                     <p>
+                        Saat ini peserta turnamen <strong>TIDAK DAPAT</strong> memilih tombol Payment Gateway, dan pilihan Midtrans disembunyikan. Semua peserta wajib melakukan transfer manual ke nomor rekening panitia turnamen dan mengunggah bukti transfer.
+                     </p>
+                     <p className="font-bold">
+                        Status pendaftaran peserta akan tetap <span className="underline">Menunggu Verifikasi (PENDING)</span> sampai panitia event menyetujuinya secara manual. Ini menjamin tidak ada peserta yang terdaftar otomatis tanpa pembayaran nyata saat Midtrans belum di-ACC.
+                     </p>
+                  </div>
+               </div>
+             ) : (
+               <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-3xl flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-100 flex items-center justify-center text-emerald-700 shrink-0 mt-0.5">
+                     <CheckCircle2 className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1.5 text-xs text-emerald-900 leading-relaxed">
+                     <p className="font-black uppercase tracking-wide">
+                        ⚡ Payment Gateway Aktif (Pembayaran Instan Otomatis)
+                     </p>
+                     <p>
+                        Peserta turnamen dapat memilih tombol <strong>PAYMENT GATEWAY</strong> dan melakukan pembayaran langsung via Midtrans Snap (QRIS, VA Bank, GoPay/ShopeePay).
+                     </p>
+                     <p className="font-bold">
+                        Peserta yang berhasil membayar akan <span className="underline">otomatis disetujui (APPROVED)</span> langsung oleh sistem.
+                     </p>
+                  </div>
+               </div>
+             )}
              
+             {/* Configuration Detail Grid */}
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-1.5">
-                   <label className="text-[9px] font-black uppercase text-slate-700">Provider</label>
+                   <div className="flex items-center justify-between">
+                      <label className="text-[9px] font-black uppercase text-slate-700">Provider Gateway</label>
+                      <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-md ${localSettings.paymentGatewayIsProduction ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`}>
+                         {localSettings.paymentGatewayIsProduction ? 'Production' : 'Sandbox'}
+                      </span>
+                   </div>
                    <select 
                      value={localSettings.paymentGatewayProvider} 
-                     onChange={e => updateSettingField('paymentGatewayProvider', e.target.value as any)}
+                     onChange={e => {
+                       const val = e.target.value as any;
+                       setIsDirty(true);
+                       setLocalSettings(prev => ({
+                         ...prev,
+                         paymentGatewayProvider: val,
+                         paymentGatewayEnabled: val !== 'NONE'
+                       }));
+                     }}
                      className="w-full p-4 bg-slate-50 border rounded-2xl font-black text-xs outline-none focus:ring-2 ring-arcus-red/20"
                    >
                       <option value="NONE">Nonaktif (Manual Only)</option>
@@ -573,6 +723,7 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                       <option value="XENDIT">Xendit (Indonesia)</option>
                       <option value="STRIPE">Stripe (Global)</option>
                    </select>
+                   <p className="text-[8px] font-bold text-slate-500">Pilih "Nonaktif" untuk mematikan semua gateway pembayaran.</p>
                 </div>
                 <div className="space-y-1.5">
                    <label className="text-[9px] font-black uppercase text-slate-700">Server Key / Secret (Wajib)</label>
@@ -721,6 +872,88 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                    )}
                 </div>
              )}
+          </div>
+
+          <div className="space-y-6 border-t pt-10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-black text-xs uppercase text-slate-700">Notifikasi Email Superadmin (Turnamen Baru)</h4>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Kirim email otomatis ke superadmin seketika saat ada pengguna yang membuat turnamen baru.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-black uppercase text-slate-600">
+                    {localSettings.notifyOnTournamentCreated !== false ? 'Aktif' : 'Nonaktif'}
+                  </span>
+                  <button 
+                    type="button"
+                    onClick={() => updateSettingField('notifyOnTournamentCreated', localSettings.notifyOnTournamentCreated === false ? true : false)}
+                    className={`w-12 h-6 rounded-full relative transition-all ${localSettings.notifyOnTournamentCreated !== false ? 'bg-arcus-red' : 'bg-slate-300'}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${localSettings.notifyOnTournamentCreated !== false ? 'left-7' : 'left-1'}`} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase text-slate-700">Alamat Email Superadmin Penerima Notifikasi</label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input 
+                      type="text" 
+                      placeholder="poedji.sugianto@gmail.com (atau pisahkan koma untuk multiple)" 
+                      value={localSettings.superAdminEmail ?? 'poedji.sugianto@gmail.com'} 
+                      onChange={e => updateSettingField('superAdminEmail', e.target.value)}
+                      className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border rounded-2xl font-bold text-xs outline-none focus:ring-2 ring-arcus-red/10" 
+                    />
+                  </div>
+                  <p className="text-[8px] font-bold text-slate-500 uppercase leading-relaxed">
+                    Setiap kali seseorang membuat turnamen baru, sistem akan mengirimkan email pemberitahuan berisi nama turnamen, kontak penyelenggara, tanggal, dan link akses.
+                  </p>
+                </div>
+
+                <div className="space-y-2 bg-slate-50 p-5 rounded-2xl border border-slate-200/80">
+                  <h5 className="font-black text-xs text-slate-800 uppercase flex items-center gap-2">
+                    <Zap className="w-3.5 h-3.5 text-arcus-red" />
+                    Uji Coba Notifikasi Turnamen
+                  </h5>
+                  <p className="text-[10px] text-slate-600 leading-relaxed">
+                    Kirim contoh email notifikasi turnamen baru langsung ke email superadmin di samping untuk memastikan format dan pengiriman berfungsi sempurna.
+                  </p>
+                  <button 
+                    type="button"
+                    onClick={handleTestTournamentNotif}
+                    disabled={isTestingNotif}
+                    className="mt-2 w-full py-3 bg-arcus-red hover:bg-black text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md shadow-red-500/10 disabled:opacity-50"
+                  >
+                    {isTestingNotif ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Mengirim Notifikasi...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-3.5 h-3.5" /> Kirim Tes Notifikasi Turnamen
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {notifTestResult && (
+                <div className={`p-4 rounded-2xl border text-xs font-bold flex items-start gap-3 animate-in fade-in slide-in-from-top-2 ${
+                  notifTestResult.success ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'
+                }`}>
+                  {notifTestResult.success ? <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" /> : <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />}
+                  <div className="space-y-1">
+                    <p>{notifTestResult.message}</p>
+                    {notifTestResult.success && (
+                      <p className="text-[10px] font-normal text-emerald-700">
+                        Periksa kotak masuk (atau folder spam/promotions) email Anda untuk melihat tampilan email pemberitahuan turnamen.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
           </div>
 
           <div className="space-y-6 border-t pt-10">

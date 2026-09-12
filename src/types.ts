@@ -64,12 +64,15 @@ export interface GlobalSettings {
   bankAccountName: string;
   dataRetentionDays: number;
   practiceRetentionDays: number;
-  paymentGatewayProvider: 'NONE' | 'MIDTRANS' | 'XENDIT';
+  paymentGatewayEnabled?: boolean;
+  paymentGatewayProvider: 'NONE' | 'MIDTRANS' | 'XENDIT' | 'STRIPE';
   paymentGatewayIsProduction: boolean;
   paymentGatewayServerKey?: string;
   paymentGatewayClientKey?: string;
   platformFeePercentage: number;
   productionUrl?: string;
+  superAdminEmail?: string;
+  notifyOnTournamentCreated?: boolean;
 }
 
 export interface AppNotification {
