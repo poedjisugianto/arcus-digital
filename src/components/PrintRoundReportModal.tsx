@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { ArcheryEvent, CategoryType, Match, Archer, TargetType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
+import { findCategoryConfig } from '../lib/firestoreUtils';
 import ArcusLogo from './ArcusLogo';
 import { toast } from 'sonner';
 import { exportToExcel, exportToCSV } from '../lib/excelHelper';
@@ -67,7 +68,7 @@ export default function PrintRoundReportModal({
   }, []);
 
   const config = useMemo(() => {
-    return (event.settings?.categoryConfigs || {})[selectedCategory];
+    return findCategoryConfig(selectedCategory, event.settings?.categoryConfigs);
   }, [event.settings, selectedCategory]);
 
   const archersInCategory = useMemo(() => {
@@ -84,11 +85,18 @@ export default function PrintRoundReportModal({
   const isFiveRing = config?.targetType === TargetType.FACE_5_RING;
 
   const tieBreakLabels = useMemo(() => {
+    if (config?.highestScore1 || config?.highestScore2) {
+      return {
+        highest: config.highestScore1 || '10+X',
+        second: config.highestScore2 || 'X'
+      };
+    }
     if (isSmallTarget) return { highest: '2s (Hit)', second: '1s (Point)' };
     if (isSixRing) return { highest: '6s', second: '5s' };
     if (isFiveRing) return { highest: '5s', second: '4s' };
+    if (config?.targetType === TargetType.FACE_MEGA_MENDUNG) return { highest: '10s', second: '9s' };
     return { highest: '10+X', second: '9s' };
-  }, [isSmallTarget, isSixRing, isFiveRing]);
+  }, [config, isSmallTarget, isSixRing, isFiveRing]);
 
   // Calculate qualification rankings
   const rankedArchers = useMemo(() => {
@@ -106,7 +114,23 @@ export default function PrintRoundReportModal({
       let arrowSixes = 0;
       let arrowFives = 0;
 
-      if (isSmallTarget) {
+      const h1 = config?.highestScore1;
+      const h2 = config?.highestScore2;
+
+      if (h1 || h2) {
+        arrowSixes = allArrows.filter(v => {
+          if (h1 === '10+X') return v === 10 || v === 'X';
+          if (h1 === 'X') return v === 'X';
+          const num = parseInt(h1 || '');
+          return !isNaN(num) ? v === num : false;
+        }).length;
+
+        arrowFives = allArrows.filter(v => {
+          if (h2 === 'X') return v === 'X';
+          const num = parseInt(h2 || '');
+          return !isNaN(num) ? v === num : false;
+        }).length;
+      } else if (isSmallTarget) {
         arrowSixes = allArrows.filter(v => v === 2).length;
         arrowFives = allArrows.filter(v => v === 1).length;
       } else if (isSixRing) {
@@ -115,6 +139,9 @@ export default function PrintRoundReportModal({
       } else if (isFiveRing) {
         arrowSixes = allArrows.filter(v => v === 5).length;
         arrowFives = allArrows.filter(v => v === 4).length;
+      } else if (config?.targetType === TargetType.FACE_MEGA_MENDUNG) {
+        arrowSixes = allArrows.filter(v => v === 10).length;
+        arrowFives = allArrows.filter(v => v === 9).length;
       } else {
         arrowSixes = allArrows.filter(v => v === 'X' || v === 10).length;
         arrowFives = allArrows.filter(v => v === 9).length;

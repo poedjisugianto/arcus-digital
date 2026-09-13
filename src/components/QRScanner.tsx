@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { X, Camera, RefreshCw, AlertCircle, CheckCircle2, ChevronDown } from 'lucide-react';
 
 interface Props {
@@ -43,7 +43,16 @@ const QRScanner: React.FC<Props> = ({ onScan, onClose }) => {
     }
 
     try {
-      const html5QrCode = new Html5Qrcode(scannerRegionId);
+      const html5QrCode = new Html5Qrcode(scannerRegionId, {
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.UPC_A
+        ],
+        verbose: false
+      });
       qrCodeInstanceRef.current = html5QrCode;
       setIsScanning(true);
       setError(null);

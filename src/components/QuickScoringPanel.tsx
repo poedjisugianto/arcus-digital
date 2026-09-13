@@ -3,10 +3,12 @@ import {
   ArrowLeft, Target, CheckCircle2, ChevronRight, ChevronLeft, 
   Save, User, Zap, Hash, Trophy, Keyboard, Search, X, Trash2,
   ScanLine, Lock, ShieldCheck, ChevronsLeft, ChevronsRight,
-  Info, RotateCcw, Check, Sparkles
+  Info, RotateCcw, Check, Sparkles, Monitor, Maximize2, Minimize2,
+  Sliders, SlidersHorizontal
 } from 'lucide-react';
-import { ArcheryEvent, ScoreEntry, Archer, CategoryType, TargetType, ScoreLog, ScorerAccess } from '../types';
+import { ArcheryEvent, ScoreEntry, Archer, CategoryType, TargetType, ScoreLog, ScorerAccess, CategoryConfig } from '../types';
 import { CATEGORY_LABELS } from '../constants';
+import { findCategoryConfig } from '../lib/firestoreUtils';
 import QRScanner from './QRScanner';
 
 interface Props {
@@ -24,6 +26,19 @@ interface ArcherScoreState {
   count6: number;
   count5: number;
   isManualTotal?: boolean;
+}
+
+export function getScoreTimestamp(val: any): number {
+  if (!val) return 0;
+  if (typeof val === 'number') return val;
+  if (typeof val === 'object' && val.seconds !== undefined) {
+    return val.seconds * 1000 + (val.nanoseconds ? val.nanoseconds / 1e6 : 0);
+  }
+  if (typeof val === 'string') {
+    const t = Date.parse(val);
+    return isNaN(t) ? 0 : t;
+  }
+  return 0;
 }
 
 /**
@@ -144,15 +159,37 @@ export function getArrowTargetStyle(val: number | 'X' | 'M' | string | -1, targe
 /**
  * Helper to calculate total, 10s/6s, and 9s/5s based on target type
  */
-function calculateEndSummary(arrows: ArrowVal[], targetType?: TargetType) {
+function calculateEndSummary(arrows: ArrowVal[], targetType?: TargetType, catConfig?: CategoryConfig | null) {
   let total = 0;
   let count6 = 0;
   let count5 = 0;
 
+  const h1 = catConfig?.highestScore1;
+  const h2 = catConfig?.highestScore2;
+
   arrows.forEach(v => {
     if (v === -1 || v === 'M' || v === 0) return;
 
-    if (targetType === TargetType.PUTA || targetType === TargetType.TRADITIONAL_PUTA) {
+    if (h1 || h2) {
+      if (h1 === '10+X') {
+        if (v === 10 || v === 'X') count6 += 1;
+      } else if (h1 === 'X') {
+        if (v === 'X') count6 += 1;
+      } else {
+        const num1 = parseInt(h1 || '');
+        if (!isNaN(num1) && v === num1) count6 += 1;
+      }
+
+      if (h2 === 'X') {
+        if (v === 'X') count5 += 1;
+      } else {
+        const num2 = parseInt(h2 || '');
+        if (!isNaN(num2) && v === num2) count5 += 1;
+      }
+
+      const num = v === 'X' ? 10 : Number(v);
+      total += (isNaN(num) ? 0 : num);
+    } else if (targetType === TargetType.PUTA || targetType === TargetType.TRADITIONAL_PUTA) {
       if (v === 2) {
         count6 += 1;
         total += 2;
@@ -169,6 +206,11 @@ function calculateEndSummary(arrows: ArrowVal[], targetType?: TargetType) {
       const num = Number(v);
       if (num === 5) count6 += 1;
       if (num === 4) count5 += 1;
+      total += num;
+    } else if (targetType === TargetType.FACE_MEGA_MENDUNG) {
+      const num = Number(v);
+      if (num === 10) count6 += 1;
+      if (num === 9) count5 += 1;
       total += num;
     } else {
       // Standard 10-Ring
@@ -221,6 +263,54 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
   const [showToast, setShowToast] = useState<string | null>(null);
   const [showScanner, setShowScanner] = useState(false);
   const [showKeypad, setShowKeypad] = useState(true);
+
+  // Density & PC Screen Viewport settings (default 'compact' for optimal PC display)
+  const [density, setDensityState] = useState<'compact' | 'normal'>(() => {
+    try {
+      return (localStorage.getItem('quick_scoring_density') as 'compact' | 'normal') || 'compact';
+    } catch {
+      return 'compact';
+    }
+  });
+
+  const setDensity = (val: 'compact' | 'normal') => {
+    setDensityState(val);
+    try {
+      localStorage.setItem('quick_scoring_density', val);
+    } catch {}
+  };
+
+  const [zoomScale, setZoomScaleState] = useState<number>(() => {
+    try {
+      const saved = Number(localStorage.getItem('quick_scoring_zoom'));
+      return saved >= 75 && saved <= 125 ? saved : 100;
+    } catch {
+      return 100;
+    }
+  });
+
+  const setZoomScale = (val: number) => {
+    setZoomScaleState(val);
+    try {
+      localStorage.setItem('quick_scoring_zoom', val.toString());
+    } catch {}
+  };
+
+  const [autoAdvanceTarget, setAutoAdvanceTargetState] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('quick_scoring_auto_advance');
+      return saved !== null ? saved === 'true' : false; // Default false: stay on current target so user sees confirmation
+    } catch {
+      return false;
+    }
+  });
+
+  const setAutoAdvanceTarget = (val: boolean) => {
+    setAutoAdvanceTargetState(val);
+    try {
+      localStorage.setItem('quick_scoring_auto_advance', String(val));
+    } catch {}
+  };
 
   // Active focus: [archerId, arrowIndex]
   const [activeCell, setActiveCell] = useState<{ archerId: string; arrowIdx: number } | null>(null);
@@ -306,16 +396,18 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
     const scoresList = event.scores || [];
 
     archersToDisplay.forEach(a => {
-      const config = (event.settings?.categoryConfigs || {})[a.category as CategoryType];
+      const config = findCategoryConfig(a.category, event.settings?.categoryConfigs);
       const numArrows = config?.arrows || 6;
 
       const existing = scoresList
         .filter(s => {
-          if (s.isDeleted) return false;
+          if (!s || s.isDeleted) return false;
           const norm = (s.sessionId === '1' || s.sessionId === '2' || !s.sessionId) ? 'QUAL' : s.sessionId;
-          return s.archerId === a.id && s.endIndex === currentEnd && norm === 'QUAL';
+          const isSameArcher = String(s.archerId) === String(a.id);
+          const isSameEnd = Number(s.endIndex) === Number(currentEnd);
+          return isSameArcher && isSameEnd && norm === 'QUAL';
         })
-        .sort((a, b) => (b.lastUpdated || 0) - (a.lastUpdated || 0))[0];
+        .sort((scoreA, scoreB) => getScoreTimestamp(scoreB.lastUpdated) - getScoreTimestamp(scoreA.lastUpdated))[0];
 
       if (existing) {
         let loadedArrows: ArrowVal[] = new Array(numArrows).fill(-1);
@@ -332,27 +424,14 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
           }
         }
 
-        // Check if arrows were all -1 or zeros with non-zero total (legacy manual total)
-        const hasRealArrows = loadedArrows.some(v => v !== -1 && v !== 0) || (existing.total === 0 && loadedArrows.every(v => v === 0 || v === -1));
-
-        if (hasRealArrows) {
-          const summary = calculateEndSummary(loadedArrows, config?.targetType);
-          newScores[a.id] = {
-            arrows: loadedArrows,
-            total: existing.total || summary.total,
-            count6: existing.count6 ?? summary.count6,
-            count5: existing.count5 ?? summary.count5,
-            isManualTotal: false
-          };
-        } else {
-          newScores[a.id] = {
-            arrows: loadedArrows,
-            total: existing.total || 0,
-            count6: existing.count6 || 0,
-            count5: existing.count5 || 0,
-            isManualTotal: existing.total > 0
-          };
-        }
+        const summary = calculateEndSummary(loadedArrows, config?.targetType, config);
+        newScores[a.id] = {
+          arrows: loadedArrows,
+          total: existing.total !== undefined ? existing.total : summary.total,
+          count6: existing.count6 !== undefined ? existing.count6 : summary.count6,
+          count5: existing.count5 !== undefined ? existing.count5 : summary.count5,
+          isManualTotal: false
+        };
       } else {
         newScores[a.id] = {
           arrows: new Array(numArrows).fill(-1),
@@ -368,6 +447,35 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
     setDirtyArchers({});
   }, [selectedTarget, currentEnd, mode, selectedCategory, archersToDisplay, event.scores, event.settings?.categoryConfigs]);
 
+  const tableArcherConfig = useMemo(() => {
+    const focusedArcher = archersToDisplay.find(a => a.id === activeCell?.archerId) || archersToDisplay[0];
+    if (!focusedArcher) return null;
+    return findCategoryConfig(focusedArcher.category, event.settings?.categoryConfigs);
+  }, [archersToDisplay, activeCell, event.settings?.categoryConfigs]);
+
+  const scoringColumnLabels = useMemo(() => {
+    if (tableArcherConfig?.highestScore1 || tableArcherConfig?.highestScore2) {
+      return {
+        col1: tableArcherConfig.highestScore1 || '10+X',
+        col2: tableArcherConfig.highestScore2 || 'X'
+      };
+    }
+    const t = tableArcherConfig?.targetType;
+    if (t === TargetType.PUTA || t === TargetType.TRADITIONAL_PUTA) {
+      return { col1: '2s', col2: '1s' };
+    }
+    if (t === TargetType.TRADITIONAL_6_RING) {
+      return { col1: '6s', col2: '5s' };
+    }
+    if (t === TargetType.FACE_5_RING) {
+      return { col1: '5s', col2: '4s' };
+    }
+    if (t === TargetType.FACE_MEGA_MENDUNG) {
+      return { col1: '10s', col2: '9s' };
+    }
+    return { col1: '10+X / 6s', col2: 'X / 5s' };
+  }, [tableArcherConfig]);
+
   // Calculate cumulative scores (Total score before this end)
   const cumulativeScores = useMemo(() => {
     const scoresList = event.scores || [];
@@ -376,9 +484,11 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
     archersToDisplay.forEach(a => {
       let pastTotal = 0;
       scoresList.forEach(s => {
-        if (s.isDeleted) return;
+        if (!s || s.isDeleted) return;
         const norm = (s.sessionId === '1' || s.sessionId === '2' || !s.sessionId) ? 'QUAL' : s.sessionId;
-        if (s.archerId === a.id && norm === 'QUAL' && typeof s.endIndex === 'number' && s.endIndex < currentEnd) {
+        const isSameArcher = String(s.archerId) === String(a.id);
+        const endNum = Number(s.endIndex ?? 0);
+        if (isSameArcher && norm === 'QUAL' && !isNaN(endNum) && endNum < currentEnd) {
           pastTotal += (s.total || 0);
         }
       });
@@ -471,7 +581,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
   // Set an arrow's value and auto calculate
   const handleSetArrowValue = useCallback((archerId: string, arrowIdx: number, val: number | 'X' | 'M' | -1) => {
     const archer = archersToDisplay.find(a => a.id === archerId);
-    const config = archer ? (event.settings?.categoryConfigs || {})[archer.category as CategoryType] : null;
+    const config = findCategoryConfig(archer?.category, event.settings?.categoryConfigs);
 
     setLocalArcherScores(prev => {
       const current = prev[archerId] || {
@@ -484,7 +594,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
       const newArrows = [...current.arrows];
       newArrows[arrowIdx] = val;
 
-      const summary = calculateEndSummary(newArrows, config?.targetType);
+      const summary = calculateEndSummary(newArrows, config?.targetType, config);
 
       return {
         ...prev,
@@ -717,9 +827,11 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
   };
 
   // Save Target Scores
-  const handleSaveTarget = () => {
+  const handleSaveTarget = (shouldAdvance?: boolean) => {
+    const advance = shouldAdvance !== undefined ? shouldAdvance : autoAdvanceTarget;
     const scoresToSave: ScoreEntry[] = [];
     const now = Date.now();
+    const updatedLocalScores: Record<string, ArcherScoreState> = { ...localArcherScores };
 
     archersToDisplay.forEach(a => {
       const state = localArcherScores[a.id];
@@ -749,51 +861,96 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
         count5: state.count5,
         lastUpdated: now
       });
+
+      // Retain in local state immediately so no visual loss or race condition occurs
+      updatedLocalScores[a.id] = {
+        ...state,
+        arrows: [...state.arrows],
+        total: state.total,
+        count6: state.count6,
+        count5: state.count5,
+        isManualTotal: false
+      };
     });
 
     if (scoresToSave.length > 0) {
+      setLocalArcherScores(updatedLocalScores);
       onSaveScore(scoresToSave);
       setDirtyArchers({});
     }
 
     setShowToast(`Bantalan ${selectedTarget} - Rambahan ${currentEnd + 1} Tersimpan!`);
 
-    // Auto advance to next target
-    setTimeout(() => {
-      setShowToast(null);
-      const curIdx = allowedTargets.indexOf(selectedTarget);
-      if (curIdx < allowedTargets.length - 1) {
-        setSelectedTarget(allowedTargets[curIdx + 1]);
-      } else if (currentEnd < totalEnds - 1) {
-        setSelectedTarget(allowedTargets[0]);
-        setCurrentEnd(prev => prev + 1);
-      }
-    }, 1000);
+    if (advance) {
+      setTimeout(() => {
+        setShowToast(null);
+        const curIdx = allowedTargets.indexOf(selectedTarget);
+        if (curIdx < allowedTargets.length - 1) {
+          setSelectedTarget(allowedTargets[curIdx + 1]);
+        } else if (currentEnd < totalEnds - 1) {
+          setSelectedTarget(allowedTargets[0]);
+          setCurrentEnd(prev => prev + 1);
+        }
+      }, 750);
+    } else {
+      setTimeout(() => setShowToast(null), 1800);
+    }
   };
 
-  // QR Scanner Handler
+  // QR & Barcode Scanner Handler
   const handleScan = (data: string) => {
     try {
-      const parsed = JSON.parse(data);
-      if (parsed.type === 'SCORING_SHEET' && parsed.eventId === event.id) {
-        if (allowedTargets.length > 0 && !allowedTargets.includes(parsed.targetNo)) {
+      let archerId = '';
+      let targetNo: number | undefined = undefined;
+      let position = '';
+
+      try {
+        const parsed = JSON.parse(data);
+        if (parsed.type === 'SCORING_SHEET' || parsed.archerId) {
+          archerId = parsed.archerId || parsed.id;
+          targetNo = parsed.targetNo ? Number(parsed.targetNo) : undefined;
+          position = parsed.position || '';
+        }
+      } catch {
+        const trimmed = data.trim();
+        const archers = event.archers || [];
+        const found = archers.find(a => a.id === trimmed) ||
+                      archers.find(a => `${a.targetNo}${a.position}`.toUpperCase() === trimmed.toUpperCase()) ||
+                      archers.find(a => trimmed.toUpperCase().includes(`${a.targetNo}${a.position}`.toUpperCase()));
+        if (found) {
+          archerId = found.id;
+          targetNo = found.targetNo;
+          position = found.position || '';
+        }
+      }
+
+      if (archerId) {
+        const archer = (event.archers || []).find(a => a.id === archerId);
+        const actualTarget = targetNo || archer?.targetNo;
+
+        if (allowedTargets.length > 0 && actualTarget && !allowedTargets.includes(actualTarget)) {
           alert(`Akses Ditolak: Anda hanya memiliki hak akses untuk Bantalan ${allowedTargets.join(', ')}.`);
           return;
         }
-        setMode('TARGET');
-        setSelectedTarget(parsed.targetNo);
+
+        if (actualTarget) {
+          setMode('TARGET');
+          setSelectedTarget(actualTarget);
+        }
         setSearchTerm('');
         setShowScanner(false);
-        setShowToast(`Bantalan ${parsed.targetNo}${parsed.position} Terpilih!`);
+        const nameDisplay = archer ? ` (${archer.name})` : '';
+        setShowToast(`Bantalan ${actualTarget || ''}${position || archer?.position || ''}${nameDisplay} Terpilih!`);
         setTimeout(() => {
           setShowToast(null);
-          cellRefs.current[`${parsed.archerId}-0`]?.focus();
-        }, 1000);
-      } else {
-        alert("QR Code tidak cocok dengan event ini.");
+          cellRefs.current[`${archerId}-0`]?.focus();
+        }, 800);
+        return;
       }
+
+      alert("QR Code / Barcode tidak cocok dengan data atlet event ini.");
     } catch {
-      alert("Format QR Code tidak valid.");
+      alert("Gagal membaca kode peserta.");
     }
   };
 
@@ -812,91 +969,150 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
     return getKeypadOptions(activeConfig?.targetType);
   }, [activeConfig]);
 
+  const isCompact = density === 'compact';
+
   return (
-    <div className="space-y-6 pb-20 animate-in fade-in duration-300">
+    <div className={`space-y-4 pb-16 animate-in fade-in duration-300 ${isCompact ? 'max-w-[100vw]' : ''}`}>
       {showScanner && <QRScanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
 
       {/* Top Header & Ianseo Navigation */}
-      <div className="bg-white rounded-3xl p-5 md:p-7 border border-slate-200/80 shadow-xs">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5 border-b border-slate-100 pb-5">
-          <div className="flex items-center gap-4">
+      <div className={`bg-white rounded-2xl border border-slate-200 shadow-xs ${isCompact ? 'p-3 md:p-4' : 'p-5 md:p-7'}`}>
+        <div className={`flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 ${isCompact ? 'pb-3' : 'pb-5'}`}>
+          <div className="flex items-center gap-3">
             <button 
               onClick={onBack}
-              className="p-3 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-2xl transition-all active:scale-95 border border-slate-200"
+              className="p-2.5 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl transition-all active:scale-95 border border-slate-200"
               title="Kembali ke Panel Event"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-4 h-4" />
             </button>
             <div>
-              <div className="flex items-center gap-2.5 flex-wrap">
-                <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-purple-200">
-                  <Target className="w-3.5 h-3.5 text-purple-600" />
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-2.5 py-0.5 bg-purple-100 text-purple-800 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1 border border-purple-200">
+                  <Target className="w-3 h-3 text-purple-600" />
                   Score Entry (IanSeo Matrix)
                 </span>
                 {currentScorer?.assignedTargets && currentScorer.assignedTargets.length > 0 && (
-                  <span className="px-2.5 py-1 bg-amber-50 text-amber-800 rounded-full text-[10px] font-bold border border-amber-200 flex items-center gap-1">
+                  <span className="px-2 py-0.5 bg-amber-50 text-amber-800 rounded-full text-[10px] font-bold border border-amber-200 flex items-center gap-1">
                     <Lock className="w-3 h-3 text-amber-600" /> Bantalan: {allowedTargets.join(', ')}
                   </span>
                 )}
+                <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full text-[10px] font-bold border border-slate-200 flex items-center gap-1">
+                  <Monitor className="w-3 h-3 text-slate-500" /> {isCompact ? 'Mode Ringkas PC' : 'Mode Normal'}
+                </span>
               </div>
-              <h2 className="text-2xl md:text-3xl font-black font-oswald uppercase italic text-slate-900 tracking-tight mt-1">
+              <h2 className={`${isCompact ? 'text-xl md:text-2xl' : 'text-2xl md:text-3xl'} font-black font-oswald uppercase italic text-slate-900 tracking-tight mt-0.5`}>
                 Rekap Skor Meja Utama
               </h2>
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="flex items-center gap-3 flex-wrap">
+          {/* Controls & Quick Actions */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Viewport Density Toggle for PC */}
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-xs">
+              <button
+                type="button"
+                onClick={() => setDensity('compact')}
+                className={`px-2.5 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all ${
+                  isCompact ? 'bg-white text-purple-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Tampilan ringkas disesuaikan layar PC agar semua kolom terlihat tanpa geser"
+              >
+                <Minimize2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Ringkas PC</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDensity('normal')}
+                className={`px-2.5 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-all ${
+                  !isCompact ? 'bg-white text-purple-700 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Tampilan standar / sentuh"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Normal</span>
+              </button>
+            </div>
+
+            {/* Zoom Scale Selector */}
+            <div className="flex items-center bg-slate-100 px-2 py-1 rounded-xl border border-slate-200 text-xs font-bold text-slate-700">
+              <span className="text-[10px] text-slate-400 mr-1.5">Zoom:</span>
+              <select
+                value={zoomScale}
+                onChange={(e) => setZoomScale(Number(e.target.value))}
+                className="bg-transparent font-bold text-slate-800 outline-none cursor-pointer text-xs"
+              >
+                <option value={80}>80% (Kecil)</option>
+                <option value={90}>90% (Sedang)</option>
+                <option value={100}>100% (Normal)</option>
+                <option value={110}>110% (Besar)</option>
+              </select>
+            </div>
+
             <button 
               onClick={() => setShowScanner(true)}
-              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold text-xs flex items-center gap-2 transition-all active:scale-95"
+              className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 border border-slate-200"
+              title="Scan QR Code Atlet"
             >
-              <ScanLine className="w-4 h-4 text-purple-600" /> Scan QR Scoresheet
+              <ScanLine className="w-3.5 h-3.5 text-purple-600" />
+              <span className="hidden md:inline">Scan QR</span>
             </button>
 
             <button 
               onClick={() => setShowKeypad(prev => !prev)}
-              className={`px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 transition-all active:scale-95 border ${
+              className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95 border ${
                 showKeypad 
                   ? 'bg-purple-50 text-purple-700 border-purple-200' 
                   : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
               }`}
             >
-              <Keyboard className="w-4 h-4" /> {showKeypad ? 'Sembunyikan Keypad' : 'Tampilkan Keypad'}
+              <Keyboard className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">{showKeypad ? 'Tutup Keypad' : 'Keypad'}</span>
+            </button>
+
+            {/* Save Buttons: Save Current & Save and Advance */}
+            <button 
+              onClick={() => handleSaveTarget(false)}
+              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black font-oswald uppercase italic tracking-wider text-xs md:text-sm flex items-center gap-1.5 transition-all shadow-xs active:scale-95"
+              title="Simpan skor tanpa berpindah bantalan (Ctrl + S)"
+            >
+              <Save className="w-3.5 h-3.5" /> Simpan (Ctrl+S)
             </button>
 
             <button 
-              onClick={handleSaveTarget}
-              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black font-oswald uppercase italic tracking-wider text-sm flex items-center gap-2 transition-all shadow-md active:scale-95"
+              onClick={() => handleSaveTarget(true)}
+              className="px-3.5 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-black font-oswald uppercase italic tracking-wider text-xs md:text-sm flex items-center gap-1.5 transition-all shadow-xs active:scale-95"
+              title="Simpan dan langsung lanjut ke bantalan berikutnya"
             >
-              <Save className="w-4 h-4" /> Simpan Bantalan (Ctrl + S)
+              Simpan &amp; Lanjut ➜
             </button>
           </div>
         </div>
 
         {/* Target & End Navigation Controls */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center pt-5">
+        <div className={`grid grid-cols-1 md:grid-cols-12 gap-3 items-center ${isCompact ? 'pt-3' : 'pt-5'}`}>
           {/* Target Stepper */}
-          <div className="md:col-span-5 flex items-center gap-2">
+          <div className="md:col-span-4 flex items-center gap-2">
             <button 
               onClick={() => {
                 const curIdx = allowedTargets.indexOf(selectedTarget);
                 if (curIdx > 0) setSelectedTarget(allowedTargets[curIdx - 1]);
               }}
               disabled={allowedTargets.indexOf(selectedTarget) <= 0}
-              className="p-3 bg-slate-100 hover:bg-slate-200 disabled:opacity-30 disabled:pointer-events-none rounded-xl text-slate-800 transition-all active:scale-95"
+              className={`bg-slate-100 hover:bg-slate-200 disabled:opacity-30 disabled:pointer-events-none rounded-xl text-slate-800 transition-all active:scale-95 ${isCompact ? 'p-2' : 'p-3'}`}
               title="Bantalan Sebelumnya (PageUp)"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className={isCompact ? "w-4 h-4" : "w-5 h-5"} />
             </button>
 
-            <div className="flex-1 bg-slate-900 text-white px-5 py-3 rounded-2xl flex items-center justify-between shadow-xs">
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">BANTALAN</span>
+            <div className={`flex-1 bg-slate-900 text-white rounded-xl flex items-center justify-between shadow-xs ${isCompact ? 'px-3 py-1.5' : 'px-5 py-3'}`}>
+              <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">BANTALAN</span>
               <div className="flex items-center gap-2">
                 <select 
                   value={selectedTarget}
                   onChange={(e) => setSelectedTarget(Number(e.target.value))}
-                  className="bg-transparent text-2xl md:text-3xl font-black font-oswald italic tracking-tight text-white outline-none cursor-pointer text-center"
+                  className={`bg-transparent font-black font-oswald italic tracking-tight text-white outline-none cursor-pointer text-center ${isCompact ? 'text-xl' : 'text-2xl md:text-3xl'}`}
                 >
                   {allowedTargets.map(t => (
                     <option key={t} value={t} className="bg-slate-900 text-white text-base font-bold">
@@ -905,7 +1121,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
                   ))}
                 </select>
               </div>
-              <span className="text-[10px] font-bold text-slate-400">
+              <span className="text-[9px] font-bold text-slate-400">
                 dari {allowedTargets.length}
               </span>
             </div>
@@ -916,29 +1132,31 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
                 if (curIdx < allowedTargets.length - 1) setSelectedTarget(allowedTargets[curIdx + 1]);
               }}
               disabled={allowedTargets.indexOf(selectedTarget) >= allowedTargets.length - 1}
-              className="p-3 bg-slate-100 hover:bg-slate-200 disabled:opacity-30 disabled:pointer-events-none rounded-xl text-slate-800 transition-all active:scale-95"
+              className={`bg-slate-100 hover:bg-slate-200 disabled:opacity-30 disabled:pointer-events-none rounded-xl text-slate-800 transition-all active:scale-95 ${isCompact ? 'p-2' : 'p-3'}`}
               title="Bantalan Berikutnya (PageDown)"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className={isCompact ? "w-4 h-4" : "w-5 h-5"} />
             </button>
           </div>
 
           {/* End / Rambahan Tabs */}
-          <div className="md:col-span-7 flex items-center gap-1.5 overflow-x-auto pb-1">
+          <div className="md:col-span-8 flex items-center gap-1.5 overflow-x-auto pb-0.5">
             {Array.from({ length: totalEnds }).map((_, idx) => {
               const isActive = currentEnd === idx;
               return (
                 <button
                   key={idx}
                   onClick={() => setCurrentEnd(idx)}
-                  className={`flex-1 min-w-[70px] py-3 px-2 rounded-2xl font-black font-oswald uppercase italic text-xs tracking-wider transition-all border ${
+                  className={`flex-1 min-w-[54px] rounded-xl font-black font-oswald uppercase italic tracking-wider transition-all border ${
+                    isCompact ? 'py-1 px-1 text-xs' : 'py-3 px-2 text-xs'
+                  } ${
                     isActive 
-                      ? 'bg-purple-600 text-white border-purple-700 shadow-md shadow-purple-200 scale-105 z-10' 
+                      ? 'bg-purple-600 text-white border-purple-700 shadow-xs scale-102 z-10' 
                       : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
                   }`}
                 >
-                  <div className="text-[9px] opacity-70 font-sans font-bold">END</div>
-                  <div className="text-base font-black">{idx + 1}</div>
+                  <div className="text-[8px] opacity-75 font-sans font-bold">END</div>
+                  <div className={isCompact ? 'text-sm font-black' : 'text-base font-black'}>{idx + 1}</div>
                 </button>
               );
             })}
@@ -946,53 +1164,71 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
         </div>
 
         {/* Ianseo Target Quick Strip */}
-        <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-1.5 overflow-x-auto py-1">
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 shrink-0 mr-1">
-            Status Bantalan:
-          </span>
-          {allowedTargets.map(t => {
-            const status = targetCompletionMap[t];
-            const isSelected = selectedTarget === t;
+        <div className={`border-t border-slate-100 flex items-center justify-between gap-2 overflow-x-auto ${isCompact ? 'mt-2.5 pt-2.5' : 'mt-4 pt-4'}`}>
+          <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
+            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 shrink-0 mr-1">
+              Bantalan:
+            </span>
+            {allowedTargets.map(t => {
+              const status = targetCompletionMap[t];
+              const isSelected = selectedTarget === t;
 
-            let colorBadge = 'bg-slate-100 text-slate-700 border-slate-200';
-            if (status === 'FULL') {
-              colorBadge = 'bg-emerald-500 text-white border-emerald-600 shadow-xs';
-            } else if (status === 'PARTIAL') {
-              colorBadge = 'bg-amber-400 text-slate-900 border-amber-500 shadow-xs';
-            }
+              let colorBadge = 'bg-slate-100 text-slate-700 border-slate-200';
+              if (status === 'FULL') {
+                colorBadge = 'bg-emerald-500 text-white border-emerald-600 shadow-xs';
+              } else if (status === 'PARTIAL') {
+                colorBadge = 'bg-amber-400 text-slate-900 border-amber-500 shadow-xs';
+              }
 
-            return (
-              <button
-                key={t}
-                onClick={() => setSelectedTarget(t)}
-                className={`w-9 h-9 rounded-xl font-black text-xs font-oswald italic transition-all shrink-0 border flex items-center justify-center relative ${
-                  isSelected 
-                    ? 'ring-2 ring-purple-600 ring-offset-2 scale-110 font-extrabold z-10' 
-                    : 'hover:opacity-80'
-                } ${colorBadge}`}
-                title={`Bantalan ${t} - ${status === 'FULL' ? 'Semua Terisi' : status === 'PARTIAL' ? 'Sebagian Terisi' : 'Belum Ada Skor'}`}
-              >
-                {t}
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={t}
+                  onClick={() => setSelectedTarget(t)}
+                  className={`rounded-lg font-black font-oswald italic transition-all shrink-0 border flex items-center justify-center relative ${
+                    isCompact ? 'w-7 h-7 text-[11px]' : 'w-9 h-9 text-xs'
+                  } ${
+                    isSelected 
+                      ? 'ring-2 ring-purple-600 ring-offset-1 scale-105 font-extrabold z-10' 
+                      : 'hover:opacity-80'
+                  } ${colorBadge}`}
+                  title={`Bantalan ${t} - ${status === 'FULL' ? 'Semua Terisi' : status === 'PARTIAL' ? 'Sebagian Terisi' : 'Belum Ada Skor'}`}
+                >
+                  {t}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Auto advance toggle checkbox */}
+          <label className="flex items-center gap-1.5 cursor-pointer select-none text-[11px] font-bold text-slate-600 shrink-0 bg-slate-50 hover:bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+            <input
+              type="checkbox"
+              checked={autoAdvanceTarget}
+              onChange={(e) => setAutoAdvanceTarget(e.target.checked)}
+              className="w-3.5 h-3.5 text-purple-600 rounded border-slate-300 focus:ring-purple-500"
+            />
+            <span>Auto-loncat bantalan setelah simpan</span>
+          </label>
         </div>
       </div>
 
       {/* Main Ianseo Score Matrix Table */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+      <div 
+        className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden transition-all"
+        style={{ zoom: `${zoomScale}%` }}
+      >
         {/* Table Subheader with Info */}
-        <div className="p-5 bg-slate-50/80 border-b border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-2xl bg-slate-900 text-white font-black font-oswald text-xl italic flex items-center justify-center shadow-xs">
+        <div className={`${isCompact ? 'p-3 px-4' : 'p-5'} bg-slate-50 border-b border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3`}>
+          <div className="flex items-center gap-2.5">
+            <span className={`${isCompact ? 'w-8 h-8 text-base' : 'w-10 h-10 text-xl'} rounded-xl bg-slate-900 text-white font-black font-oswald italic flex items-center justify-center shadow-xs`}>
               {selectedTarget}
             </span>
             <div>
-              <h3 className="text-lg font-black font-oswald uppercase italic text-slate-900 leading-none">
+              <h3 className={`${isCompact ? 'text-base' : 'text-lg'} font-black font-oswald uppercase italic text-slate-900 leading-none`}>
                 Bantalan {selectedTarget} &bull; Rambahan {currentEnd + 1}
               </h3>
-              <p className="text-[11px] font-semibold text-slate-700 mt-1">
-                Ketik nilai panah di keyboard (Numpad) &bull; Kursor otomatis loncat ke panah berikutnya
+              <p className="text-[10px] md:text-[11px] font-semibold text-slate-600 mt-0.5">
+                Ketik nilai di Numpad &bull; Panah otomatis lompat ke atlet berikutnya setelah terisi penuh &bull; Tekan Tab atau Panah
               </p>
             </div>
           </div>
@@ -1002,7 +1238,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Lengkap
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Belum Lengkap
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Sebagian
             </span>
             <span className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-slate-200 border border-slate-300"></span> Kosong
@@ -1012,25 +1248,25 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
 
         {/* The Matrix Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[900px]">
+          <table className={`w-full text-left border-collapse ${isCompact ? 'min-w-[700px]' : 'min-w-[900px]'}`}>
             <thead>
-              <tr className="bg-slate-900 text-white text-[10px] font-black uppercase tracking-wider">
-                <th className="py-3 px-4 w-16 text-center border-r border-slate-800">Target</th>
-                <th className="py-3 px-4 min-w-[220px] border-r border-slate-800">Pemanah &amp; Klub</th>
-                <th className="py-3 px-4 min-w-[140px] border-r border-slate-800">Kategori &amp; Face</th>
-                <th className="py-3 px-4 text-center border-r border-slate-800" colSpan={maxArrowsInScope}>
-                  Anak Panah (Nilai Sesuai Warna Face Target)
+              <tr className="bg-slate-900 text-white text-[9px] md:text-[10px] font-black uppercase tracking-wider">
+                <th className={`${isCompact ? 'py-2 px-2 w-12' : 'py-3 px-4 w-16'} text-center border-r border-slate-800`}>Target</th>
+                <th className={`${isCompact ? 'py-2 px-3 min-w-[150px]' : 'py-3 px-4 min-w-[220px]'} border-r border-slate-800`}>Pemanah &amp; Klub</th>
+                <th className={`${isCompact ? 'py-2 px-2 min-w-[110px]' : 'py-3 px-4 min-w-[140px]'} border-r border-slate-800`}>Kategori &amp; Face</th>
+                <th className={`${isCompact ? 'py-2 px-2' : 'py-3 px-4'} text-center border-r border-slate-800`} colSpan={maxArrowsInScope}>
+                  Anak Panah (Nilai Sesuai Face Target)
                 </th>
-                <th className="py-3 px-3 w-20 text-center border-r border-slate-800 bg-slate-800">End Tot</th>
-                <th className="py-3 px-3 w-24 text-center border-r border-slate-800 bg-slate-850">Kumulatif</th>
-                <th className="py-3 px-3 w-16 text-center border-r border-slate-800">10+X / 6s</th>
-                <th className="py-3 px-3 w-14 text-center border-r border-slate-800">X / 5s</th>
-                <th className="py-3 px-3 w-16 text-center">Reset</th>
+                <th className={`${isCompact ? 'py-2 px-2 w-16' : 'py-3 px-3 w-20'} text-center border-r border-slate-800 bg-slate-800`}>End Tot</th>
+                <th className={`${isCompact ? 'py-2 px-2 w-20' : 'py-3 px-3 w-24'} text-center border-r border-slate-800 bg-slate-850`}>Kumulatif</th>
+                <th className={`${isCompact ? 'py-2 px-2 w-12' : 'py-3 px-3 w-16'} text-center border-r border-slate-800`}>{scoringColumnLabels.col1}</th>
+                <th className={`${isCompact ? 'py-2 px-2 w-12' : 'py-3 px-3 w-14'} text-center border-r border-slate-800`}>{scoringColumnLabels.col2}</th>
+                <th className={`${isCompact ? 'py-2 px-2 w-12' : 'py-3 px-3 w-16'} text-center`}>Reset</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm font-bold">
               {archersToDisplay.map((archer, archerIdx) => {
-                const config = (event.settings?.categoryConfigs || {})[archer.category as CategoryType];
+                const config = findCategoryConfig(archer.category, event.settings?.categoryConfigs);
                 const targetType = config?.targetType;
                 const numArrows = config?.arrows || 6;
                 const archerScore = localArcherScores[archer.id] || {
@@ -1054,41 +1290,45 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
                     }`}
                   >
                     {/* Position Badge: 1A, 1B, etc */}
-                    <td className="py-4 px-4 text-center border-r border-slate-100">
-                      <div className="w-12 h-12 mx-auto rounded-2xl bg-slate-900 text-white font-black font-oswald text-xl italic flex items-center justify-center shadow-xs">
+                    <td className={`${isCompact ? 'py-2 px-2' : 'py-4 px-4'} text-center border-r border-slate-100`}>
+                      <div className={`${isCompact ? 'w-8 h-8 text-sm rounded-lg' : 'w-12 h-12 text-xl rounded-2xl'} mx-auto bg-slate-900 text-white font-black font-oswald italic flex items-center justify-center shadow-xs`}>
                         {archer.targetNo || selectedTarget}{archer.position || String.fromCharCode(65 + archerIdx)}
                       </div>
                     </td>
 
                     {/* Archer Name & Club */}
-                    <td className="py-4 px-4 border-r border-slate-100">
-                      <div className="font-black font-oswald uppercase italic text-base text-slate-900 leading-tight">
+                    <td className={`${isCompact ? 'py-2 px-2' : 'py-4 px-4'} border-r border-slate-100`}>
+                      <div className={`font-black font-oswald uppercase italic text-slate-900 leading-tight truncate ${isCompact ? 'text-sm max-w-[170px]' : 'text-base max-w-[220px]'}`}>
                         {archer.name}
                       </div>
-                      <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mt-0.5 truncate max-w-[200px]">
+                      <div className={`font-bold text-slate-500 uppercase tracking-wider mt-0.5 truncate ${isCompact ? 'text-[10px] max-w-[150px]' : 'text-[11px] max-w-[200px]'}`}>
                         {archer.club || 'Independen'}
                       </div>
                     </td>
 
                     {/* Category & Face Info */}
-                    <td className="py-4 px-4 border-r border-slate-100">
-                      <div className="inline-block px-2.5 py-1 bg-slate-100 text-slate-800 rounded-lg text-[10px] font-black uppercase tracking-wider border border-slate-200 truncate max-w-[160px]">
+                    <td className={`${isCompact ? 'py-2 px-2' : 'py-4 px-4'} border-r border-slate-100`}>
+                      <div className={`inline-block bg-slate-100 text-slate-800 rounded-md font-black uppercase tracking-wider border border-slate-200 truncate ${
+                        isCompact ? 'px-1.5 py-0.5 text-[9px] max-w-[120px]' : 'px-2.5 py-1 text-[10px] max-w-[160px]'
+                      }`}>
                         {CATEGORY_LABELS[archer.category] || archer.category}
                       </div>
-                      <div className="text-[10px] font-bold text-slate-700 mt-1 flex items-center gap-1">
-                        <Target className="w-3 h-3 text-purple-600" />
-                        {targetType === TargetType.PUTA ? 'Puta (2-1)' : 
-                         targetType === TargetType.TRADITIONAL_PUTA ? 'Trad Puta (2-1)' :
-                         targetType === TargetType.TRADITIONAL_6_RING ? '6-Ring (6-1)' :
-                         targetType === TargetType.FACE_5_RING ? '5-Ring (5-1)' :
-                         targetType === TargetType.FACE_MEGA_MENDUNG ? 'Mega Mendung FESPATI' :
-                         'WA Standard (10-1)'}
+                      <div className="text-[9px] font-bold text-slate-600 mt-0.5 flex items-center gap-1">
+                        <Target className="w-2.5 h-2.5 text-purple-600 shrink-0" />
+                        <span className="truncate">
+                          {targetType === TargetType.PUTA ? 'Puta (2-1)' : 
+                           targetType === TargetType.TRADITIONAL_PUTA ? 'Trad Puta' :
+                           targetType === TargetType.TRADITIONAL_6_RING ? '6-Ring' :
+                           targetType === TargetType.FACE_5_RING ? '5-Ring' :
+                           targetType === TargetType.FACE_MEGA_MENDUNG ? 'Mega Mendung' :
+                           'WA Standard'}
+                        </span>
                       </div>
                     </td>
 
                     {/* Arrow Inputs with Exact Face Target Colors */}
-                    <td className="py-3 px-3 border-r border-slate-100" colSpan={maxArrowsInScope}>
-                      <div className="flex items-center gap-2 justify-center">
+                    <td className={`${isCompact ? 'py-1.5 px-2' : 'py-3 px-3'} border-r border-slate-100`} colSpan={maxArrowsInScope}>
+                      <div className={`flex items-center ${isCompact ? 'gap-1' : 'gap-2'} justify-center`}>
                         {Array.from({ length: numArrows }).map((_, arrowIdx) => {
                           const val = archerScore.arrows[arrowIdx] ?? -1;
                           const style = getArrowTargetStyle(val, targetType);
@@ -1096,7 +1336,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
 
                           return (
                             <div key={arrowIdx} className="relative flex flex-col items-center">
-                              <span className="text-[8px] font-black text-slate-700 uppercase mb-1">
+                              <span className={`font-black text-slate-700 uppercase ${isCompact ? 'text-[7px] mb-0.5' : 'text-[8px] mb-1'}`}>
                                 P{arrowIdx + 1}
                               </span>
                               <input
@@ -1110,10 +1350,14 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
                                 onClick={() => setActiveCell({ archerId: archer.id, arrowIdx })}
                                 onKeyDown={(e) => handleCellKeyDown(e, archer.id, arrowIdx, targetType)}
                                 placeholder="-"
-                                className={`w-12 h-14 md:w-14 md:h-16 text-center font-black font-oswald text-2xl md:text-3xl rounded-2xl border-2 transition-all cursor-pointer select-none outline-none ${
+                                className={`text-center font-black font-oswald rounded-xl border transition-all cursor-pointer select-none outline-none ${
+                                  isCompact 
+                                    ? 'w-8 h-9 sm:w-9 sm:h-10 md:w-9 md:h-11 text-lg md:text-xl' 
+                                    : 'w-12 h-14 md:w-14 md:h-16 text-2xl md:text-3xl border-2'
+                                } ${
                                   isActive
-                                    ? 'ring-4 ring-purple-500/30 border-purple-600 scale-105 z-10 shadow-lg'
-                                    : `${style.border} ${val !== -1 ? 'shadow-xs' : 'hover:border-slate-400'}`
+                                    ? 'ring-3 ring-purple-500/40 border-purple-600 scale-105 z-10 shadow-md'
+                                    : `${style.border} ${val !== -1 ? 'shadow-2xs' : 'hover:border-slate-400'}`
                                 } ${style.bg} ${style.text}`}
                               />
                             </div>
@@ -1122,51 +1366,56 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
 
                         {/* If this category has fewer arrows than maxArrowsInScope, show padded blanks */}
                         {numArrows < maxArrowsInScope && Array.from({ length: maxArrowsInScope - numArrows }).map((_, i) => (
-                          <div key={i} className="w-12 h-14 md:w-14 md:h-16 rounded-2xl bg-slate-50 border border-dashed border-slate-200 opacity-30 flex items-center justify-center text-slate-300 font-black text-xs">
-                            N/A
+                          <div 
+                            key={i} 
+                            className={`rounded-xl bg-slate-50 border border-dashed border-slate-200 opacity-20 flex items-center justify-center text-slate-300 font-black text-xs ${
+                              isCompact ? 'w-8 h-9 sm:w-9 sm:h-10' : 'w-12 h-14 md:w-14 md:h-16'
+                            }`}
+                          >
+                            -
                           </div>
                         ))}
                       </div>
                     </td>
 
                     {/* End Total */}
-                    <td className="py-4 px-3 text-center border-r border-slate-100 bg-slate-50/50">
-                      <div className="font-black font-oswald text-3xl italic text-slate-900">
+                    <td className={`${isCompact ? 'py-2 px-2' : 'py-4 px-3'} text-center border-r border-slate-100 bg-slate-50/50`}>
+                      <div className={`font-black font-oswald italic text-slate-900 ${isCompact ? 'text-xl' : 'text-3xl'}`}>
                         {archerScore.total || 0}
                       </div>
-                      <span className="text-[9px] font-bold text-slate-700 uppercase">
+                      <span className="text-[8px] md:text-[9px] font-bold text-slate-600 uppercase">
                         {isTargetFilled ? '✓ Lengkap' : hasAnyScore ? 'Proses' : '-'}
                       </span>
                     </td>
 
                     {/* Cumulative Total (Previous ends + this end) */}
-                    <td className="py-4 px-3 text-center border-r border-slate-100 bg-purple-50/30">
-                      <div className="font-black font-oswald text-2xl italic text-purple-900">
+                    <td className={`${isCompact ? 'py-2 px-2' : 'py-4 px-3'} text-center border-r border-slate-100 bg-purple-50/30`}>
+                      <div className={`font-black font-oswald italic text-purple-900 ${isCompact ? 'text-lg' : 'text-2xl'}`}>
                         {grandTotal}
                       </div>
-                      <span className="text-[9px] font-bold text-purple-600 uppercase tracking-tighter">
+                      <span className="text-[8px] md:text-[9px] font-bold text-purple-600 uppercase tracking-tighter">
                         +{archerScore.total || 0}
                       </span>
                     </td>
 
                     {/* 10+X or 6s count */}
-                    <td className="py-4 px-3 text-center border-r border-slate-100 font-black font-oswald text-xl text-amber-800">
+                    <td className={`${isCompact ? 'py-2 px-2 text-base' : 'py-4 px-3 text-xl'} text-center border-r border-slate-100 font-black font-oswald text-amber-800`}>
                       {archerScore.count6 || 0}
                     </td>
 
                     {/* X or 5s count */}
-                    <td className="py-4 px-3 text-center border-r border-slate-100 font-black font-oswald text-xl text-amber-700">
+                    <td className={`${isCompact ? 'py-2 px-2 text-base' : 'py-4 px-3 text-xl'} text-center border-r border-slate-100 font-black font-oswald text-amber-700`}>
                       {archerScore.count5 || 0}
                     </td>
 
                     {/* Reset Button */}
-                    <td className="py-4 px-3 text-center">
+                    <td className={`${isCompact ? 'py-2 px-1' : 'py-4 px-3'} text-center`}>
                       <button
                         onClick={() => handleResetArcherEnd(archer.id)}
-                        className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all active:scale-90"
+                        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all active:scale-90"
                         title="Reset skor pemanah ini pada rambahan aktif"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </td>
                   </tr>
@@ -1175,8 +1424,8 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
 
               {archersToDisplay.length === 0 && (
                 <tr>
-                  <td colSpan={10 + maxArrowsInScope} className="py-16 text-center text-slate-400">
-                    <User className="w-12 h-12 mx-auto mb-3 text-slate-200" />
+                  <td colSpan={10 + maxArrowsInScope} className="py-12 text-center text-slate-400">
+                    <User className="w-10 h-10 mx-auto mb-2 text-slate-200" />
                     <p className="font-bold text-sm">Tidak ada pemanah pada Bantalan {selectedTarget}</p>
                     <p className="text-xs mt-1">Pastikan atlet sudah dialokasikan bantalan melalui Admin Panel.</p>
                   </td>
@@ -1186,19 +1435,30 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
           </table>
         </div>
 
-        {/* Footer with Quick Save Button */}
+        {/* Footer with Dual Save Buttons */}
         {archersToDisplay.length > 0 && (
-          <div className="p-5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-xs font-semibold text-slate-700">
-              💡 <b>Tip Kecepatan Operator:</b> Tekan <kbd className="px-2 py-0.5 bg-white border border-slate-300 rounded font-mono font-bold text-[10px]">Ctrl + S</kbd> untuk simpan &amp; otomatis lanjut ke bantalan berikutnya.
+          <div className={`${isCompact ? 'p-3' : 'p-5'} bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3`}>
+            <div className="text-xs font-semibold text-slate-600">
+              💡 <b>Navigasi Cepat PC:</b> Tekan <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono font-bold text-[10px]">Ctrl + S</kbd> untuk simpan, <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono font-bold text-[10px]">PageUp</kbd> / <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono font-bold text-[10px]">PageDown</kbd> ganti bantalan.
             </div>
 
-            <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="flex items-center gap-2.5 w-full sm:w-auto">
               <button
-                onClick={handleSaveTarget}
-                className="w-full sm:w-auto px-8 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black font-oswald uppercase italic tracking-wider text-base flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-emerald-200 active:scale-95"
+                type="button"
+                onClick={() => handleSaveTarget(false)}
+                className="flex-1 sm:flex-none px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black font-oswald uppercase italic tracking-wider text-xs md:text-sm flex items-center justify-center gap-2 transition-all shadow-xs active:scale-95"
+                title="Simpan skor tanpa loncat bantalan"
               >
-                <Save className="w-5 h-5" /> SIMPAN &amp; LANJUT KE BANTALAN BERIKUTNYA
+                <Save className="w-4 h-4" /> SIMPAN SKOR (Ctrl+S)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSaveTarget(true)}
+                className="flex-1 sm:flex-none px-6 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-black font-oswald uppercase italic tracking-wider text-xs md:text-sm flex items-center justify-center gap-2 transition-all shadow-xs active:scale-95"
+                title="Simpan skor dan langsung pindah ke bantalan berikutnya"
+              >
+                SIMPAN &amp; LANJUT ➜
               </button>
             </div>
           </div>
@@ -1207,29 +1467,29 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
 
       {/* On-Screen Ianseo Quick Keypad (Optional reference & touch/mouse click) */}
       {showKeypad && activeArcher && (
-        <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-sm animate-in slide-in-from-bottom-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3 mb-4">
+        <div className={`bg-white rounded-2xl border border-slate-200 shadow-xs animate-in slide-in-from-bottom-3 ${isCompact ? 'p-3' : 'p-5'}`}>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-2.5 mb-3">
             <div className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-black text-xs font-oswald italic">
+              <span className="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-black text-xs font-oswald italic">
                 {activeArcher.targetNo}{activeArcher.position}
               </span>
               <div>
                 <span className="text-xs font-black font-oswald uppercase italic text-slate-900">
-                  Keypad Input: {activeArcher.name}
+                  Keypad: {activeArcher.name}
                 </span>
-                <span className="text-[10px] text-slate-700 font-semibold block">
-                  Klik tombol untuk mengisi panah yang sedang aktif (P{(activeCell?.arrowIdx ?? 0) + 1})
+                <span className="text-[10px] text-slate-500 font-semibold block">
+                  Klik tombol untuk mengisi panah aktif (P{(activeCell?.arrowIdx ?? 0) + 1})
                 </span>
               </div>
             </div>
 
-            <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-3 py-1 rounded-full border border-purple-200 self-start sm:self-center">
-              Warna Target: {activeConfig?.targetType || 'Standard'}
+            <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200 self-start sm:self-center">
+              Target: {activeConfig?.targetType || 'Standard'}
             </span>
           </div>
 
           {/* Target Face Colored Buttons */}
-          <div className="flex items-center gap-2.5 flex-wrap justify-center sm:justify-start">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-center sm:justify-start">
             {keypadOptions.map((opt, i) => {
               const style = getArrowTargetStyle(opt, activeConfig?.targetType);
               return (
@@ -1243,7 +1503,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
                       handleSetArrowValue(activeCell.archerId, activeCell.arrowIdx, opt);
                     }
                   }}
-                  className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl font-black font-oswald text-2xl md:text-3xl border-2 transition-all shadow-sm active:scale-95 flex items-center justify-center ${style.bg} ${style.text} ${style.border} hover:brightness-105 hover:scale-105`}
+                  className={`${isCompact ? 'w-10 h-10 sm:w-11 sm:h-11 text-xl' : 'w-14 h-14 sm:w-16 sm:h-16 text-2xl md:text-3xl'} rounded-xl font-black font-oswald border transition-all shadow-2xs active:scale-95 flex items-center justify-center ${style.bg} ${style.text} ${style.border} hover:brightness-105`}
                 >
                   {opt}
                 </button>
@@ -1257,10 +1517,10 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
                 if (!activeCell) return;
                 handleSetArrowValue(activeCell.archerId, activeCell.arrowIdx, -1);
               }}
-              className="px-5 h-14 sm:h-16 rounded-2xl font-black text-xs uppercase bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-all active:scale-95 flex items-center gap-2"
+              className={`${isCompact ? 'px-3 h-10 sm:h-11 text-[11px]' : 'px-5 h-14 sm:h-16 text-xs'} rounded-xl font-black uppercase bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 transition-all active:scale-95 flex items-center gap-1.5`}
               title="Hapus panah aktif (Backspace)"
             >
-              <RotateCcw className="w-4 h-4" /> Hapus
+              <RotateCcw className="w-3.5 h-3.5" /> Hapus
             </button>
           </div>
         </div>

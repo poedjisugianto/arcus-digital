@@ -460,21 +460,37 @@ const OperatorCenter: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
     toast.success(`Skor Rambahan #${targetEnd + 1} (${selectedArcher.name}) berhasil disimpan!`);
   };
 
-  // QR Scan Handler
+  // QR & Barcode Scan Handler
   const handleScan = (data: string) => {
     try {
-      const parsed = JSON.parse(data);
-      if (parsed.type === 'SCORING_SHEET' && parsed.eventId === event.id) {
+      let archerId = '';
+      try {
+        const parsed = JSON.parse(data);
+        if (parsed.type === 'SCORING_SHEET' || parsed.archerId) {
+          archerId = parsed.archerId || parsed.id;
+        }
+      } catch {
+        const trimmed = data.trim();
+        const archers = event.archers || [];
+        const found = archers.find(a => a.id === trimmed) ||
+                      archers.find(a => `${a.targetNo}${a.position}`.toUpperCase() === trimmed.toUpperCase()) ||
+                      archers.find(a => trimmed.toUpperCase().includes(`${a.targetNo}${a.position}`.toUpperCase()));
+        if (found) archerId = found.id;
+      }
+
+      if (archerId) {
+        const archer = (event.archers || []).find(a => a.id === archerId);
         setSelectedCategory('ALL');
         setSearchTerm('');
-        setSelectedArcherId(parsed.archerId);
+        setSelectedArcherId(archerId);
         setShowScanner(false);
-        toast.success("Lembar skor berhasil dipindai!");
-      } else {
-        toast.error("QR Code tidak valid untuk event ini.");
+        toast.success(`Lembar skor ${archer ? `${archer.name} (${archer.targetNo}${archer.position || ''})` : ''} berhasil dipindai!`);
+        return;
       }
-    } catch (e) {
-      toast.error("Gagal membaca QR Code.");
+
+      toast.error("QR Code / Barcode tidak cocok dengan atlet event ini.");
+    } catch {
+      toast.error("Format QR Code / Barcode tidak dikenali.");
     }
   };
 

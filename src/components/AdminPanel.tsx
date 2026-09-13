@@ -11,15 +11,38 @@ import {
 } from 'lucide-react';
 import { TournamentSettings, CategoryType, TargetType, PaymentMethod, ScorerAccess, CategoryConfig, Sponsorship, Archer, ParticipantRegistration, GlobalSettings, RundownItem, ArcheryEvent } from '../types';
 import { CATEGORY_LABELS, TARGET_LABELS } from '../constants';
-import { tryRecoverJSON } from '../lib/firestoreUtils';
+import { tryRecoverJSON, mergeTournamentSettings, findCategoryConfig } from '../lib/firestoreUtils';
 import { resolveGoogleDriveUrl } from '../lib/photoService';
 import ArcherList from './ArcherList';
 import OfficialList from './OfficialList';
 import PrintRoundReportModal from './PrintRoundReportModal';
 import PrintScoreSheetsModal from './PrintScoreSheetsModal';
+import PrintEliminationSheetsModal from './PrintEliminationSheetsModal';
 import { getGoogleMapsUrl } from '../lib/mapsHelper';
 import { TechnicalSupportCard, TechnicalSupportModeBanner } from './TechnicalSupportCard';
 import { isSupportAccessActive } from '../lib/supportAccess';
+
+export const getDefaultHighestScores = (targetType?: TargetType): { high1: string; high2: string } => {
+  switch (targetType) {
+    case TargetType.PUTA:
+    case TargetType.TRADITIONAL_PUTA:
+      return { high1: '2', high2: '1' };
+    case TargetType.TRADITIONAL_6_RING:
+      return { high1: '6', high2: '5' };
+    case TargetType.FACE_5_RING:
+      return { high1: '5', high2: '4' };
+    case TargetType.FACE_MEGA_MENDUNG:
+      return { high1: '10', high2: '9' };
+    case TargetType.FACE_122:
+    case TargetType.FACE_80:
+    case TargetType.FACE_60:
+    case TargetType.FACE_40:
+    case TargetType.FACE_3X20:
+    case TargetType.STANDARD:
+    default:
+      return { high1: '10', high2: 'X' };
+  }
+};
 
 interface Props {
   eventId: string;
@@ -88,17 +111,29 @@ const AdminPanel: React.FC<Props> = ({
 }) => {
   const [showPrintReportModal, setShowPrintReportModal] = useState(false);
   const [showPrintScoreSheetsModal, setShowPrintScoreSheetsModal] = useState(false);
+  const [showPrintEliminationModal, setShowPrintEliminationModal] = useState(false);
   const [localSettings, setLocalSettings] = useState<TournamentSettings>(() => {
     const savedDraft = localStorage.getItem(`admin_draft_${eventId}`);
     if (savedDraft) {
       try {
-        return tryRecoverJSON(savedDraft);
+        const parsedDraft = tryRecoverJSON(savedDraft);
+        if (parsedDraft && typeof parsedDraft === 'object' && Object.keys(parsedDraft).length > 0) {
+          return parsedDraft;
+        }
       } catch (e) { console.error("Draft parse failed", e); }
     }
+    const savedBackup = localStorage.getItem(`admin_saved_settings_${eventId}`);
+    let backupSettings = null;
+    if (savedBackup) {
+      try {
+        backupSettings = tryRecoverJSON(savedBackup);
+      } catch (e) {}
+    }
     const baseSettings = (settings || {}) as TournamentSettings;
+    const merged = mergeTournamentSettings(backupSettings, baseSettings);
     return {
-      ...baseSettings,
-      categoryConfigs: baseSettings.categoryConfigs || {}
+      ...merged,
+      categoryConfigs: merged.categoryConfigs || {}
     } as TournamentSettings;
   });
   const isPractice = localSettings.isPractice;
@@ -108,7 +143,9 @@ const AdminPanel: React.FC<Props> = ({
   // Sync draft to localStorage when settings change
   useEffect(() => {
     if (isDirty) {
-      localStorage.setItem(`admin_draft_${eventId}`, JSON.stringify(localSettings));
+      try {
+        localStorage.setItem(`admin_draft_${eventId}`, JSON.stringify(localSettings));
+      } catch (e) {}
     }
   }, [localSettings, eventId, isDirty]);
 
@@ -122,11 +159,10 @@ const AdminPanel: React.FC<Props> = ({
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const [showTimerModal, setShowTimerModal] = useState(false);
   
-  // Only sync from props if the tournament name changes (indicating a different event)
-  // or if we're not currently editing (not dirty)
+  // Safely merge incoming settings when not dirty without wiping out existing categoryConfigs
   useEffect(() => {
-    if (!isDirty) {
-      setLocalSettings(settings || { ...localSettings });
+    if (!isDirty && settings) {
+      setLocalSettings(prev => mergeTournamentSettings(prev, settings));
       setLocalScorers(scorerAccess || []);
     }
   }, [settings, scorerAccess, isDirty]);
@@ -165,16 +201,38 @@ const AdminPanel: React.FC<Props> = ({
   };
 
   const updateCategoryConfig = (cat: CategoryType, field: keyof CategoryConfig, value: any) => {
-    setLocalSettings(prev => ({
-      ...prev,
-      categoryConfigs: {
-        ...prev.categoryConfigs,
-        [cat]: { 
-          ...(prev.categoryConfigs?.[cat] as CategoryConfig), 
-          [field]: value 
-        }
+    setLocalSettings(prev => {
+      const existingConfig = prev.categoryConfigs?.[cat] || {
+        registrationFee: 0,
+        distance: '20m',
+        arrows: 36,
+        ends: 6,
+        targetType: TargetType.STANDARD,
+        h2hStartSize: 0,
+        eliminationStages: []
+      };
+      const updatedConfig = {
+        ...existingConfig,
+        [field]: value
+      };
+      // Auto-update highest scores default if targetType changed
+      if (field === 'targetType') {
+        const defaults = getDefaultHighestScores(value as TargetType);
+        updatedConfig.highestScore1 = defaults.high1;
+        updatedConfig.highestScore2 = defaults.high2;
       }
-    }));
+      const updated = {
+        ...prev,
+        categoryConfigs: {
+          ...(prev.categoryConfigs || {}),
+          [cat]: updatedConfig
+        }
+      };
+      try {
+        localStorage.setItem(`admin_draft_${eventId}`, JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
     setIsDirty(true);
   };
 
@@ -256,12 +314,28 @@ const AdminPanel: React.FC<Props> = ({
     executeFinalSave();
   };
 
-  const executeFinalSave = () => {
-    onSave(localSettings);
-    if (onUpdateScorers) onUpdateScorers(localScorers);
-    
-    // Clear draft
-    localStorage.removeItem(`admin_draft_${eventId}`);
+  const executeFinalSave = async () => {
+    try {
+      localStorage.setItem(`admin_saved_settings_${eventId}`, JSON.stringify(localSettings));
+      localStorage.removeItem(`admin_draft_${eventId}`);
+    } catch (e) {
+      console.warn("Storage save error:", e);
+    }
+
+    if (onSave) {
+      try {
+        await Promise.resolve(onSave(localSettings));
+      } catch (err) {
+        console.error("onSave error:", err);
+      }
+    }
+    if (onUpdateScorers) {
+      try {
+        await Promise.resolve(onUpdateScorers(localScorers));
+      } catch (err) {
+        console.error("onUpdateScorers error:", err);
+      }
+    }
     
     setShowConfirmModal(false);
     setShowDraftConfirm(false);
@@ -756,13 +830,21 @@ const AdminPanel: React.FC<Props> = ({
                     </p>
                   </div>
                 </div>
-                <div className="pt-8">
+                <div className="pt-8 flex gap-2">
                   <button
                     type="button"
                     onClick={onManageElimination}
-                    className="w-full py-4 text-center bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
+                    className="flex-1 py-4 text-center bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
                   >
                     Kelola Eliminasi
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPrintEliminationModal(true)}
+                    className="px-3.5 py-4 text-center bg-slate-900 hover:bg-slate-800 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
+                    title="Cetak Lembar Skoring Babak Aduan Fisik Lapangan"
+                  >
+                    <Swords className="w-3.5 h-3.5 text-purple-400" /> Lembar Aduan
                   </button>
                 </div>
               </div>
@@ -1484,6 +1566,111 @@ const AdminPanel: React.FC<Props> = ({
                             placeholder="Unlimited" 
                           />
                         </label>
+                      </div>
+
+                      {/* PENGATURAN KOLOM POIN TERTINGGI (LEMBAR SKOR & REKAP) */}
+                      <div className="bg-amber-50/50 border border-amber-200/80 rounded-xl p-4 space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                          <div className="flex items-center gap-2">
+                            <TargetIcon className="w-4 h-4 text-amber-600" />
+                            <span className="text-xs font-black uppercase text-slate-900 tracking-wider font-oswald">
+                              Kolom Poin Tertinggi (Lembar Skor &amp; Rekap)
+                            </span>
+                          </div>
+                          <span className="text-[9.5px] text-amber-800 font-medium">
+                            Menentukan 2 kolom poin tertinggi pada Lembar Skor Fisik Resmi &amp; Rekap Hasil
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <label className="block space-y-1">
+                            <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1 flex items-center justify-between">
+                              <span>Poin Tertinggi 1 (Kolom 1)</span>
+                              <span className="text-[9px] font-mono font-bold text-amber-700">
+                                Default: {getDefaultHighestScores(localSettings.categoryConfigs?.[cat]?.targetType).high1}
+                              </span>
+                            </span>
+                            <input 
+                              type="text" 
+                              value={localSettings.categoryConfigs?.[cat]?.highestScore1 ?? getDefaultHighestScores(localSettings.categoryConfigs?.[cat]?.targetType).high1} 
+                              onChange={e => updateCategoryConfig(cat, 'highestScore1', e.target.value.toUpperCase().trim())} 
+                              className="w-full rounded-lg border-amber-200 bg-white p-2.5 border font-mono font-black text-center text-sm focus:border-arcus-red transition-all text-slate-900 shadow-2xs" 
+                              placeholder="Cth: 10, 6, 2, 5, 10+X" 
+                            />
+                          </label>
+
+                          <label className="block space-y-1">
+                            <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1 flex items-center justify-between">
+                              <span>Poin Tertinggi 2 (Kolom 2)</span>
+                              <span className="text-[9px] font-mono font-bold text-amber-700">
+                                Default: {getDefaultHighestScores(localSettings.categoryConfigs?.[cat]?.targetType).high2}
+                              </span>
+                            </span>
+                            <input 
+                              type="text" 
+                              value={localSettings.categoryConfigs?.[cat]?.highestScore2 ?? getDefaultHighestScores(localSettings.categoryConfigs?.[cat]?.targetType).high2} 
+                              onChange={e => updateCategoryConfig(cat, 'highestScore2', e.target.value.toUpperCase().trim())} 
+                              className="w-full rounded-lg border-amber-200 bg-white p-2.5 border font-mono font-black text-center text-sm focus:border-arcus-red transition-all text-slate-900 shadow-2xs" 
+                              placeholder="Cth: X, 5, 1, 4, 9" 
+                            />
+                          </label>
+                        </div>
+
+                        {/* Preset Cepat Poin Tertinggi */}
+                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                          <span className="text-[9px] font-bold text-slate-600 uppercase">Preset Cepat:</span>
+                          {[
+                            { label: '10 & X (Standar WA)', h1: '10', h2: 'X' },
+                            { label: '6 & 5 (Tradisional 6-Ring)', h1: '6', h2: '5' },
+                            { label: '5 & 4 (Face 5-Ring U9/U12)', h1: '5', h2: '4' },
+                            { label: '2 & 1 (Puta Turkey)', h1: '2', h2: '1' },
+                            { label: '10 & 9 (Mega Mendung)', h1: '10', h2: '9' },
+                            { label: '10+X & X', h1: '10+X', h2: 'X' }
+                          ].map(p => {
+                            const curH1 = localSettings.categoryConfigs?.[cat]?.highestScore1 ?? getDefaultHighestScores(localSettings.categoryConfigs?.[cat]?.targetType).high1;
+                            const curH2 = localSettings.categoryConfigs?.[cat]?.highestScore2 ?? getDefaultHighestScores(localSettings.categoryConfigs?.[cat]?.targetType).high2;
+                            const isSelected = curH1 === p.h1 && curH2 === p.h2;
+
+                            return (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => {
+                                  setLocalSettings(prev => {
+                                    const prevConfig = prev.categoryConfigs?.[cat] || {
+                                      registrationFee: 0,
+                                      distance: '20m',
+                                      arrows: 36,
+                                      ends: 6,
+                                      targetType: TargetType.STANDARD,
+                                      h2hStartSize: 0,
+                                      eliminationStages: []
+                                    };
+                                    return {
+                                      ...prev,
+                                      categoryConfigs: {
+                                        ...(prev.categoryConfigs || {}),
+                                        [cat]: {
+                                          ...prevConfig,
+                                          highestScore1: p.h1,
+                                          highestScore2: p.h2
+                                        }
+                                      }
+                                    };
+                                  });
+                                  setIsDirty(true);
+                                }}
+                                className={`px-2.5 py-1 rounded-md text-[10px] font-bold border transition-all ${
+                                  isSelected
+                                    ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                                    : 'bg-white text-slate-700 border-amber-200/90 hover:border-amber-400'
+                                }`}
+                              >
+                                {p.label}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
 
                       <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-6">
@@ -2634,6 +2821,26 @@ const AdminPanel: React.FC<Props> = ({
             scoreLogs: event?.scoreLogs || []
           } as any)}
           onClose={() => setShowPrintScoreSheetsModal(false)}
+        />
+      )}
+
+      {/* Official Match Play / Elimination Score Sheet Print Modal */}
+      {showPrintEliminationModal && (
+        <PrintEliminationSheetsModal
+          isOpen={showPrintEliminationModal}
+          event={({
+            ...(event || {}),
+            id: eventId,
+            status: event?.status || 'ACTIVE',
+            settings: localSettings,
+            archers: archers.length > 0 ? archers : (event?.archers || []),
+            officials: officials.length > 0 ? officials : (event?.officials || []),
+            scores: event?.scores || [],
+            matches: event?.matches || {},
+            registrations: event?.registrations || [],
+            scoreLogs: event?.scoreLogs || []
+          } as any)}
+          onClose={() => setShowPrintEliminationModal(false)}
         />
       )}
     </div>

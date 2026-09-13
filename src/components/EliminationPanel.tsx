@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { ArcheryEvent, CategoryType, Match, Archer, TargetType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
-import { Trophy, GitBranch, User, Save, RefreshCw, ChevronRight, Swords, ArrowLeft, Trash2, Settings2, Zap, Medal, Plus, Minus, Check, FileText, X, AlertTriangle, Bell, Volume2, Target, BarChart3, ListOrdered, Award, Scale, Printer } from 'lucide-react';
+import { Trophy, GitBranch, User, Save, RefreshCw, ChevronRight, Swords, ArrowLeft, Trash2, Settings2, Zap, Medal, Plus, Minus, Check, FileText, X, AlertTriangle, Bell, Volume2, Target, BarChart3, ListOrdered, Award, Scale, Printer, Sliders, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { playShootOffAlarm, playVictorySound } from '../lib/soundAlarm';
 import PrintRoundReportModal from './PrintRoundReportModal';
+import PrintEliminationSheetsModal from './PrintEliminationSheetsModal';
 
 interface Props {
   event: ArcheryEvent;
@@ -20,6 +21,42 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
   const [flagMessage, setFlagMessage] = useState('');
   const [activeShootOffMatchId, setActiveShootOffMatchId] = useState<string | null>(null);
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showEliminationPrintModal, setShowEliminationPrintModal] = useState(false);
+  const [printMatchId, setPrintMatchId] = useState<string | undefined>(undefined);
+
+  // Compact Mode and Zoom Scale for PC Monitor Friendly Display
+  const [isCompact, setIsCompactState] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('elim_compact_mode');
+      return saved === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const setIsCompact = (val: boolean) => {
+    setIsCompactState(val);
+    try {
+      localStorage.setItem('elim_compact_mode', val ? 'true' : 'false');
+    } catch {}
+  };
+
+  const [zoomScale, setZoomScaleState] = useState<number>(() => {
+    try {
+      const saved = Number(localStorage.getItem('elim_zoom_scale'));
+      return saved >= 60 && saved <= 125 ? saved : 85;
+    } catch {
+      return 85;
+    }
+  });
+
+  const setZoomScale = (val: number) => {
+    setZoomScaleState(val);
+    try {
+      localStorage.setItem('elim_zoom_scale', val.toString());
+    } catch {}
+  };
+
   const [tieBreakTab, setTieBreakTab] = useState<Record<string, 'SHOOT_OFF' | 'COUNTBACK'>>({});
   const config = (event.settings.categoryConfigs || {})[activeCategory as CategoryType];
   const defaultTieBreak = config?.tieBreakMethod === 'COUNTBACK' ? 'COUNTBACK' : 'SHOOT_OFF';
@@ -484,6 +521,18 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
         
         <div className="flex items-center gap-2 flex-wrap">
           <button
+            onClick={() => {
+              setPrintMatchId(undefined);
+              setShowEliminationPrintModal(true);
+            }}
+            className="px-4 py-2.5 bg-gradient-to-r from-purple-700 to-indigo-800 hover:brightness-110 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-purple-900/20 active:scale-95 transition-all whitespace-nowrap"
+            title="Cetak Lembar Skoring Aduan Fisik untuk Wasit & Scorer di Lapangan"
+          >
+            <Swords className="w-3.5 h-3.5" />
+            <span>Lembar Aduan Fisik</span>
+          </button>
+
+          <button
             onClick={() => setShowPrintModal(true)}
             className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-red-600/20 active:scale-95 transition-all whitespace-nowrap"
             title="Cetak & Laporan Data Master Skor Babak & Penyaringan"
@@ -572,35 +621,114 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-4">
-             <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs">
+             <div className="flex items-center gap-2.5 flex-wrap">
                <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-[10px] font-black uppercase">
                  <span className="w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping" />
-                 Warna Kuning/Oranye Berkedip = Mode Shoot-Off (Nilai Imbang)
+                 Kuning/Oranye = Shoot-Off (Seri)
                </div>
+
+               {/* Physical Elimination Sheet Quick Button */}
+               <button
+                 onClick={() => {
+                   setPrintMatchId(undefined);
+                   setShowEliminationPrintModal(true);
+                 }}
+                 className="px-3 py-1.5 bg-gradient-to-r from-purple-700 to-indigo-800 hover:brightness-110 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-xs active:scale-95 transition-all"
+                 title="Cetak Lembar Skoring Aduan Fisik untuk Lapangan"
+               >
+                 <Swords className="w-3.5 h-3.5" />
+                 <span>Cetak Lembar Aduan Lapangan</span>
+               </button>
              </div>
              
-             <div className="flex flex-wrap items-center gap-3">
+             <div className="flex flex-wrap items-center gap-2">
+               {/* Mode Ringkas / Compact Toggle */}
+               <button
+                 onClick={() => setIsCompact(!isCompact)}
+                 className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border ${
+                   isCompact 
+                     ? 'bg-slate-900 text-white border-slate-900 shadow-sm' 
+                     : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                 }`}
+                 title="Perkecil ukuran kartu bagan agar muat banyak di layar monitor PC"
+               >
+                 <Sliders className="w-3.5 h-3.5" />
+                 <span>{isCompact ? 'Mode Ringkas: ON' : 'Mode Ringkas'}</span>
+               </button>
+
+               {/* Zoom Controller */}
+               <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 gap-1">
+                 <button
+                   onClick={() => setZoomScale(Math.max(60, zoomScale - 10))}
+                   className="p-1 hover:bg-white rounded-lg transition-colors text-slate-600 disabled:opacity-40"
+                   disabled={zoomScale <= 60}
+                   title="Zoom Out / Perkecil"
+                 >
+                   <ZoomOut className="w-3.5 h-3.5" />
+                 </button>
+
+                 <select
+                   value={zoomScale}
+                   onChange={(e) => setZoomScale(Number(e.target.value))}
+                   className="bg-transparent font-black text-slate-800 outline-none cursor-pointer text-[10px] uppercase px-1 py-0.5"
+                   title="Pilih Skala Zoom Layar"
+                 >
+                   <option value={65}>Zoom: 65% (Super Ringkas)</option>
+                   <option value={75}>Zoom: 75% (Laptop Kecil)</option>
+                   <option value={85}>Zoom: 85% (PC Ideal)</option>
+                   <option value={95}>Zoom: 95% (Hampir Penuh)</option>
+                   <option value={100}>Zoom: 100% (Normal)</option>
+                   <option value={115}>Zoom: 115% (Besar)</option>
+                 </select>
+
+                 <button
+                   onClick={() => setZoomScale(Math.min(125, zoomScale + 10))}
+                   className="p-1 hover:bg-white rounded-lg transition-colors text-slate-600 disabled:opacity-40"
+                   disabled={zoomScale >= 125}
+                   title="Zoom In / Perbesar"
+                 >
+                   <ZoomIn className="w-3.5 h-3.5" />
+                 </button>
+
+                 {zoomScale !== 85 && (
+                   <button
+                     onClick={() => setZoomScale(85)}
+                     className="px-1.5 py-0.5 bg-white text-purple-700 hover:bg-purple-50 rounded text-[9px] font-black uppercase transition-colors"
+                     title="Reset Zoom ke 85%"
+                   >
+                     Reset
+                   </button>
+                 )}
+               </div>
+
+               {/* Reset Bracket Button */}
                <button 
                  onClick={() => { if(window.confirm('Hapus seluruh bagan untuk kategori ini?')) { onUpdateMatches({ ...event.matches, [activeCategory]: [] }); triggerFlag("Bagan Berhasil Direset"); } }}
-                 className="flex items-center gap-2 px-5 py-3 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-100 transition-all"
+                 className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border border-red-100"
+                 title="Hapus dan reset seluruh bagan kategori ini"
                >
-                 <Trash2 className="w-4 h-4" /> Reset Bagan
+                 <Trash2 className="w-3.5 h-3.5" />
+                 <span>Reset Bagan</span>
                </button>
              </div>
           </div>
 
           {/* Bracket Visualization */}
-          <div ref={scrollContainerRef} className="flex gap-12 overflow-x-auto pb-12 pt-4 px-4 no-scrollbar scroll-smooth">
+          <div 
+            ref={scrollContainerRef} 
+            className={`flex ${isCompact ? 'gap-5' : 'gap-12'} overflow-x-auto pb-12 pt-4 px-4 no-scrollbar scroll-smooth transition-all`}
+            style={{ zoom: `${zoomScale}%` }}
+          >
             {roundsData.map((round, rIndex) => (
-              <div key={round.round} className="flex flex-col gap-8 min-w-[370px]">
+              <div key={round.round} className={`flex flex-col ${isCompact ? 'gap-4 min-w-[285px] max-w-[305px]' : 'gap-8 min-w-[370px]'}`}>
                 <div className="text-center">
-                  <span className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] italic border-2 shadow-lg inline-block ${round.round === 1 ? 'bg-orange-600 border-orange-400 text-white' : 'bg-slate-900 border-purple-500 text-white'}`}>
+                  <span className={`${isCompact ? 'px-4 py-1 text-[9px]' : 'px-6 py-2 text-[10px]'} rounded-full font-black uppercase tracking-[0.2em] italic border-2 shadow-lg inline-block ${round.round === 1 ? 'bg-orange-600 border-orange-400 text-white' : 'bg-slate-900 border-purple-500 text-white'}`}>
                     {round.label}
                   </span>
                 </div>
                 
-                <div className="flex flex-col h-full justify-around gap-8">
+                <div className={`flex flex-col h-full justify-around ${isCompact ? 'gap-4' : 'gap-8'}`}>
                   {round.matches.map((match) => {
                     const isTied = match.archerAId && match.archerBId && match.scoreA === match.scoreB && (match.scoreA > 0 || match.scoreB > 0);
                     const isShootOffActive = isTied || match.isShootOff;
@@ -618,7 +746,7 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
 
                     return (
                       <div key={match.id} className="relative group">
-                        <div className={`bg-white rounded-[2.5rem] border-2 overflow-hidden shadow-lg transition-all duration-300 ${
+                        <div className={`bg-white ${isCompact ? 'rounded-2xl' : 'rounded-[2.5rem]'} border-2 overflow-hidden shadow-lg transition-all duration-300 ${
                           isTied && !match.winnerId 
                             ? 'border-amber-500 ring-4 ring-amber-400/50 shadow-amber-500/20 animate-pulse' 
                             : match.winnerId 
@@ -626,7 +754,7 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                               : 'border-slate-100'
                         }`}>
                           {/* Match Header Badge */}
-                          <div className={`px-6 py-2.5 flex items-center justify-between border-b text-[10px] font-black uppercase tracking-wider ${
+                          <div className={`${isCompact ? 'px-3.5 py-1.5 text-[9px]' : 'px-6 py-2.5 text-[10px]'} flex items-center justify-between border-b font-black uppercase tracking-wider ${
                             isTied && !match.winnerId 
                               ? 'bg-amber-500 text-slate-950 font-black' 
                               : hasCountbackRecord
@@ -722,24 +850,24 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                           )}
 
                           {/* Slot A - Quick Input */}
-                          <div className={`p-6 flex items-center justify-between gap-4 border-b ${match.winnerId === match.archerAId ? 'bg-purple-50/50' : ''}`}>
-                            <div className="flex items-center gap-4 flex-1 min-w-0">
-                               <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${match.winnerId === match.archerAId ? 'bg-purple-600 text-white shadow-lg' : match.scoreA > match.scoreB ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}`}>
-                                 {match.winnerId === match.archerAId ? <Check className="w-5 h-5" /> : 'A'}
+                          <div className={`${isCompact ? 'p-3 gap-2.5' : 'p-6 gap-4'} flex items-center justify-between border-b ${match.winnerId === match.archerAId ? 'bg-purple-50/50' : ''}`}>
+                            <div className={`flex items-center ${isCompact ? 'gap-2.5' : 'gap-4'} flex-1 min-w-0`}>
+                               <div className={`${isCompact ? 'w-7 h-7 text-[11px] rounded-lg' : 'w-10 h-10 text-xs rounded-xl'} flex items-center justify-center font-black shrink-0 ${match.winnerId === match.archerAId ? 'bg-purple-600 text-white shadow-lg' : match.scoreA > match.scoreB ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}`}>
+                                 {match.winnerId === match.archerAId ? <Check className={isCompact ? 'w-4 h-4' : 'w-5 h-5'} /> : 'A'}
                                 </div>
                                 <div className="min-w-0">
-                                  <span className={`font-black uppercase font-oswald text-sm italic truncate block ${match.winnerId === match.archerAId ? 'text-purple-700' : 'text-slate-600'}`}>
+                                  <span className={`font-black uppercase font-oswald ${isCompact ? 'text-xs leading-tight' : 'text-sm'} italic truncate block ${match.winnerId === match.archerAId ? 'text-purple-700' : 'text-slate-600'}`}>
                                     {getArcherName(match.archerAId)}
                                   </span>
-                                  <span className="text-[8px] font-bold text-slate-700 uppercase tracking-wider truncate block">
+                                  <span className={`${isCompact ? 'text-[7.5px]' : 'text-[8px]'} font-bold text-slate-700 uppercase tracking-wider truncate block`}>
                                     {getArcherClub(match.archerAId)}
                                   </span>
                                 </div>
                             </div>
                             
-                            <div className="flex items-center gap-2 shrink-0">
-                               <button onClick={() => updateMatch(match.id, { scoreA: Math.max(0, match.scoreA - 1) })} className="w-8 h-8 rounded-lg bg-slate-50 border flex items-center justify-center hover:bg-slate-100 active:scale-90 transition-all text-slate-700"><Minus className="w-4 h-4" /></button>
-                               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black font-oswald border-2 shadow-inner ${
+                            <div className={`flex items-center ${isCompact ? 'gap-1.5' : 'gap-2'} shrink-0`}>
+                               <button onClick={() => updateMatch(match.id, { scoreA: Math.max(0, match.scoreA - 1) })} className={`${isCompact ? 'w-6 h-6 rounded-md' : 'w-8 h-8 rounded-lg'} bg-slate-50 border flex items-center justify-center hover:bg-slate-100 active:scale-90 transition-all text-slate-700`}><Minus className={isCompact ? 'w-3 h-3' : 'w-4 h-4'} /></button>
+                               <div className={`${isCompact ? 'w-10 h-10 rounded-xl text-xl' : 'w-14 h-14 rounded-2xl text-2xl'} flex items-center justify-center font-black font-oswald border-2 shadow-inner ${
                                  isTied 
                                    ? 'bg-amber-50 border-amber-300 text-amber-800' 
                                    : match.scoreA > match.scoreB 
@@ -748,29 +876,29 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                                }`}>
                                  {match.scoreA}
                                 </div>
-                               <button onClick={() => updateMatch(match.id, { scoreA: match.scoreA + 1 })} className="w-8 h-8 rounded-lg bg-purple-50 border-purple-100 border flex items-center justify-center hover:bg-purple-100 active:scale-90 transition-all text-purple-600"><Plus className="w-4 h-4" /></button>
+                               <button onClick={() => updateMatch(match.id, { scoreA: match.scoreA + 1 })} className={`${isCompact ? 'w-6 h-6 rounded-md' : 'w-8 h-8 rounded-lg'} bg-purple-50 border-purple-100 border flex items-center justify-center hover:bg-purple-100 active:scale-90 transition-all text-purple-600`}><Plus className={isCompact ? 'w-3 h-3' : 'w-4 h-4'} /></button>
                             </div>
                           </div>
 
                           {/* Slot B - Quick Input */}
-                          <div className={`p-6 flex items-center justify-between gap-4 ${match.winnerId === match.archerBId ? 'bg-purple-50/50' : ''}`}>
-                            <div className="flex items-center gap-4 flex-1 min-w-0">
-                               <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${match.winnerId === match.archerBId ? 'bg-purple-600 text-white shadow-lg' : match.scoreB > match.scoreA ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}`}>
-                                 {match.winnerId === match.archerBId ? <Check className="w-5 h-5" /> : 'B'}
+                          <div className={`${isCompact ? 'p-3 gap-2.5' : 'p-6 gap-4'} flex items-center justify-between ${match.winnerId === match.archerBId ? 'bg-purple-50/50' : ''}`}>
+                            <div className={`flex items-center ${isCompact ? 'gap-2.5' : 'gap-4'} flex-1 min-w-0`}>
+                               <div className={`${isCompact ? 'w-7 h-7 text-[11px] rounded-lg' : 'w-10 h-10 text-xs rounded-xl'} flex items-center justify-center font-black shrink-0 ${match.winnerId === match.archerBId ? 'bg-purple-600 text-white shadow-lg' : match.scoreB > match.scoreA ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}`}>
+                                 {match.winnerId === match.archerBId ? <Check className={isCompact ? 'w-4 h-4' : 'w-5 h-5'} /> : 'B'}
                                 </div>
                                 <div className="min-w-0">
-                                  <span className={`font-black uppercase font-oswald text-sm italic truncate block ${match.winnerId === match.archerBId ? 'text-purple-700' : 'text-slate-600'}`}>
+                                  <span className={`font-black uppercase font-oswald ${isCompact ? 'text-xs leading-tight' : 'text-sm'} italic truncate block ${match.winnerId === match.archerBId ? 'text-purple-700' : 'text-slate-600'}`}>
                                     {getArcherName(match.archerBId)}
                                   </span>
-                                  <span className="text-[8px] font-bold text-slate-700 uppercase tracking-wider truncate block">
+                                  <span className={`${isCompact ? 'text-[7.5px]' : 'text-[8px]'} font-bold text-slate-700 uppercase tracking-wider truncate block`}>
                                     {getArcherClub(match.archerBId)}
                                   </span>
                                 </div>
                             </div>
                             
-                            <div className="flex items-center gap-2 shrink-0">
-                               <button onClick={() => updateMatch(match.id, { scoreB: Math.max(0, match.scoreB - 1) })} className="w-8 h-8 rounded-lg bg-slate-50 border flex items-center justify-center hover:bg-slate-100 active:scale-90 transition-all text-slate-700"><Minus className="w-4 h-4" /></button>
-                               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black font-oswald border-2 shadow-inner ${
+                            <div className={`flex items-center ${isCompact ? 'gap-1.5' : 'gap-2'} shrink-0`}>
+                               <button onClick={() => updateMatch(match.id, { scoreB: Math.max(0, match.scoreB - 1) })} className={`${isCompact ? 'w-6 h-6 rounded-md' : 'w-8 h-8 rounded-lg'} bg-slate-50 border flex items-center justify-center hover:bg-slate-100 active:scale-90 transition-all text-slate-700`}><Minus className={isCompact ? 'w-3 h-3' : 'w-4 h-4'} /></button>
+                               <div className={`${isCompact ? 'w-10 h-10 rounded-xl text-xl' : 'w-14 h-14 rounded-2xl text-2xl'} flex items-center justify-center font-black font-oswald border-2 shadow-inner ${
                                  isTied 
                                    ? 'bg-amber-50 border-amber-300 text-amber-800' 
                                    : match.scoreB > match.scoreA 
@@ -779,7 +907,7 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                                }`}>
                                  {match.scoreB}
                                 </div>
-                               <button onClick={() => updateMatch(match.id, { scoreB: match.scoreB + 1 })} className="w-8 h-8 rounded-lg bg-purple-50 border-purple-100 border flex items-center justify-center hover:bg-purple-100 active:scale-90 transition-all text-purple-600"><Plus className="w-4 h-4" /></button>
+                               <button onClick={() => updateMatch(match.id, { scoreB: match.scoreB + 1 })} className={`${isCompact ? 'w-6 h-6 rounded-md' : 'w-8 h-8 rounded-lg'} bg-purple-50 border-purple-100 border flex items-center justify-center hover:bg-purple-100 active:scale-90 transition-all text-purple-600`}><Plus className={isCompact ? 'w-3 h-3' : 'w-4 h-4'} /></button>
                             </div>
                           </div>
 
@@ -1005,19 +1133,19 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                           )}
 
                           {/* Winner Decision Buttons */}
-                          <div className="bg-slate-50 px-6 py-4 flex flex-col gap-3 border-t">
-                             <div className="flex gap-3">
+                          <div className={`bg-slate-50 ${isCompact ? 'px-3 py-2 gap-1.5' : 'px-6 py-4 gap-3'} flex flex-col border-t`}>
+                             <div className={`flex ${isCompact ? 'gap-1.5' : 'gap-3'}`}>
                                <button 
                                  disabled={!match.archerAId}
                                  onClick={() => updateMatch(match.id, { winnerId: match.archerAId, status: 'COMPLETED' })} 
-                                 className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${match.winnerId === match.archerAId ? 'bg-purple-600 text-white border-purple-600 shadow-xl' : match.scoreA > match.scoreB ? 'bg-white border-green-500 text-green-600 ring-4 ring-green-50' : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'}`}
+                                 className={`flex-1 ${isCompact ? 'py-1.5 rounded-lg text-[9px]' : 'py-3 rounded-xl text-[10px]'} font-black uppercase tracking-widest border transition-all ${match.winnerId === match.archerAId ? 'bg-purple-600 text-white border-purple-600 shadow-xl' : match.scoreA > match.scoreB ? 'bg-white border-green-500 text-green-600 ring-2 ring-green-50' : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'}`}
                                >
                                  {match.winnerId === match.archerAId ? 'A Menang' : match.scoreA > match.scoreB ? 'A Unggul' : 'Pilih A'}
                                </button>
                                <button 
                                  disabled={!match.archerBId}
                                  onClick={() => updateMatch(match.id, { winnerId: match.archerBId, status: 'COMPLETED' })} 
-                                 className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${match.winnerId === match.archerBId ? 'bg-purple-600 text-white border-purple-600 shadow-xl' : match.scoreB > match.scoreA ? 'bg-white border-green-500 text-green-600 ring-4 ring-green-50' : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'}`}
+                                 className={`flex-1 ${isCompact ? 'py-1.5 rounded-lg text-[9px]' : 'py-3 rounded-xl text-[10px]'} font-black uppercase tracking-widest border transition-all ${match.winnerId === match.archerBId ? 'bg-purple-600 text-white border-purple-600 shadow-xl' : match.scoreB > match.scoreA ? 'bg-white border-green-500 text-green-600 ring-2 ring-green-50' : 'bg-white text-slate-700 border-slate-200 hover:border-purple-300'}`}
                                >
                                  {match.winnerId === match.archerBId ? 'B Menang' : match.scoreB > match.scoreA ? 'B Unggul' : 'Pilih B'}
                                </button>
@@ -1025,26 +1153,26 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
 
                              <button 
                                onClick={() => setSelectedMatchForEnds(match)}
-                               className="w-full py-3 bg-white text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-slate-50 transition-all border border-slate-200"
+                               className={`w-full ${isCompact ? 'py-1.5 rounded-lg text-[9px]' : 'py-3 rounded-xl text-[10px]'} bg-white text-slate-600 font-black uppercase tracking-widest flex items-center justify-center gap-1.5 hover:bg-slate-50 transition-all border border-slate-200`}
                              >
-                               <FileText className="w-3 h-3" /> Input Skor Rambahan &amp; Tie-Break
+                               <FileText className={isCompact ? 'w-3 h-3' : 'w-3.5 h-3.5'} /> Input Skor Rambahan &amp; Tie-Break
                              </button>
                              
                              {!match.winnerId && match.archerAId && match.archerBId && (match.scoreA > 0 || match.scoreB > 0) && (
                                <button 
                                  onClick={() => autoSelectWinner(match)}
-                                 className={`w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all border ${
+                                 className={`w-full ${isCompact ? 'py-1.5 rounded-lg text-[9px]' : 'py-3 rounded-xl text-[10px]'} font-black uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all border ${
                                    isTied 
                                      ? 'bg-amber-500 hover:bg-amber-600 text-slate-950 border-amber-600 shadow-lg font-black animate-pulse' 
                                      : 'bg-purple-100 text-purple-700 hover:bg-purple-200 border-purple-200'
                                  }`}
                                >
-                                 <Zap className="w-3 h-3" /> {isTied ? 'Pilih Metode Tie-Break' : 'Selesai & Lanjut'}
+                                 <Zap className={isCompact ? 'w-3 h-3' : 'w-3.5 h-3.5'} /> {isTied ? 'Pilih Metode Tie-Break' : 'Selesai & Lanjut'}
                                </button>
                              )}
 
                              {match.winnerId && (
-                               <button onClick={() => updateMatch(match.id, { winnerId: undefined })} className="w-full py-2 bg-white text-slate-300 hover:text-red-500 rounded-xl border border-slate-200 transition-all flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-widest">
+                               <button onClick={() => updateMatch(match.id, { winnerId: undefined })} className={`w-full ${isCompact ? 'py-1 rounded-lg text-[8px]' : 'py-2 rounded-xl text-[9px]'} bg-white text-slate-400 hover:text-red-500 border border-slate-200 transition-all flex items-center justify-center gap-1.5 font-black uppercase tracking-widest`}>
                                  <RefreshCw className="w-3 h-3" /> Reset Pemenang
                                </button>
                              )}
@@ -1053,7 +1181,7 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                         
                         {/* Connector Line Visualization */}
                         {rIndex < roundsData.length - 1 && round.round !== 1 && (
-                          <div className="absolute top-1/2 -right-12 w-12 h-[2px] bg-slate-100 pointer-events-none"></div>
+                          <div className={`absolute top-1/2 ${isCompact ? '-right-5 w-5' : '-right-12 w-12'} h-[2px] bg-slate-200 pointer-events-none`}></div>
                         )}
                       </div>
                     );
@@ -1080,12 +1208,25 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
         return (
           <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300">
             <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
-              <div className="p-8 bg-slate-900 text-white flex justify-between items-center">
+              <div className="p-6 bg-slate-900 text-white flex justify-between items-center gap-3">
                  <div>
-                    <h3 className="text-xl font-black font-oswald uppercase italic leading-none">Input Skor Rambahan &amp; Penentuan Tie-Break</h3>
+                    <h3 className="text-lg sm:text-xl font-black font-oswald uppercase italic leading-none">Input Skor Rambahan &amp; Penentuan Tie-Break</h3>
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Match #{m.matchNo} - ID: {m.id}</p>
                  </div>
-                 <button onClick={() => setSelectedMatchForEnds(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="w-6 h-6 text-slate-400" /></button>
+                 <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setPrintMatchId(m.id);
+                        setShowEliminationPrintModal(true);
+                      }}
+                      className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs"
+                      title="Cetak Lembar Skoring Aduan Fisik Khusus Match Ini"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Cetak Lembar Aduan Match Ini</span>
+                    </button>
+                    <button onClick={() => setSelectedMatchForEnds(null)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X className="w-6 h-6 text-slate-400" /></button>
+                 </div>
               </div>
 
               <div className="flex-1 overflow-y-auto p-8 space-y-8">
@@ -1368,6 +1509,19 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
           initialCategory={activeCategory}
           initialRound="QUAL_QUALIFIED"
           onClose={() => setShowPrintModal(false)}
+        />
+      )}
+
+      {showEliminationPrintModal && (
+        <PrintEliminationSheetsModal
+          isOpen={showEliminationPrintModal}
+          event={event}
+          initialCategory={activeCategory}
+          initialMatchId={printMatchId}
+          onClose={() => {
+            setShowEliminationPrintModal(false);
+            setPrintMatchId(undefined);
+          }}
         />
       )}
     </div>

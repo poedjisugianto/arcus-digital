@@ -209,6 +209,9 @@ export interface CategoryConfig {
   ends: number;
   targetType: TargetType;
   quota?: number; // Kuota maksimal peserta kategori ini
+  // Kolom Poin Tertinggi Lembar Skor & Rekap Hasil (Contoh: "10" & "X", "6" & "5", "2" & "1")
+  highestScore1?: string; 
+  highestScore2?: string;
   // Mode Alur Pertandingan
   tournamentFlowMode?: TournamentFlowMode; // Mode Perangkingan Poin (Shoot-Off mulai Aduan) vs Mode Shoot-Off Langsung (Sejak Eliminasi)
   // Konfigurasi aduan/Eliminasi

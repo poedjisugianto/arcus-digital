@@ -86,7 +86,7 @@ import IdCardEditor from './components/IdCardEditor';
 import SelfServiceIdCardPortal from './components/SelfServiceIdCardPortal';
 
 import { auth, db } from './firebase';
-import { sanitizeForFirestore } from './lib/firestoreUtils';
+import { sanitizeForFirestore, mergeTournamentSettings, findCategoryConfig } from './lib/firestoreUtils';
 const googleProvider = new GoogleAuthProvider();
 
 const getAccurateParticipantCount = (archers: any[] = [], regs: any[] = [], fallbackCount?: number) => {
@@ -483,7 +483,7 @@ export default function App() {
             eventMap.set(pe.id, {
               ...existing,
               ...pe,
-              settings: { ...(existing.settings || {}), ...(pe.settings || {}) } as any,
+              settings: mergeTournamentSettings(existing.settings, pe.settings) as any,
               registrations: finalRegs,
               archers: finalArchers,
               officials: finalOfficials,
@@ -757,7 +757,7 @@ export default function App() {
                       ...d,
                       ...e,
                       id: eventId,
-                      settings: { ...(base.settings || {}), ...(d.settings || {}), ...(e.settings || {}) },
+                      settings: mergeTournamentSettings(mergeTournamentSettings(base.settings || base, d.settings), e.settings),
                       registrations: finalRegs,
                       archers: finalArchers,
                       officials: finalOfficials,
@@ -799,10 +799,7 @@ export default function App() {
         if (!snap.exists()) return;
         const d = snap.data();
         const base = d.data || d;
-        const settings = {
-          ...(base.settings || base || {}),
-          ...(d.settings || {})
-        };
+        const settings = mergeTournamentSettings(base.settings || base, d.settings);
         const parentEvent = {
           ...base,
           ...d,
@@ -840,7 +837,7 @@ export default function App() {
                 return {
                   ...parentEvent,
                   ...e,
-                  settings: { ...(parentEvent.settings || {}), ...(e.settings || {}) },
+                  settings: mergeTournamentSettings(e.settings, parentEvent.settings),
                   registrations: mergedRegistrations,
                   archers: mergedArchers,
                   officials: mergedOfficials,
@@ -1400,19 +1397,31 @@ export default function App() {
       const existingEvent = prev.events.find(e => e.id === id);
       if (!existingEvent) return prev;
 
-      // Deep-ish merge for settings
+      // Deep merge for settings to protect categoryConfigs
       const newSettings = updated.settings 
-        ? { ...existingEvent.settings, ...updated.settings }
+        ? mergeTournamentSettings(existingEvent.settings, updated.settings)
         : existingEvent.settings;
 
-      // De-duplicate scores by archerId + sessionId + endIndex
+      // De-duplicate scores by archerId + sessionId + endIndex cleanly
       let newScores = existingEvent.scores || [];
       if (updated.scores) {
-        const updatedMap = new Map(updated.scores.map(s => [`${s.archerId}_${s.sessionId || 'QUAL'}_${s.endIndex}`, s]));
-        newScores = [
-          ...newScores.filter(s => !updatedMap.has(`${s.archerId}_${s.sessionId || 'QUAL'}_${s.endIndex}`)),
-          ...updated.scores
-        ];
+        const incomingScoresMap = new Map<string, ScoreEntry>();
+        updated.scores.forEach(s => {
+          if (s && s.archerId) {
+            const sess = (s.sessionId === '1' || s.sessionId === '2' || !s.sessionId) ? 'QUAL' : s.sessionId;
+            const endIdx = Number(s.endIndex ?? 0);
+            incomingScoresMap.set(`${s.archerId}_${sess}_${endIdx}`, s);
+          }
+        });
+
+        const retained = newScores.filter(s => {
+          if (!s || !s.archerId) return false;
+          const sess = (s.sessionId === '1' || s.sessionId === '2' || !s.sessionId) ? 'QUAL' : s.sessionId;
+          const endIdx = Number(s.endIndex ?? 0);
+          return !incomingScoresMap.has(`${s.archerId}_${sess}_${endIdx}`);
+        });
+
+        newScores = [...retained, ...Array.from(incomingScoresMap.values())];
       }
 
       let newScoreLogs = existingEvent.scoreLogs || [];
@@ -1494,21 +1503,36 @@ export default function App() {
         // If settings are provided, flatten them for Firestore merge
         if (updated.settings) {
           delete firestoreUpdate.settings;
-          Object.entries(updated.settings).forEach(([key, val]) => {
+          const currentEv = appState.events.find(e => e.id === id);
+          const fullMergedSettings = mergeTournamentSettings(
+            currentEv?.settings,
+            updated.settings
+          );
+          Object.entries(fullMergedSettings).forEach(([key, val]) => {
             firestoreUpdate[`settings.${key}`] = val;
           });
+          firestoreUpdate["data.settings"] = fullMergedSettings;
         }
 
         // Write scores as individual subcollection docs to prevent lag and delay
         if (updated.scores && Array.isArray(updated.scores)) {
           const { writeBatch } = await import('firebase/firestore');
           const batch = writeBatch(db);
+          const uniqueIncoming = new Map<string, ScoreEntry>();
           updated.scores.forEach(score => {
             if (score && score.archerId) {
-              const scoreId = `${score.archerId}_${score.sessionId || 'QUAL'}_${score.endIndex || 0}`;
-              const scoreRef = doc(db, 'events', id, 'scores', scoreId);
-              batch.set(scoreRef, score, { merge: true });
+              const sess = (score.sessionId === '1' || score.sessionId === '2' || !score.sessionId) ? 'QUAL' : score.sessionId;
+              const endIdx = Number(score.endIndex ?? 0);
+              uniqueIncoming.set(`${score.archerId}_${sess}_${endIdx}`, score);
             }
+          });
+
+          uniqueIncoming.forEach(score => {
+            const sess = (score.sessionId === '1' || score.sessionId === '2' || !score.sessionId) ? 'QUAL' : score.sessionId;
+            const endIdx = Number(score.endIndex ?? 0);
+            const scoreId = `${score.archerId}_${sess}_${endIdx}`;
+            const scoreRef = doc(db, 'events', id, 'scores', scoreId);
+            batch.set(scoreRef, score, { merge: true });
           });
           await batch.commit();
         }
@@ -1574,9 +1598,15 @@ export default function App() {
         
         if (updated.settings) {
           delete fallbackUpdate.settings;
-          Object.entries(updated.settings).forEach(([key, val]) => {
+          const currentEv = appState.events.find(e => e.id === id);
+          const fullMergedSettings = mergeTournamentSettings(
+            currentEv?.settings,
+            updated.settings
+          );
+          Object.entries(fullMergedSettings).forEach(([key, val]) => {
             fallbackUpdate[`settings.${key}`] = val;
           });
+          fallbackUpdate["data.settings"] = fullMergedSettings;
         }
 
         try {
@@ -2500,7 +2530,7 @@ export default function App() {
           onSaveScore={async (score) => {
             const scores = Array.isArray(score) ? score : [score];
             handleUpdateEvent(activeEvent.id, {
-              scores: [...(activeEvent.scores || []), ...scores]
+              scores
             });
             pushNotification("Skor Disimpan", "Rekapitulasi cepat berhasil disimpan.", "SUCCESS");
           }}

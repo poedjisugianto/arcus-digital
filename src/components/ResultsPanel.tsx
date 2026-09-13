@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Trophy, Medal, Download, Printer, ArrowLeft, Target, Award, Info, Trash2, ChevronRight, BarChart3, FileText, FileSpreadsheet } from 'lucide-react';
 import { ArcheryEvent, CategoryType, Archer, TargetType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
+import { findCategoryConfig } from '../lib/firestoreUtils';
 import { toast } from 'sonner';
 import ArcusLogo from './ArcusLogo';
 import PrintRoundReportModal from './PrintRoundReportModal';
@@ -18,7 +19,7 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
   const [activeSession, setActiveSession] = useState<string>('QUAL');
   const [showPrintModal, setShowPrintModal] = useState(false);
 
-  const config = useMemo(() => (state.settings.categoryConfigs || {})[activeCategory], [state.settings, activeCategory]);
+  const config = useMemo(() => findCategoryConfig(activeCategory, state.settings?.categoryConfigs), [state.settings, activeCategory]);
 
   const availableSessions = useMemo(() => {
     const sessions = ['QUAL'];
@@ -51,7 +52,23 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
         let arrowSixes = 0;
         let arrowFives = 0;
 
-        if (isSmallTarget) {
+        const h1 = config?.highestScore1;
+        const h2 = config?.highestScore2;
+
+        if (h1 || h2) {
+          arrowSixes = allArrows.filter(v => {
+            if (h1 === '10+X') return v === 10 || v === 'X';
+            if (h1 === 'X') return v === 'X';
+            const num = parseInt(h1 || '');
+            return !isNaN(num) ? v === num : false;
+          }).length;
+
+          arrowFives = allArrows.filter(v => {
+            if (h2 === 'X') return v === 'X';
+            const num = parseInt(h2 || '');
+            return !isNaN(num) ? v === num : false;
+          }).length;
+        } else if (isSmallTarget) {
           arrowSixes = allArrows.filter(v => v === 2).length;
           arrowFives = allArrows.filter(v => v === 1).length;
         } else if (isSixRing) {
@@ -60,6 +77,9 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
         } else if (isFiveRing) {
           arrowSixes = allArrows.filter(v => v === 5).length;
           arrowFives = allArrows.filter(v => v === 4).length;
+        } else if (config?.targetType === TargetType.FACE_MEGA_MENDUNG) {
+          arrowSixes = allArrows.filter(v => v === 10).length;
+          arrowFives = allArrows.filter(v => v === 9).length;
         } else {
           // Standard 10-ring
           arrowSixes = allArrows.filter(v => v === 'X' || v === 10).length;
@@ -97,9 +117,15 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
       
       return { ...item, tieLabel, displayRank };
     });
-  }, [state, activeCategory]);
+  }, [state, activeCategory, config]);
 
   const tieBreakLabels = useMemo(() => {
+    if (config?.highestScore1 || config?.highestScore2) {
+      return {
+        highest: config.highestScore1 || '10+X',
+        second: config.highestScore2 || 'X'
+      };
+    }
     const targetType = config?.targetType;
     if (targetType === TargetType.PUTA || targetType === TargetType.TRADITIONAL_PUTA) {
       return { highest: '2s', second: '1s' };
@@ -107,6 +133,8 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
       return { highest: '6s', second: '5s' };
     } else if (targetType === TargetType.FACE_5_RING) {
       return { highest: '5s', second: '4s' };
+    } else if (targetType === TargetType.FACE_MEGA_MENDUNG) {
+      return { highest: '10s', second: '9s' };
     }
     return { highest: 'X+10', second: '9' };
   }, [config]);
@@ -124,7 +152,7 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
     (Object.keys(CategoryType) as CategoryType[])
       .filter(c => c !== CategoryType.OFFICIAL)
       .forEach(cat => {
-        const catConfig = (state.settings.categoryConfigs || {})[cat];
+        const catConfig = findCategoryConfig(cat, state.settings?.categoryConfigs);
         const data = archersList
           .filter(a => a.category === cat)
           .map(archer => {
@@ -140,12 +168,33 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
             
             let arrowSixes = 0;
             let arrowFives = 0;
-            if (isSmallTarget) {
+
+            const h1 = catConfig?.highestScore1;
+            const h2 = catConfig?.highestScore2;
+            if (h1 || h2) {
+              arrowSixes = allArrows.filter(v => {
+                if (h1 === '10+X') return v === 10 || v === 'X';
+                if (h1 === 'X') return v === 'X';
+                const num = parseInt(h1 || '');
+                return !isNaN(num) ? v === num : false;
+              }).length;
+              arrowFives = allArrows.filter(v => {
+                if (h2 === 'X') return v === 'X';
+                const num = parseInt(h2 || '');
+                return !isNaN(num) ? v === num : false;
+              }).length;
+            } else if (isSmallTarget) {
               arrowSixes = allArrows.filter(v => v === 2).length;
               arrowFives = allArrows.filter(v => v === 1).length;
             } else if (isSixRing) {
               arrowSixes = allArrows.filter(v => v === 6).length;
               arrowFives = allArrows.filter(v => v === 5).length;
+            } else if (catConfig?.targetType === TargetType.FACE_5_RING) {
+              arrowSixes = allArrows.filter(v => v === 5).length;
+              arrowFives = allArrows.filter(v => v === 4).length;
+            } else if (catConfig?.targetType === TargetType.FACE_MEGA_MENDUNG) {
+              arrowSixes = allArrows.filter(v => v === 10).length;
+              arrowFives = allArrows.filter(v => v === 9).length;
             } else {
               arrowSixes = allArrows.filter(v => v === 'X' || v === 10).length;
               arrowFives = allArrows.filter(v => v === 9).length;

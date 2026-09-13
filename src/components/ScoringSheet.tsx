@@ -1,6 +1,7 @@
 import React from 'react';
 import { Archer, CategoryType, TournamentSettings, TargetType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface Props {
   settings: TournamentSettings;
@@ -19,8 +20,6 @@ const ScoringSheet: React.FC<Props> = ({ settings, eventId, archer, isA6 = false
     position: archer.position,
     wave: archer.wave
   });
-
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrData)}`;
 
   const containerClasses = isA6
     ? "bg-white p-3.5 border border-black w-full h-full flex flex-col justify-between font-serif text-black relative box-border overflow-hidden"
@@ -96,7 +95,9 @@ const ScoringSheet: React.FC<Props> = ({ settings, eventId, archer, isA6 = false
             <p className={isA6 ? "text-xl font-black italic font-oswald leading-none" : "text-5xl font-black italic font-oswald"}>{archer.targetNo}{archer.position}</p>
             <p className={isA6 ? "text-[6px] font-black uppercase border-t border-black mt-0.5 pt-0.5 leading-none" : "text-xs font-black uppercase border-t-2 border-black mt-2 pt-2"}>Sesi {archer.wave}</p>
           </div>
-          <img src={qrUrl} alt="QR Code" className={isA6 ? "w-10 h-10 border border-black p-0.5 bg-white" : "w-28 h-28 border-2 border-black p-1 bg-white"} />
+          <div className={isA6 ? "w-10 h-10 border border-black p-0.5 bg-white flex items-center justify-center" : "w-28 h-28 border-2 border-black p-1 bg-white flex items-center justify-center"}>
+            <QRCodeSVG value={qrData} size={isA6 ? 36 : 100} level="M" />
+          </div>
           {!isA6 && <p className="text-[9px] font-black uppercase tracking-tighter bg-black text-white px-2 py-0.5">Scan to Input Score</p>}
         </div>
       </div>

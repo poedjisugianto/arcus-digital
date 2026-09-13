@@ -364,22 +364,54 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
 
   const handleScan = (data: string) => {
     try {
-      const parsed = JSON.parse(data);
-      if (parsed.type === 'SCORING_SHEET' && parsed.eventId === state.id) {
-        if (allowedTargets.length > 0 && !allowedTargets.includes(parsed.targetNo)) {
+      let archerId = '';
+      let targetNo: number | undefined = undefined;
+      let position = '';
+
+      try {
+        const parsed = JSON.parse(data);
+        if (parsed.type === 'SCORING_SHEET' || parsed.archerId) {
+          archerId = parsed.archerId || parsed.id;
+          targetNo = parsed.targetNo ? Number(parsed.targetNo) : undefined;
+          position = parsed.position || '';
+        }
+      } catch {
+        // Plain text barcode (e.g. from Code128 / Code39 or manual scan)
+        const trimmed = data.trim();
+        const archerList = state.archers || [];
+        const found = archerList.find(a => a.id === trimmed) ||
+                      archerList.find(a => `${a.targetNo}${a.position}`.toUpperCase() === trimmed.toUpperCase()) ||
+                      archerList.find(a => trimmed.toUpperCase().includes(`${a.targetNo}${a.position}`.toUpperCase()));
+        if (found) {
+          archerId = found.id;
+          targetNo = found.targetNo;
+          position = found.position || '';
+        }
+      }
+
+      if (archerId) {
+        const archer = (state.archers || []).find(a => a.id === archerId);
+        const actualTarget = targetNo || archer?.targetNo;
+
+        if (allowedTargets.length > 0 && actualTarget && !allowedTargets.includes(actualTarget)) {
           alert(`Akses Ditolak: Anda hanya memiliki akses untuk Bantalan ${allowedTargets.join(', ')}.`);
           return;
         }
-        setSelectedTarget(parsed.targetNo);
-        setSelectedArcherId(parsed.archerId);
+
+        if (actualTarget) {
+          setSelectedTarget(actualTarget);
+        }
+        setSelectedArcherId(archerId);
         setShowScanner(false);
-        setShowToast(`Pemanah ${parsed.targetNo}${parsed.position} Terpilih!`);
-        setTimeout(() => setShowToast(null), 2000);
-      } else {
-        alert("QR Code tidak valid untuk event ini.");
+        const nameDisplay = archer ? ` (${archer.name})` : '';
+        setShowToast(`Pemanah Bantalan ${actualTarget || ''}${position || archer?.position || ''}${nameDisplay} Terpilih!`);
+        setTimeout(() => setShowToast(null), 2200);
+        return;
       }
-    } catch (e) {
-      alert("Gagal membaca QR Code.");
+
+      alert("QR Code / Barcode tidak cocok atau data atlet tidak ditemukan dalam event ini.");
+    } catch {
+      alert("Gagal membaca barcode atlet.");
     }
   };
 

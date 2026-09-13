@@ -532,10 +532,10 @@ export default function LandingPage({
                               target="_blank"
                               rel="noreferrer"
                               onClick={(e) => e.stopPropagation()}
-                              className="px-2 py-1 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 font-black text-[9px] uppercase tracking-wider flex items-center gap-1 shrink-0 transition-all shadow-xs"
+                              className="px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[9px] uppercase tracking-wider flex items-center gap-1 shrink-0 transition-all shadow-xs active:scale-95"
                               title="Buka Lokasi di Google Maps"
                             >
-                              <Navigation className="w-2.5 h-2.5" /> Peta
+                              <Navigation className="w-2.5 h-2.5" /> Lihat Peta
                             </a>
                           )}
                         </div>
