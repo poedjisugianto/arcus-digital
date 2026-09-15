@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Trophy, Clock, X, Swords, Medal, LayoutList, Target, ChevronRight, Info, Activity, Monitor, Search, Check, Maximize2, Pause, Play, ChevronLeft, Youtube, Heart, AlertTriangle } from 'lucide-react';
+import { Trophy, Clock, X, Swords, Medal, LayoutList, Target, ChevronRight, Info, Activity, Monitor, Search, Check, Maximize2, Pause, Play, ChevronLeft, Youtube, Heart, AlertTriangle, Award, Sparkles } from 'lucide-react';
 import { ArcheryEvent, CategoryType, Match, TargetType, Sponsorship } from '../types';
 import { CATEGORY_LABELS } from '../constants';
 import ArcusLogo from './ArcusLogo';
@@ -45,50 +45,110 @@ const FooterSponsorshipSlider = ({ tournamentName, sponsorships, isTVMode }: { t
   const sponsors = useMemo(() => {
     if (sponsorships && sponsorships.length > 0) {
       return sponsorships.map(s => ({
-        title: s.title,
-        name: s.name,
-        icon: s.logoUrl ? <img src={resolveGoogleDriveUrl(s.logoUrl)} className="w-5 h-5 rounded object-contain" alt="" referrerPolicy="no-referrer" /> : <Heart className="w-3 h-3 sm:w-4 sm:h-4 text-red-400" />
+        title: s.title || "OFFICIAL PARTNER",
+        name: s.name || "PARTNER RESMI",
+        logoUrl: s.logoUrl || '',
+        icon: s.logoUrl ? null : <Award className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400" />
       }));
     }
     return [
-      { title: "HOSTED BY", name: tournamentName, icon: <Trophy className="w-3 h-3 sm:w-4 sm:h-4" /> },
-      { title: "OFFICIAL PARTNER", name: "ARCUS DIGITAL ARCHERY", icon: <Activity className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-400" /> },
-      { title: "SUPPORTED BY", name: "TRADITIONAL ARCHERY ID", icon: <Medal className="w-3 h-3 sm:w-4 sm:h-4 text-amber-400" /> },
-      { title: "EQUIPMENT BY", name: "ARCUS PRO SHOP", icon: <Target className="w-3 h-3 sm:w-4 sm:h-4 text-blue-400" /> }
+      { title: "HOSTED BY", name: tournamentName, logoUrl: '', icon: <Trophy className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400" /> },
+      { title: "OFFICIAL PARTNER", name: "ARCUS DIGITAL ARCHERY", logoUrl: '', icon: <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" /> },
+      { title: "SUPPORTED BY", name: "TRADITIONAL ARCHERY ID", logoUrl: '', icon: <Medal className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400" /> },
+      { title: "EQUIPMENT BY", name: "ARCUS PRO SHOP", logoUrl: '', icon: <Target className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" /> }
     ];
   }, [tournamentName, sponsorships]);
 
   useEffect(() => {
+    if (sponsors.length <= 1) return;
     const timer = setInterval(() => {
       setIndex(prev => (prev + 1) % sponsors.length);
     }, 5000);
     return () => clearInterval(timer);
   }, [sponsors.length]);
 
+  const current = sponsors[index] || sponsors[0];
+
   return (
-    <div className={`px-4 sm:px-8 py-2 sm:py-3 rounded-xl sm:rounded-2xl border flex items-center gap-2 sm:gap-4 min-w-0 transition-colors duration-700 ${isTVMode ? 'bg-white/5 border-white/10' : 'bg-slate-50 border-slate-100'}`}>
+    <div className={`px-4 sm:px-6 py-2.5 sm:py-3.5 rounded-2xl border flex items-center gap-3 sm:gap-5 min-w-0 transition-all duration-700 ${
+      isTVMode 
+        ? 'bg-slate-900/90 border-white/20 text-white shadow-2xl backdrop-blur-md' 
+        : 'bg-white border-slate-200/90 text-slate-900 shadow-md ring-1 ring-slate-100'
+    }`}>
       <AnimatePresence mode="wait">
         <motion.div
           key={index}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.5 }}
-          className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={{ duration: 0.35 }}
+          className="flex items-center gap-3 sm:gap-5 min-w-0 flex-1"
         >
-          <div className="w-6 h-6 sm:w-10 sm:h-10 bg-slate-900 rounded-lg sm:rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg">
-             {sponsors[index].icon}
+          {/* Prominent Logo Showcase Box */}
+          <div className="h-12 sm:h-16 min-w-[3.5rem] sm:min-w-[4.5rem] px-3 py-1.5 bg-white rounded-xl border border-slate-200/90 shadow-sm flex items-center justify-center shrink-0 overflow-hidden">
+            {current.logoUrl ? (
+              <img 
+                src={resolveGoogleDriveUrl(current.logoUrl)} 
+                alt={current.name} 
+                className="max-h-9 sm:max-h-13 w-auto max-w-[120px] sm:max-w-[180px] object-contain drop-shadow-xs" 
+                referrerPolicy="no-referrer" 
+                onError={(e) => {
+                  (e.currentTarget as HTMLElement).style.display = 'none';
+                  const fallback = e.currentTarget.parentElement?.querySelector('.logo-fallback');
+                  if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                }}
+              />
+            ) : null}
+            <div 
+              className={`logo-fallback ${current.logoUrl ? 'hidden' : 'flex'} items-center justify-center w-full h-full bg-slate-900 text-amber-400 font-black font-oswald text-base sm:text-lg rounded-lg uppercase tracking-wider px-2`}
+            >
+              {current.icon || (current.name ? current.name.substring(0, 2) : <Award className="w-5 h-5 text-amber-400" />)}
+            </div>
           </div>
+
+          {/* Sponsor Title & Name */}
           <div className="min-w-0 overflow-hidden">
-            <p className={`text-[7px] sm:text-[9px] font-black uppercase tracking-[0.2em] leading-none mb-0.5 sm:mb-1.5 ${isTVMode ? 'text-white/80' : 'text-slate-700'}`}>
-              {sponsors[index].title}
-            </p>
-            <p className={`text-[10px] sm:text-lg font-black font-oswald uppercase italic tracking-wider truncate leading-tight ${isTVMode ? 'text-white' : 'text-slate-900'}`}>
-              {sponsors[index].name}
+            <div className="flex items-center gap-2 mb-1">
+              <span className={`text-[8px] sm:text-[9.5px] font-black uppercase tracking-[0.25em] px-2.5 py-0.5 rounded-full font-mono shadow-2xs ${
+                isTVMode 
+                  ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30' 
+                  : 'bg-slate-900 text-amber-300'
+              }`}>
+                {current.title}
+              </span>
+              {sponsors.length > 1 && (
+                <span className={`text-[8px] font-bold ${isTVMode ? 'text-white/60' : 'text-slate-600'}`}>
+                  • {index + 1}/{sponsors.length}
+                </span>
+              )}
+            </div>
+            <p className={`text-xs sm:text-xl font-black font-oswald uppercase italic tracking-wider truncate leading-tight ${
+              isTVMode ? 'text-white' : 'text-slate-950'
+            }`}>
+              {current.name}
             </p>
           </div>
         </motion.div>
       </AnimatePresence>
+
+      {/* Multiple sponsor indicator dots */}
+      {sponsors.length > 1 && (
+        <div className="flex flex-col gap-1 pl-1 shrink-0">
+          {sponsors.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setIndex(i)}
+              className={`h-1.5 rounded-full transition-all ${
+                i === index 
+                  ? (isTVMode ? 'bg-amber-400 w-3.5' : 'bg-slate-900 w-3.5') 
+                  : (isTVMode ? 'bg-white/20 w-1.5' : 'bg-slate-200 w-1.5')
+              }`}
+              title={`Sponsor ${i + 1}`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -924,8 +984,18 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
   </div>
       
       {/* Footer Info */}
-      <div className={`shrink-0 flex items-center justify-between transition-all duration-700 ${isTVMode ? 'bg-slate-950/80 backdrop-blur-xl border-t border-white/5 p-8' : 'bg-white border-t p-4 px-6 sm:px-10'}`}>
-          {!isTVMode ? null : (
+      <div className={`shrink-0 flex items-center justify-between gap-4 transition-all duration-700 ${isTVMode ? 'bg-slate-950/80 backdrop-blur-xl border-t border-white/5 p-6 sm:p-8' : 'bg-white border-t p-3 sm:p-4 px-4 sm:px-10'}`}>
+          {!isTVMode ? (
+            <div className="hidden md:flex items-center gap-3">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 font-black text-[9.5px] uppercase tracking-wider">
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Live Scoreboard</span>
+              </div>
+              <span className="text-xs font-black uppercase text-slate-800 font-oswald italic truncate max-w-xs">
+                {settings.tournamentName || 'Arcus Archery System'}
+              </span>
+            </div>
+          ) : (
             <div className="flex items-center gap-6 sm:gap-12">
                 <div className="hidden sm:flex items-center gap-4">
                     <Activity className="w-6 h-6 text-emerald-500 animate-pulse" />

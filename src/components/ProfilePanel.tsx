@@ -204,7 +204,7 @@ const ProfilePanel: React.FC<Props> = ({ user, eventsManaged, onUpdate, onBack, 
                       <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Informasi Pengembang</p>
                       <p className="text-[11px] font-black text-slate-900 uppercase italic font-oswald tracking-tight">ARCUS ARCHERY ID</p>
                       <p className="text-[10px] text-slate-800 font-bold">WA: {contactSupport}</p>
-                      <p className="text-[10px] text-slate-700 italic">Jl. Bengawan No. 45 Kutosari, Kebumen, Kebumen - Jawa Tengah 54317</p>
+                      <p className="text-[10px] text-slate-700 italic">Kebumen - Jawa Tengah</p>
                     </div>
                   </div>
                 </div>

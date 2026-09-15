@@ -238,6 +238,7 @@ const AdminPanel: React.FC<Props> = ({
 
   const addCategory = (cat: CategoryType) => {
     if (localSettings.categoryConfigs?.[cat]) return;
+    const defaults = getDefaultHighestScores(TargetType.STANDARD);
     setLocalSettings(prev => ({
       ...prev,
       categoryConfigs: {
@@ -248,6 +249,8 @@ const AdminPanel: React.FC<Props> = ({
           arrows: 36,
           ends: 6,
           targetType: TargetType.STANDARD,
+          highestScore1: defaults.high1,
+          highestScore2: defaults.high2,
           h2hStartSize: 0,
           eliminationStages: []
         }
@@ -1568,111 +1571,6 @@ const AdminPanel: React.FC<Props> = ({
                         </label>
                       </div>
 
-                      {/* PENGATURAN KOLOM POIN TERTINGGI (LEMBAR SKOR & REKAP) */}
-                      <div className="bg-amber-50/50 border border-amber-200/80 rounded-xl p-4 space-y-3">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                          <div className="flex items-center gap-2">
-                            <TargetIcon className="w-4 h-4 text-amber-600" />
-                            <span className="text-xs font-black uppercase text-slate-900 tracking-wider font-oswald">
-                              Kolom Poin Tertinggi (Lembar Skor &amp; Rekap)
-                            </span>
-                          </div>
-                          <span className="text-[9.5px] text-amber-800 font-medium">
-                            Menentukan 2 kolom poin tertinggi pada Lembar Skor Fisik Resmi &amp; Rekap Hasil
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <label className="block space-y-1">
-                            <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1 flex items-center justify-between">
-                              <span>Poin Tertinggi 1 (Kolom 1)</span>
-                              <span className="text-[9px] font-mono font-bold text-amber-700">
-                                Default: {getDefaultHighestScores(localSettings.categoryConfigs?.[cat]?.targetType).high1}
-                              </span>
-                            </span>
-                            <input 
-                              type="text" 
-                              value={localSettings.categoryConfigs?.[cat]?.highestScore1 ?? getDefaultHighestScores(localSettings.categoryConfigs?.[cat]?.targetType).high1} 
-                              onChange={e => updateCategoryConfig(cat, 'highestScore1', e.target.value.toUpperCase().trim())} 
-                              className="w-full rounded-lg border-amber-200 bg-white p-2.5 border font-mono font-black text-center text-sm focus:border-arcus-red transition-all text-slate-900 shadow-2xs" 
-                              placeholder="Cth: 10, 6, 2, 5, 10+X" 
-                            />
-                          </label>
-
-                          <label className="block space-y-1">
-                            <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1 flex items-center justify-between">
-                              <span>Poin Tertinggi 2 (Kolom 2)</span>
-                              <span className="text-[9px] font-mono font-bold text-amber-700">
-                                Default: {getDefaultHighestScores(localSettings.categoryConfigs?.[cat]?.targetType).high2}
-                              </span>
-                            </span>
-                            <input 
-                              type="text" 
-                              value={localSettings.categoryConfigs?.[cat]?.highestScore2 ?? getDefaultHighestScores(localSettings.categoryConfigs?.[cat]?.targetType).high2} 
-                              onChange={e => updateCategoryConfig(cat, 'highestScore2', e.target.value.toUpperCase().trim())} 
-                              className="w-full rounded-lg border-amber-200 bg-white p-2.5 border font-mono font-black text-center text-sm focus:border-arcus-red transition-all text-slate-900 shadow-2xs" 
-                              placeholder="Cth: X, 5, 1, 4, 9" 
-                            />
-                          </label>
-                        </div>
-
-                        {/* Preset Cepat Poin Tertinggi */}
-                        <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                          <span className="text-[9px] font-bold text-slate-600 uppercase">Preset Cepat:</span>
-                          {[
-                            { label: '10 & X (Standar WA)', h1: '10', h2: 'X' },
-                            { label: '6 & 5 (Tradisional 6-Ring)', h1: '6', h2: '5' },
-                            { label: '5 & 4 (Face 5-Ring U9/U12)', h1: '5', h2: '4' },
-                            { label: '2 & 1 (Puta Turkey)', h1: '2', h2: '1' },
-                            { label: '10 & 9 (Mega Mendung)', h1: '10', h2: '9' },
-                            { label: '10+X & X', h1: '10+X', h2: 'X' }
-                          ].map(p => {
-                            const curH1 = localSettings.categoryConfigs?.[cat]?.highestScore1 ?? getDefaultHighestScores(localSettings.categoryConfigs?.[cat]?.targetType).high1;
-                            const curH2 = localSettings.categoryConfigs?.[cat]?.highestScore2 ?? getDefaultHighestScores(localSettings.categoryConfigs?.[cat]?.targetType).high2;
-                            const isSelected = curH1 === p.h1 && curH2 === p.h2;
-
-                            return (
-                              <button
-                                key={p.label}
-                                type="button"
-                                onClick={() => {
-                                  setLocalSettings(prev => {
-                                    const prevConfig = prev.categoryConfigs?.[cat] || {
-                                      registrationFee: 0,
-                                      distance: '20m',
-                                      arrows: 36,
-                                      ends: 6,
-                                      targetType: TargetType.STANDARD,
-                                      h2hStartSize: 0,
-                                      eliminationStages: []
-                                    };
-                                    return {
-                                      ...prev,
-                                      categoryConfigs: {
-                                        ...(prev.categoryConfigs || {}),
-                                        [cat]: {
-                                          ...prevConfig,
-                                          highestScore1: p.h1,
-                                          highestScore2: p.h2
-                                        }
-                                      }
-                                    };
-                                  });
-                                  setIsDirty(true);
-                                }}
-                                className={`px-2.5 py-1 rounded-md text-[10px] font-bold border transition-all ${
-                                  isSelected
-                                    ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
-                                    : 'bg-white text-slate-700 border-amber-200/90 hover:border-amber-400'
-                                }`}
-                              >
-                                {p.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
                       <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-6">
                         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                            <div className="flex items-center gap-2">
@@ -2385,17 +2283,72 @@ const AdminPanel: React.FC<Props> = ({
                         <p className="text-[8px] font-bold text-slate-700 uppercase tracking-widest mt-2 italic">* Video ini akan ditampilkan pada mode TV/LCD.</p>
                       </div>
 
-                      <div className="space-y-1">
-                        <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest px-1 flex items-center gap-2">
-                           <ImageIcon className="w-3.5 h-3.5 text-blue-600" /> Link Logo Sponsor (URL / Google Drive)
-                        </span>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest px-1 flex items-center gap-2">
+                             <ImageIcon className="w-3.5 h-3.5 text-blue-600" /> Logo Sponsor (Upload Gambar / URL)
+                          </span>
+                          <label className="cursor-pointer px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs">
+                            <Upload className="w-3 h-3 text-amber-400" />
+                            <span>Unggah File Logo</span>
+                            <input 
+                              type="file" 
+                              accept="image/*" 
+                              className="hidden" 
+                              onChange={e => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onload = () => {
+                                    updateSponsorship(sponsor.id, 'logoUrl', reader.result as string);
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }} 
+                            />
+                          </label>
+                        </div>
                         <input 
                           type="url" 
                           value={sponsor.logoUrl || ''} 
                           onChange={e => updateSponsorship(sponsor.id, 'logoUrl', resolveGoogleDriveUrl(e.target.value))} 
                           className="w-full rounded-xl border-slate-100 bg-slate-50 p-4 border text-sm font-bold" 
-                          placeholder="Salin link logo Google Drive atau Image URL..."
+                          placeholder="Atau salin link logo Google Drive / Image URL..."
                         />
+                        {/* Live Preview Box */}
+                        <div className="p-3 bg-slate-50 rounded-xl border border-dashed border-slate-200 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-16 h-12 bg-white rounded-lg border border-slate-200 shadow-xs flex items-center justify-center p-1 shrink-0 overflow-hidden">
+                              {sponsor.logoUrl ? (
+                                <img 
+                                  src={resolveGoogleDriveUrl(sponsor.logoUrl)} 
+                                  alt="Preview Logo" 
+                                  className="max-h-10 w-auto max-w-full object-contain"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <ImageIcon className="w-5 h-5 text-slate-300" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-black uppercase text-slate-700 truncate">
+                                {sponsor.logoUrl ? 'Logo Terpasang (Siap Tampil di Scoreboard)' : 'Belum Ada Logo (Unggah file atau tempel URL)'}
+                              </p>
+                              <p className="text-[8px] text-slate-600 font-bold uppercase tracking-wider">
+                                Ditampilkan dengan jelas & menonjol di bagian bawah live scoreboard
+                              </p>
+                            </div>
+                          </div>
+                          {sponsor.logoUrl && (
+                            <button
+                              type="button"
+                              onClick={() => updateSponsorship(sponsor.id, 'logoUrl', '')}
+                              className="text-[9px] font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2.5 py-1 rounded-md transition-colors shrink-0"
+                            >
+                              Hapus Logo
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}

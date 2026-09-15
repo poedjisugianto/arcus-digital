@@ -783,18 +783,10 @@ export default function LandingPage({
 
             <div className="flex flex-col md:items-end gap-12 md:text-right">
               <div className="space-y-4">
-                <div className="tech-label opacity-40">KONTAK SUPPORT</div>
-                <div className="flex flex-col md:items-end">
-                  <span className="text-3xl md:text-4xl font-black font-oswald uppercase italic tracking-wider text-slate-900">0878-3419-3339</span>
-                  <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest mt-2">Jam Operasional: 09:00 - 17:00 WIB</span>
-                </div>
-              </div>
-
-              <div className="space-y-4">
                 <div className="tech-label opacity-40">ALAMAT PENGEMBANG</div>
                 <div className="flex flex-col md:items-end max-w-sm">
                   <span className="text-sm font-black text-slate-900 leading-relaxed uppercase">
-                    Jl. Bengawan No. 45 Kutosari, Kebumen, Kebumen - Jawa Tengah 54317
+                    Kebumen - Jawa Tengah
                   </span>
                   <span className="text-[9px] font-black text-slate-700 uppercase tracking-widest mt-2">Indonesia</span>
                 </div>
