@@ -243,6 +243,36 @@ export interface RundownItem {
   notes?: string;
 }
 
+export type CertificateTemplateStyle = 'ROYAL_GOLD' | 'MODERN_SPORT' | 'TRADITIONAL_HERITAGE' | 'MINIMAL_CLEAN' | 'CUSTOM_BACKGROUND';
+
+export interface CertificateSignatory {
+  id: string;
+  name: string;
+  role: string;
+  signatureUrl?: string; // Gambar TTD digital (URL/DataURL)
+}
+
+export interface CertificateConfig {
+  templateStyle?: CertificateTemplateStyle;
+  customBackgroundUrl?: string; // Unggah gambar blanko sertifikat sendiri dari panitia
+  useCustomBackgroundOnly?: boolean; // Jika true, sembunyikan border & ornamen bawaan agar blanko custom tampil murni
+  printTextOnlyMode?: boolean; // Mode khusus cetak teks saja (untuk dicetak ke kertas sertifikat fisik yang sudah berdesain)
+  title?: string; // e.g. "SERTIFIKAT PENGHARGAAN"
+  subtitle?: string; // e.g. "Diberikan dengan penuh kehormatan dan apresiasi kepada:"
+  bodyTextTemplate?: string; // Template teks narasi sertifikat
+  showTournamentLogo?: boolean;
+  showClubLogo?: boolean;
+  showSecondaryLogo?: boolean;
+  showMedalBadge?: boolean;
+  showQrVerification?: boolean;
+  showDateLocation?: boolean;
+  signatories?: CertificateSignatory[];
+  customStampUrl?: string; // Gambar stempel/cap panitia atau klub
+  primaryTextColor?: string; // Warna teks nama penerima (default #0f172a)
+  nameOffsetY?: number; // Penyesuaian posisi vertikal nama (pixel offset +/- untuk pas di blanko custom)
+  nameFontSize?: 'sm' | 'md' | 'lg' | 'xl'; // Ukuran nama pemanah
+}
+
 export interface TechnicalSupportAccess {
   enabled: boolean;
   grantedAt?: number;
@@ -289,6 +319,7 @@ export interface TournamentSettings {
   sponsorships?: Sponsorship[];
   rundown?: RundownItem[];
   technicalSupport?: TechnicalSupportAccess;
+  certificateConfig?: CertificateConfig;
 }
 
 export interface DisbursementRequest {

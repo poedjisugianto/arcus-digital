@@ -18,6 +18,7 @@ import OfficialList from './OfficialList';
 import PrintRoundReportModal from './PrintRoundReportModal';
 import PrintScoreSheetsModal from './PrintScoreSheetsModal';
 import PrintEliminationSheetsModal from './PrintEliminationSheetsModal';
+import PrintCertificateModal from './PrintCertificateModal';
 import { getGoogleMapsUrl } from '../lib/mapsHelper';
 import { TechnicalSupportCard, TechnicalSupportModeBanner } from './TechnicalSupportCard';
 import { isSupportAccessActive } from '../lib/supportAccess';
@@ -112,6 +113,7 @@ const AdminPanel: React.FC<Props> = ({
   const [showPrintReportModal, setShowPrintReportModal] = useState(false);
   const [showPrintScoreSheetsModal, setShowPrintScoreSheetsModal] = useState(false);
   const [showPrintEliminationModal, setShowPrintEliminationModal] = useState(false);
+  const [showPrintCertificateModal, setShowPrintCertificateModal] = useState(false);
   const [localSettings, setLocalSettings] = useState<TournamentSettings>(() => {
     const savedDraft = localStorage.getItem(`admin_draft_${eventId}`);
     if (savedDraft) {
@@ -800,20 +802,28 @@ const AdminPanel: React.FC<Props> = ({
                     </p>
                   </div>
                 </div>
-                <div className="pt-8 flex flex-col sm:flex-row gap-2.5">
+                <div className="pt-8 flex flex-col sm:flex-row gap-2">
                   <button
                     type="button"
                     onClick={() => setShowPrintReportModal(true)}
-                    className="flex-1 py-3.5 text-center bg-arcus-red hover:bg-red-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                    className="flex-1 py-3 text-center bg-arcus-red hover:bg-red-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-1.5"
                   >
                     <Printer className="w-4 h-4" /> Hasil & Babak
                   </button>
                   <button
                     type="button"
                     onClick={() => setShowPrintScoreSheetsModal(true)}
-                    className="flex-1 py-3.5 text-center bg-slate-900 hover:bg-slate-800 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+                    className="flex-1 py-3 text-center bg-slate-900 hover:bg-slate-800 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
                   >
                     <FileText className="w-4 h-4 text-amber-400" /> Lembar Skor
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPrintCertificateModal(true)}
+                    className="flex-1 py-3 text-center bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
+                    title="Cetak & Kustomisasi E-Sertifikat Per Kategori"
+                  >
+                    <Award className="w-4 h-4" /> E-Sertifikat
                   </button>
                 </div>
               </div>
@@ -867,13 +877,21 @@ const AdminPanel: React.FC<Props> = ({
                     </p>
                   </div>
                 </div>
-                <div className="pt-8">
+                <div className="pt-8 flex gap-2">
                   <button
                     type="button"
                     onClick={onManageResults}
-                    className="w-full py-4 text-center bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
+                    className="flex-1 py-4 text-center bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
                   >
                     Lihat Hasil &amp; Podium
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowPrintCertificateModal(true)}
+                    className="px-4 py-4 text-center bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
+                    title="Cetak E-Sertifikat Juara & Peserta"
+                  >
+                    <Award className="w-4 h-4" /> E-Sertifikat
                   </button>
                 </div>
               </div>
@@ -2794,6 +2812,30 @@ const AdminPanel: React.FC<Props> = ({
             scoreLogs: event?.scoreLogs || []
           } as any)}
           onClose={() => setShowPrintEliminationModal(false)}
+        />
+      )}
+
+      {/* Official E-Sertifikat Turnamen Panahan Modal */}
+      {showPrintCertificateModal && (
+        <PrintCertificateModal
+          isOpen={showPrintCertificateModal}
+          event={({
+            ...(event || {}),
+            id: eventId,
+            status: event?.status || 'ACTIVE',
+            settings: localSettings,
+            archers: archers.length > 0 ? archers : (event?.archers || []),
+            officials: officials.length > 0 ? officials : (event?.officials || []),
+            scores: event?.scores || [],
+            matches: event?.matches || {},
+            registrations: event?.registrations || [],
+            scoreLogs: event?.scoreLogs || []
+          } as any)}
+          onClose={() => setShowPrintCertificateModal(false)}
+          onSaveSettings={(updatedSettings) => {
+            setLocalSettings(updatedSettings);
+            onSave(updatedSettings);
+          }}
         />
       )}
     </div>

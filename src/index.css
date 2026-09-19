@@ -98,6 +98,10 @@
     display: none;
   }
 
+  .certificate-print-portal {
+    display: none;
+  }
+
   @media print {
     /* Hide non-printable elements */
     .print-hidden, .print\:hidden {
@@ -127,6 +131,43 @@
 
     body.printing-active .print-area-portal {
       display: block !important;
+    }
+
+    /* Certificate Specific Print Rules */
+    body.printing-certificate-active #root {
+      display: none !important;
+    }
+
+    body.printing-certificate-active .certificate-print-portal {
+      display: block !important;
+      width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+
+    body.printing-certificate-active {
+      background: white !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    .certificate-sheet-page {
+      page-break-after: always !important;
+      break-after: page !important;
+      width: 297mm !important;
+      height: 209.5mm !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      box-sizing: border-box !important;
+      overflow: hidden !important;
+      position: relative !important;
+    }
+
+    .certificate-sheet-page:last-child {
+      page-break-after: auto !important;
+      break-after: auto !important;
     }
 
     .page-break-before-always {

@@ -6,6 +6,7 @@ import { findCategoryConfig } from '../lib/firestoreUtils';
 import { toast } from 'sonner';
 import ArcusLogo from './ArcusLogo';
 import PrintRoundReportModal from './PrintRoundReportModal';
+import PrintCertificateModal from './PrintCertificateModal';
 import { exportToExcel, exportToCSV } from '../lib/excelHelper';
 
 interface Props {
@@ -18,6 +19,7 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
   const [activeCategory, setActiveCategory] = useState<CategoryType>(CategoryType.ADULT_PUTRA);
   const [activeSession, setActiveSession] = useState<string>('QUAL');
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showCertificateModal, setShowCertificateModal] = useState(false);
 
   const config = useMemo(() => findCategoryConfig(activeCategory, state.settings?.categoryConfigs), [state.settings, activeCategory]);
 
@@ -338,6 +340,14 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
           </div>
           <div className="flex items-center gap-1.5 md:gap-3">
             <button 
+              onClick={() => setShowCertificateModal(true)}
+              className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 px-3 md:px-4 py-1.5 md:py-2.5 rounded-lg md:rounded-2xl text-[8px] md:text-[10px] font-black uppercase tracking-widest transition-all shadow-md flex items-center gap-1 md:gap-1.5 whitespace-nowrap group"
+              title="Cetak dan Kustomisasi E-Sertifikat Juara & Peserta untuk Kategori Ini"
+            >
+              <Award className="w-3.5 h-3.5 md:w-4 md:h-4 group-hover:scale-110 transition-transform" />
+              <span>E-SERTIFIKAT</span>
+            </button>
+            <button 
               onClick={() => setShowPrintModal(true)}
               className="bg-red-600 text-white px-3 md:px-4 py-1.5 md:py-2.5 rounded-lg md:rounded-2xl text-[8px] md:text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all shadow-md flex items-center gap-1 md:gap-1.5 whitespace-nowrap"
               title="Pusat Cetak & Laporan Skor Babak (Data Master)"
@@ -557,6 +567,15 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
           initialCategory={activeCategory}
           initialRound={activeSession === 'QUAL' ? 'QUAL_QUALIFIED' : 'QUAL'}
           onClose={() => setShowPrintModal(false)}
+        />
+      )}
+
+      {showCertificateModal && (
+        <PrintCertificateModal
+          isOpen={showCertificateModal}
+          event={state}
+          initialCategory={activeCategory}
+          onClose={() => setShowCertificateModal(false)}
         />
       )}
     </div>
