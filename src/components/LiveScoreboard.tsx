@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Trophy, Clock, X, Swords, Medal, LayoutList, Target, ChevronRight, Info, Activity, Monitor, Search, Check, Maximize2, Pause, Play, ChevronLeft, Youtube, Heart, AlertTriangle, Award, Sparkles } from 'lucide-react';
+import { Trophy, Clock, X, Swords, Medal, LayoutList, Target, ChevronRight, ChevronDown, ListFilter, Info, Activity, Monitor, Search, Check, Maximize2, Pause, Play, ChevronLeft, Youtube, Heart, AlertTriangle, Award, Sparkles, Table as TableIcon, ArrowUp } from 'lucide-react';
 import { ArcheryEvent, CategoryType, Match, TargetType, Sponsorship } from '../types';
 import { CATEGORY_LABELS } from '../constants';
 import ArcusLogo from './ArcusLogo';
@@ -220,7 +220,28 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
   const [isTVMode, setIsTVMode] = useState(startInTVMode);
   const [isPaused, setIsPaused] = useState(false);
   const [elimDisplayMode, setElimDisplayMode] = useState<'CARDS' | 'BRACKET'>('BRACKET');
+  const [viewMode, setViewMode] = useState<'COMPACT' | 'CARDS' | 'TABLE'>('COMPACT');
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+  const [showQualifiedOnly, setShowQualifiedOnly] = useState(false);
+  const [pageRange, setPageRange] = useState<number | 'ALL'>('ALL');
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const pageSize = 25;
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const handleScroll = () => {
+      setShowScrollTop(el.scrollTop > 250);
+    };
+    el.addEventListener('scroll', handleScroll, { passive: true });
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    setPageRange('ALL');
+    setShowQualifiedOnly(false);
+  }, [filterCategory, activeSession]);
 
   const settings: any = state?.settings || {};
   const config = (settings.categoryConfigs || {})[filterCategory];
@@ -350,14 +371,72 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
     return data;
   }, [matches]);
 
-  const eliminationSize = useMemo(() => {
-    // Priority 1: Config from admin panel (the official setting)
-    if (config?.h2hStartSize) return config.h2hStartSize;
-    
-    // Priority 2: Derived from matches (fallback if config missing)
-    if (matches.length === 0) return 0;
-    return Math.max(...matches.map(m => parseInt(m.round)));
-  }, [config, matches]);
+  const currentCutoffInfo = useMemo(() => {
+    const rawStages = config?.eliminationStages && config.eliminationStages.length > 0
+      ? [...config.eliminationStages].map((s: any) => parseInt(s)).filter((s: number) => !isNaN(s) && s > 0).sort((a: number, b: number) => b - a)
+      : [];
+    const h2h = config?.h2hStartSize || (matches.length > 0 ? Math.max(...matches.map((m: Match) => parseInt(m.round))) : 0);
+
+    // KUALIFIKASI:
+    if (activeSession === 'QUAL') {
+      // Jika ada tahapan penyaringan bertahap (contoh [32, 16]), tahap pertama adalah 32 Besar
+      if (rawStages.length > 0) {
+        const firstStage = rawStages[0];
+        return {
+          size: firstStage,
+          label: `${firstStage} BESAR`,
+          fullLabel: `BATAS LOLOS PENYARINGAN (${firstStage} BESAR)`,
+          subLabel: `Lolos ke Babak Penyaringan ${firstStage} Besar`
+        };
+      }
+      // Jika langsung ke aduan (H2H)
+      if (h2h > 0) {
+        return {
+          size: h2h,
+          label: `${h2h} BESAR`,
+          fullLabel: `BATAS LOLOS BABAK ADUAN (${h2h} BESAR)`,
+          subLabel: `Lolos ke Bagan Aduan ${h2h} Besar`
+        };
+      }
+      return { size: 0, label: '', fullLabel: '', subLabel: '' };
+    }
+
+    // BABAK PENYARINGAN BERTINGKAT (ELIM_32, ELIM_16, dst):
+    if (activeSession.startsWith('ELIM_')) {
+      const currentStageSize = parseInt(activeSession.replace('ELIM_', ''));
+      const stageIndex = rawStages.indexOf(currentStageSize);
+      
+      // Jika masih ada babak penyaringan berikutnya (contoh dari 32 lanjut ke 16)
+      if (stageIndex !== -1 && stageIndex < rawStages.length - 1) {
+        const nextStage = rawStages[stageIndex + 1];
+        return {
+          size: nextStage,
+          label: `${nextStage} BESAR`,
+          fullLabel: `BATAS LOLOS PENYARINGAN (${nextStage} BESAR)`,
+          subLabel: `Lolos ke Babak Penyaringan ${nextStage} Besar`
+        };
+      }
+      
+      // Jika sudah di babak penyaringan terkecil, tahap berikutnya adalah babak Aduan (H2H)
+      if (h2h > 0) {
+        return {
+          size: h2h,
+          label: `${h2h} BESAR`,
+          fullLabel: `BATAS LOLOS BABAK ADUAN (${h2h} BESAR)`,
+          subLabel: `Lolos ke Bagan Aduan ${h2h} Besar`
+        };
+      }
+    }
+
+    return {
+      size: h2h,
+      label: h2h > 0 ? `${h2h} BESAR` : '',
+      fullLabel: h2h > 0 ? `BATAS LOLOS BABAK ADUAN (${h2h} BESAR)` : '',
+      subLabel: ''
+    };
+  }, [config, activeSession, matches]);
+
+  const eliminationSize = currentCutoffInfo.size;
 
   const leaderBoard = useMemo(() => {
     const archersList = state.archers || [];
@@ -437,6 +516,22 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
     );
   }, [leaderBoard, searchTerm]);
 
+  const displayedLeaderBoard = useMemo(() => {
+    if (showQualifiedOnly && eliminationSize > 0) {
+      return filteredLeaderBoard.filter((_, idx) => (idx + 1) <= eliminationSize);
+    }
+    return filteredLeaderBoard;
+  }, [filteredLeaderBoard, showQualifiedOnly, eliminationSize]);
+
+  const paginatedLeaderBoard = useMemo(() => {
+    if (pageRange === 'ALL' || searchTerm.trim() !== '') {
+      return displayedLeaderBoard;
+    }
+    const pageIdx = typeof pageRange === 'number' ? pageRange : 0;
+    const start = pageIdx * pageSize;
+    return displayedLeaderBoard.slice(start, start + pageSize);
+  }, [displayedLeaderBoard, pageRange, searchTerm]);
+
   const hasVideoSponsors = useMemo(() => 
     (settings.sponsorships || []).some(s => s.videoUrl), 
     [settings.sponsorships]
@@ -505,162 +600,577 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
 
       {!isTVMode && (
         <>
-          <div className="bg-[#FBFBFD] border-b flex flex-col md:flex-row md:items-center gap-4 px-10 py-4 shrink-0">
-            <div className="flex gap-2 overflow-x-auto no-scrollbar flex-1">
+          {/* Sleek Category Bar */}
+          <div className="bg-[#FBFBFD] border-b flex items-center gap-2 px-3 sm:px-6 py-1.5 shrink-0">
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar flex-1 py-0.5">
               {allCategories.map(cat => (
-                <button key={cat} onClick={() => {
-                  setFilterCategory(cat);
-                  setActiveSession('QUAL');
-                }} className={`px-5 py-2.5 rounded-xl text-[9px] font-black uppercase whitespace-nowrap border-2 transition-all ${filterCategory === cat ? 'bg-arcus-red border-arcus-red text-white shadow-lg shadow-red-200' : 'bg-white border-slate-100 text-slate-700 hover:border-slate-300'}`}>
+                <button 
+                  key={cat} 
+                  onClick={() => {
+                    setFilterCategory(cat);
+                    setActiveSession('QUAL');
+                  }} 
+                  className={`px-3 py-1 rounded-lg text-[10px] sm:text-xs font-black uppercase whitespace-nowrap border transition-all shrink-0 ${
+                    filterCategory === cat 
+                      ? 'bg-arcus-red border-arcus-red text-white shadow-2xs' 
+                      : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
+                  }`}
+                >
                   {CATEGORY_LABELS[cat]}
                 </button>
               ))}
             </div>
           </div>
 
-          {activeTab === 'KUALIFIKASI' && availableSessions.length > 1 && (
-            <div className="bg-white border-b px-10 py-3 flex items-center justify-between shrink-0">
-               <div className="flex items-center gap-4">
-                 <span className="text-[10px] font-black uppercase text-slate-700 tracking-widest">Pilih Babak:</span>
-                 <div className="flex gap-2">
-                    {availableSessions.map(sess => (
-                      <button 
-                       key={sess} 
-                       onClick={() => setActiveSession(sess)} 
-                       className={`px-5 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${activeSession === sess ? 'bg-slate-900 border-slate-900 text-white' : 'bg-slate-50 border-slate-100 text-slate-700'}`}
-                      >
-                        {sess === 'QUAL' ? 'KUALIFIKASI' : (sess || '').replace('ELIM_', 'ELIMINASI TOP ')}
-                      </button>
-                    ))}
-                 </div>
-               </div>
+          {/* Session & Quick Qualification Filter Bar */}
+          {activeTab === 'KUALIFIKASI' && (
+            <div className="bg-white border-b px-3 sm:px-6 py-1.5 flex flex-wrap items-center justify-between gap-2 shrink-0 text-xs">
+              <div className="flex items-center gap-2 flex-wrap">
+                {availableSessions.length > 1 && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">Babak:</span>
+                    <div className="flex gap-1">
+                      {availableSessions.map(sess => (
+                        <button 
+                          key={sess} 
+                          onClick={() => setActiveSession(sess)} 
+                          className={`px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-wider border transition-all ${
+                            activeSession === sess 
+                              ? 'bg-slate-900 border-slate-900 text-white' 
+                              : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          {sess === 'QUAL' ? 'KUALIFIKASI' : (sess || '').replace('ELIM_', 'TOP ')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
-          <div className="bg-[#FBFBFD] border-b px-10 py-4 shrink-0">
-            <div className="relative w-72">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700" />
+          {/* Compact Search Bar & View Mode Switcher */}
+          <div className="bg-[#FBFBFD] border-b px-3 sm:px-6 py-1.5 shrink-0 flex flex-wrap items-center justify-between gap-2">
+            <div className="relative flex-1 min-w-[180px] max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
               <input 
                 type="text" 
-                placeholder="Cari nama pemanah..." 
+                placeholder="Cari nama, klub, bantalan..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-11 pr-5 py-3 bg-white border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-arcus-red transition-all"
+                className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold outline-none focus:border-arcus-red transition-all"
               />
+              {searchTerm && (
+                <button 
+                  onClick={() => setSearchTerm('')} 
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </div>
+
+            {activeTab === 'KUALIFIKASI' && (
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider hidden xs:inline">
+                  {displayedLeaderBoard.length} Pemanah
+                </span>
+                <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('COMPACT')}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-wider transition-all ${
+                      viewMode === 'COMPACT' ? 'bg-white shadow-2xs text-slate-900 font-black' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                    title="Format Baris Kompak (Muat belasan peserta per layar, scroll sangat ringan)"
+                  >
+                    <span>Baris</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('CARDS')}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-wider transition-all ${
+                      viewMode === 'CARDS' ? 'bg-white shadow-2xs text-slate-900 font-black' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                    title="Format Kartu Atlet"
+                  >
+                    <LayoutList className="w-3 h-3 text-arcus-red" />
+                    <span>Kartu</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode('TABLE')}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded text-[9px] font-black uppercase tracking-wider transition-all ${
+                      viewMode === 'TABLE' ? 'bg-white shadow-2xs text-slate-900 font-black' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                    title="Format Tabel Lengkap"
+                  >
+                    <TableIcon className="w-3 h-3 text-blue-600" />
+                    <span>Tabel</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Sub-Bar: Navigasi Rentang Peringkat (Paging) & Filter Lolos untuk Kategori Besar */}
+          {activeTab === 'KUALIFIKASI' && (
+            <div className="bg-slate-100/90 border-b px-3 sm:px-6 py-1.5 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar text-xs">
+              <div className="flex items-center gap-1.5 shrink-0">
+                {/* Tombol Cepat: Zona Lolos Eliminasi */}
+                {eliminationSize > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowQualifiedOnly(prev => !prev);
+                      setPageRange('ALL');
+                    }}
+                    className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[9.5px] font-black uppercase tracking-wider border transition-all ${
+                      showQualifiedOnly
+                        ? 'bg-emerald-600 text-white border-emerald-700 shadow-2xs'
+                        : 'bg-white text-emerald-800 border-emerald-300 hover:bg-emerald-50'
+                    }`}
+                    title={`Saring hanya pemanah di zona aman lolos eliminasi (${eliminationSize} Besar)`}
+                  >
+                    <Trophy className="w-3 h-3 text-amber-300" />
+                    <span>Zona Lolos ({eliminationSize} Besar)</span>
+                  </button>
+                )}
+
+                {/* Range Pagination / Quick Jump (Jika pemanah > 25) */}
+                {filteredLeaderBoard.length > 25 && !showQualifiedOnly && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider ml-1">
+                      Rentang:
+                    </span>
+                    {Array.from({ length: Math.ceil(filteredLeaderBoard.length / pageSize) }).map((_, pIdx) => {
+                      const startRank = pIdx * pageSize + 1;
+                      const endRank = Math.min((pIdx + 1) * pageSize, filteredLeaderBoard.length);
+                      const isSelected = pageRange === pIdx;
+                      return (
+                        <button
+                          key={pIdx}
+                          type="button"
+                          onClick={() => setPageRange(pIdx)}
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold font-oswald transition-all ${
+                            isSelected
+                              ? 'bg-slate-900 text-white shadow-2xs font-black'
+                              : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {startRank}-{endRank}
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setPageRange('ALL')}
+                      className={`px-2 py-0.5 rounded text-[10px] font-bold font-oswald transition-all ${
+                        pageRange === 'ALL'
+                          ? 'bg-slate-900 text-white shadow-2xs font-black'
+                          : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      Semua
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="text-[10px] font-bold text-slate-500 font-oswald uppercase tracking-wider shrink-0">
+                {displayedLeaderBoard.length} Pemanah {showQualifiedOnly ? `(Top ${eliminationSize})` : ''}
+              </div>
+            </div>
+          )}
         </>
       )}
 
       {/* Main Content Area */}
       <div 
         ref={scrollContainerRef}
-        className={`flex-1 overflow-auto custom-scrollbar ${isTVMode ? 'bg-[#0F172A] p-0' : 'bg-white'}`}
+        className={`flex-1 overflow-auto custom-scrollbar ${isTVMode ? 'bg-[#0F172A] p-0' : 'bg-slate-50/50'}`}
       >
         <div className={`${isTVMode ? 'w-full' : 'w-full max-w-[1600px] mx-auto'}`}>
            <div className={isTVMode && hasVideoSponsors ? "grid grid-cols-1 lg:grid-cols-2 h-full" : ""}>
               {/* Score Side */}
               <div className={isTVMode && hasVideoSponsors ? "h-full border-r border-white/5 overflow-auto custom-scrollbar" : ""}>
                  {activeTab === 'KUALIFIKASI' ? (
-             <div className={`${isTVMode ? 'bg-transparent' : 'bg-white overflow-x-auto sm:overflow-visible'} transition-all duration-700`}>
-                <table className="w-full text-left border-collapse table-fixed sm:table-auto">
-                    <thead>
-                     <tr className={`${isTVMode ? 'bg-slate-800/30 text-white/80' : 'bg-slate-50 text-slate-700'} text-[8px] sm:text-[11px] font-black uppercase tracking-[0.1em] sm:tracking-[0.2em] border-b border-white/5`}>
-                        <th className={`py-2 sm:py-6 text-center ${isTVMode ? 'px-16 w-48' : 'px-1 sm:px-10 w-8 sm:w-32'}`}>Rank</th>
-                        <th className={`py-2 sm:py-6 text-center ${isTVMode ? 'px-6 w-48' : 'px-1 sm:px-6 w-8 sm:w-32'}`}>TGT</th>
-                        <th className="px-2 sm:px-6 py-2 sm:py-6 w-[25%] sm:w-auto">Info</th>
-                        {!isTVMode && <th className="px-1 sm:px-6 py-2 sm:py-6">Scores</th>}
-                        <th className="px-1 sm:px-4 py-2 sm:py-6 text-center w-6 sm:w-auto">{labelSix}</th>
-                        <th className="px-1 sm:px-4 py-2 sm:py-6 text-center w-6 sm:w-auto">{labelFive}</th>
-                        <th className={`py-2 sm:py-6 text-right ${isTVMode ? 'px-16' : 'px-2 sm:px-10'} w-10 sm:w-auto`}>Total</th>
-                     </tr>
-                   </thead>
-                   <tbody className={`divide-y ${isTVMode ? 'divide-white/5' : 'divide-slate-50'}`}>
-                     {filteredLeaderBoard.map((row, idx) => {
-                       const isLastQualified = eliminationSize > 0 && (idx + 1) === eliminationSize;
-                       const isQualified = eliminationSize > 0 && (idx + 1) <= eliminationSize;
-                       
-                       return (
-                          <React.Fragment key={row.id}>
-                            <tr className={`group transition-all duration-500 ${isTVMode ? 'hover:bg-white/5' : 'hover:bg-slate-50 italic'} ${isQualified && !isTVMode ? 'bg-emerald-50/10' : ''}`}>
-                              <td className={`${isTVMode ? 'py-12 px-16' : 'py-1.5 sm:py-6 px-0.5 sm:px-10'}`}>
-                                 <div className={`mx-auto rounded-lg sm:rounded-3xl flex items-center justify-center font-black font-oswald shadow-sm sm:shadow-xl transition-all duration-700 ${isTVMode ? 'w-24 h-24 text-6xl shadow-sun-500/20' : 'w-5 h-5 sm:w-12 sm:h-12 text-[8px] sm:text-2xl'} ${idx < 3 ? 'bg-arcus-sun text-black' : isTVMode ? 'bg-white/10 text-white/90' : 'bg-slate-100 text-slate-700'} ${isQualified && idx >= 3 ? 'bg-emerald-500 text-white shadow-emerald-500/20' : ''}`}>
-                                   {idx + 1}
+              <div className={`${isTVMode ? 'bg-transparent' : ''} transition-all duration-700`}>
+                 {/* 1. HIGH-DENSITY COMPACT ROW VIEW (Default for Mobile & Dense Leaderboards) */}
+                 {!isTVMode && viewMode === 'COMPACT' && (
+                   <div className="bg-white border-y sm:border sm:rounded-xl overflow-hidden shadow-2xs">
+                     {/* Sticky Column Header */}
+                     <div className="sticky top-0 z-20 bg-slate-100/95 backdrop-blur-xs border-b border-slate-200 px-2.5 sm:px-3 py-1.5 flex items-center text-[9px] font-black uppercase tracking-wider text-slate-500 select-none shadow-2xs">
+                       <div className="w-7 sm:w-8 text-center shrink-0">Rank</div>
+                       <div className="w-8 sm:w-10 text-center shrink-0">TGT</div>
+                       <div className="flex-1 min-w-0 px-1 sm:px-2">Nama & Klub</div>
+                       <div className="hidden xs:block w-14 text-right shrink-0">{labelSix}/{labelFive}</div>
+                       <div className="w-12 sm:w-16 text-right shrink-0">Total</div>
+                       <div className="w-4 sm:w-5 shrink-0" />
+                     </div>
+
+                     {/* Compact Rows */}
+                     <div className="divide-y divide-slate-100">
+                       {paginatedLeaderBoard.map((row, idx) => {
+                         const actualRankIdx = (pageRange === 'ALL' || searchTerm.trim() !== '' ? 0 : (pageRange as number) * pageSize) + idx;
+                         const isLastQualified = eliminationSize > 0 && (actualRankIdx + 1) === eliminationSize;
+                         const isQualified = eliminationSize > 0 && (actualRankIdx + 1) <= eliminationSize;
+                         const isExpanded = expandedRowId === row.id;
+
+                         return (
+                           <React.Fragment key={row.id}>
+                             <div 
+                               onClick={() => setExpandedRowId(isExpanded ? null : row.id)}
+                               className={`cursor-pointer transition-colors ${
+                                 isQualified ? 'hover:bg-emerald-50/50 bg-emerald-50/15' : 'hover:bg-slate-50'
+                               } ${actualRankIdx % 2 === 1 && !isQualified ? 'bg-slate-50/30' : ''}`}
+                             >
+                               <div className="flex items-center px-2.5 sm:px-3 py-1 sm:py-1.5 gap-1.5 leading-none">
+                                 {/* Rank Badge */}
+                                 <div className="w-7 sm:w-8 flex items-center justify-center shrink-0">
+                                   <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded flex items-center justify-center font-black font-oswald text-[10px] sm:text-xs shadow-2xs ${
+                                     actualRankIdx === 0 
+                                       ? 'bg-gradient-to-br from-amber-300 to-yellow-500 text-amber-950 font-black' 
+                                       : actualRankIdx === 1 
+                                         ? 'bg-gradient-to-br from-slate-200 to-zinc-400 text-slate-900 font-black' 
+                                         : actualRankIdx === 2 
+                                           ? 'bg-gradient-to-br from-amber-600 to-amber-700 text-white font-black' 
+                                           : isQualified 
+                                             ? 'bg-emerald-500 text-white' 
+                                             : 'bg-slate-100 text-slate-700 font-bold'
+                                   }`}>
+                                     {row.displayRank || (actualRankIdx + 1)}{row.tieLabel || ''}
+                                   </div>
                                  </div>
-                              </td>
-                              <td className={`${isTVMode ? 'py-12 px-6' : 'py-1.5 sm:py-6 px-0.5 sm:px-6'}`}>
-                                 <div className="text-center">
-                                   <span className={`font-black font-oswald italic tracking-tighter ${isTVMode ? 'text-7xl text-arcus-sun' : 'text-[9px] sm:text-2xl text-blue-600'}`}>
-                                     {row.targetNo > 0 ? `${row.targetNo}${row.position}` : '-'}
+
+                                 {/* Target */}
+                                 <div className="w-8 sm:w-10 text-center shrink-0">
+                                   <span className="font-oswald font-black text-[11px] sm:text-xs text-blue-600">
+                                     {row.targetNo > 0 ? `${row.targetNo}${row.position || ''}` : '-'}
                                    </span>
                                  </div>
-                              </td>
-                              <td className={`${isTVMode ? 'py-12 px-6' : 'py-1.5 sm:py-6 px-1.5 sm:px-6'}`}>
-                                 <div className="flex flex-col min-w-0">
-                                    <div className="flex items-center gap-1 sm:gap-6 flex-wrap">
-                                      <p className={`font-black font-oswald italic uppercase leading-none tracking-tighter transition-colors truncate max-w-full ${isTVMode ? 'text-8xl text-white' : 'text-[8px] sm:text-xl text-slate-900 group-hover:text-arcus-red'}`}>{row.name}</p>
-                                      {isQualified && (
-                                        <span className={`bg-emerald-500 font-black text-white rounded-md sm:rounded-xl uppercase tracking-[0.1em] sm:tracking-[0.2em] leading-none shadow-md ${isTVMode ? 'px-6 py-3 text-base' : 'px-1 py-0.5 text-[4px] sm:text-[9px]'}`}>QUAL</span>
-                                      )}
-                                    </div>
-                                    <p className={`font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] italic truncate ${isTVMode ? 'text-2xl text-white/70 mt-4' : 'text-[5px] sm:text-[10px] text-slate-700 mt-0.5 sm:mt-2'}`}>{row.club}</p>
+
+                                 {/* Archer Name & Club - Single ultra-compact clean line */}
+                                 <div className="flex-1 min-w-0 px-1 sm:px-2 flex items-center gap-1.5 truncate">
+                                   <span className="text-[12px] sm:text-[13px] font-black font-oswald uppercase italic tracking-tight text-slate-900 truncate">
+                                     {row.name}
+                                   </span>
+                                   {row.club && (
+                                     <span className="text-[9.5px] sm:text-[10.5px] font-semibold text-slate-400 uppercase truncate">
+                                       · {row.club}
+                                     </span>
+                                   )}
+                                   {isQualified && (
+                                     <span className="px-1 py-0.2 bg-emerald-100 text-emerald-800 rounded text-[7px] font-black uppercase tracking-wider shrink-0 leading-none">
+                                       QUAL
+                                     </span>
+                                   )}
                                  </div>
-                              </td>
-                              {!isTVMode && (
-                                <td className="py-1.5 sm:py-6 px-0.5 sm:px-6">
-                                   <div className="flex items-center gap-0.5 sm:gap-1">
-                                      {(row.endScores || []).map((score, sIdx) => (
-                                        <div 
-                                          key={sIdx} 
-                                          className={`w-3 h-3 sm:w-9 sm:h-9 rounded-sm sm:rounded-xl flex flex-col items-center justify-center border transition-all ${score !== null ? 'bg-slate-900 border-slate-900 text-white shadow-md' : 'bg-slate-50 border-slate-100 text-slate-600'}`}
-                                        >
-                                          <span className="text-[2px] sm:text-[6px] font-bold opacity-50 uppercase">R{sIdx + 1}</span>
-                                          <span className="text-[4px] sm:text-xs font-black font-oswald">{score !== null ? score : '-'}</span>
-                                        </div>
-                                      ))}
+
+                                 {/* Xs/6s & 5s */}
+                                 <div className="hidden xs:block w-14 text-right font-oswald text-[10px] font-bold text-slate-400 shrink-0">
+                                   <span>{row.sixes}</span> / <span>{row.fives}</span>
+                                 </div>
+
+                                 {/* Total Score */}
+                                 <div className="w-12 sm:w-16 text-right shrink-0">
+                                   <span className="text-sm sm:text-base font-black font-oswald text-slate-900 italic tracking-tight">
+                                     {row.total}
+                                   </span>
+                                 </div>
+
+                                 {/* Chevron Expand Indicator */}
+                                 <div className="w-4 sm:w-5 text-center text-slate-400 shrink-0">
+                                   {isExpanded ? (
+                                     <ChevronDown className="w-3.5 h-3.5 text-slate-600 mx-auto" />
+                                   ) : (
+                                     <ChevronRight className="w-3.5 h-3.5 text-slate-300 mx-auto" />
+                                   )}
+                                 </div>
+                               </div>
+
+                               {/* Expandable Rambahan Detail Drawer */}
+                               {isExpanded && (
+                                 <div className="px-3 sm:px-4 py-2 bg-slate-50 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs">
+                                   <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                                     <span className="text-[8.5px] font-black uppercase tracking-wider text-slate-400 shrink-0">Rambahan:</span>
+                                     {row.endScores && row.endScores.length > 0 ? (
+                                       row.endScores.map((score, sIdx) => (
+                                         <div 
+                                           key={sIdx} 
+                                           className={`px-1.5 py-0.5 rounded text-[10px] font-bold font-oswald flex items-center gap-1 ${
+                                             score !== null ? 'bg-slate-900 text-white' : 'bg-slate-200 text-slate-500'
+                                           }`}
+                                         >
+                                           <span className="opacity-50 text-[7px]">R{sIdx+1}:</span>
+                                           <span>{score !== null ? score : '-'}</span>
+                                         </div>
+                                       ))
+                                     ) : (
+                                       <span className="text-[10px] text-slate-400 italic">Belum ada skor rambahan</span>
+                                     )}
                                    </div>
-                                </td>
-                              )}
-                              <td className={`text-center ${isTVMode ? 'py-12 px-4' : 'py-1.5 sm:py-6 px-0.5'}`}>
-                                 <span className={`font-black font-oswald ${isTVMode ? 'text-5xl text-white/60' : 'text-[8px] sm:text-xl text-slate-600'}`}>{row.sixes}</span>
-                              </td>
-                              <td className={`text-center ${isTVMode ? 'py-12 px-4' : 'py-1.5 sm:py-6 px-0.5'}`}>
-                                 <span className={`font-black font-oswald ${isTVMode ? 'text-5xl text-white/60' : 'text-[8px] sm:text-xl text-slate-600'}`}>{row.fives}</span>
-                              </td>
-                              <td className={`text-right ${isTVMode ? 'py-12 px-16' : 'py-1.5 sm:py-6 px-1 sm:px-10'}`}>
-                                 <span className={`font-black font-oswald tabular-nums tracking-tighter italic ${isTVMode ? 'text-[10rem] text-white animate-pulse' : 'text-[9px] sm:text-5xl text-slate-900'}`}>{row.total}</span>
-                              </td>
-                           </tr>
-                           {isLastQualified && (
-                             <tr>
-                               <td colSpan={isTVMode ? 6 : 7} className="px-0 py-0">
-                                 <div className={`${isTVMode ? 'bg-emerald-500/10' : 'bg-emerald-500'} py-4 flex items-center justify-center gap-6`}>
-                                    <div className={`h-px flex-1 ml-16 ${isTVMode ? 'bg-emerald-500/20' : 'bg-white/30'}`} />
-                                    <div className="flex items-center gap-4">
-                                       <Trophy className={`w-5 h-5 ${isTVMode ? 'text-emerald-500' : 'text-white'}`} />
-                                       <span className={`text-xs font-black uppercase tracking-[0.5em] italic ${isTVMode ? 'text-emerald-500' : 'text-white'}`}>BABAK ELIMINASI {eliminationSize} BESAR</span>
-                                    </div>
-                                    <div className={`h-px flex-1 mr-16 ${isTVMode ? 'bg-emerald-500/20' : 'bg-white/30'}`} />
+                                   <div className="flex items-center gap-2 text-[10px] text-slate-600 font-oswald">
+                                     <span>{labelSix}: <strong>{row.sixes}</strong></span>
+                                     <span>{labelFive}: <strong>{row.fives}</strong></span>
+                                   </div>
                                  </div>
-                               </td>
-                             </tr>
+                               )}
+                             </div>
+
+                             {/* Cutoff Line */}
+                             {isLastQualified && !showQualifiedOnly && (
+                               <div className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 text-white py-1 px-4 text-center flex items-center justify-center gap-1.5 shadow-2xs">
+                                 <Trophy className="w-3 h-3 text-amber-300 shrink-0" />
+                                 <span className="text-[9px] font-black uppercase tracking-[0.2em] font-oswald italic">
+                                   {currentCutoffInfo.fullLabel}
+                                 </span>
+                               </div>
+                             )}
+                           </React.Fragment>
+                         );
+                       })}
+                     </div>
+                   </div>
+                 )}
+
+                 {/* 2. Cards View (When viewMode === 'CARDS') */}
+                 {!isTVMode && viewMode === 'CARDS' && (
+                   <div className="p-3 space-y-2">
+                     {displayedLeaderBoard.map((row, idx) => {
+                       const isLastQualified = eliminationSize > 0 && (idx + 1) === eliminationSize;
+                       const isQualified = eliminationSize > 0 && (idx + 1) <= eliminationSize;
+                       const isExpanded = expandedRowId === row.id;
+
+                       return (
+                         <React.Fragment key={row.id}>
+                           <div 
+                             onClick={() => setExpandedRowId(isExpanded ? null : row.id)}
+                             className={`bg-white rounded-xl p-2.5 sm:p-3 border transition-all shadow-2xs hover:shadow-xs cursor-pointer relative overflow-hidden ${
+                               isQualified 
+                                 ? 'border-emerald-300/80 bg-gradient-to-r from-white via-white to-emerald-50/20' 
+                                 : 'border-slate-200/90'
+                             }`}
+                           >
+                             <div className="flex items-center gap-2.5">
+                               {/* Rank */}
+                               <div className={`w-8 h-8 rounded-lg flex flex-col items-center justify-center font-black font-oswald shrink-0 shadow-2xs ${
+                                 idx === 0 
+                                   ? 'bg-gradient-to-br from-amber-300 to-yellow-500 text-amber-950 font-black' 
+                                   : idx === 1 
+                                     ? 'bg-gradient-to-br from-slate-200 to-zinc-400 text-slate-900 font-black' 
+                                     : idx === 2 
+                                       ? 'bg-gradient-to-br from-amber-600 to-amber-700 text-white font-black' 
+                                       : isQualified 
+                                         ? 'bg-emerald-500 text-white' 
+                                         : 'bg-slate-100 text-slate-700 font-bold'
+                               }`}>
+                                 <span className="text-xs font-black leading-none">{row.displayRank || (idx + 1)}{row.tieLabel || ''}</span>
+                               </div>
+
+                               {/* Name & Info */}
+                               <div className="flex-1 min-w-0">
+                                 <div className="flex items-center gap-1.5 truncate">
+                                   <span className="text-xs sm:text-sm font-black font-oswald uppercase italic tracking-tight text-slate-900 truncate">
+                                     {row.name}
+                                   </span>
+                                   {isQualified && (
+                                     <span className="px-1 py-0.2 bg-emerald-100 text-emerald-800 rounded text-[7.5px] font-black uppercase tracking-wider shrink-0 leading-none">
+                                       QUAL
+                                     </span>
+                                   )}
+                                 </div>
+                                 <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-slate-500 font-medium truncate">
+                                   {row.targetNo > 0 && (
+                                     <span className="px-1 py-0.2 bg-blue-50 text-blue-700 font-bold font-oswald rounded text-[9px] uppercase shrink-0">
+                                       🎯 {row.targetNo}{row.position || ''}
+                                     </span>
+                                   )}
+                                   <span className="truncate">{row.club || '-'}</span>
+                                 </div>
+                               </div>
+
+                               {/* Total Score */}
+                               <div className="text-right shrink-0">
+                                 <div className="text-lg sm:text-xl font-black font-oswald text-slate-900 italic tracking-tight leading-none">
+                                   {row.total}
+                                 </div>
+                                 <div className="text-[9px] font-bold text-slate-400 font-oswald mt-0.5">
+                                   {row.sixes} / {row.fives}
+                                 </div>
+                               </div>
+
+                               {/* Chevron */}
+                               <div className="text-slate-400 pl-1">
+                                 {isExpanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                               </div>
+                             </div>
+
+                             {/* Rambahan if opened */}
+                             {isExpanded && row.endScores && (
+                               <div className="mt-2 pt-2 border-t border-slate-100 flex items-center gap-1 overflow-x-auto no-scrollbar">
+                                 <span className="text-[8px] font-black uppercase text-slate-400 shrink-0">Rambahan:</span>
+                                 {row.endScores.map((score, sIdx) => (
+                                   <div key={sIdx} className="px-1.5 py-0.5 rounded bg-slate-900 text-white text-[9px] font-bold font-oswald flex items-center gap-0.5">
+                                     <span className="opacity-50 text-[7px]">R{sIdx+1}:</span>
+                                     <span>{score !== null ? score : '-'}</span>
+                                   </div>
+                                 ))}
+                               </div>
+                             )}
+                           </div>
+
+                           {isLastQualified && !showQualifiedOnly && (
+                             <div className="py-1">
+                               <div className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-teal-600 text-white py-1.5 px-3 rounded-lg flex items-center justify-center gap-1.5 shadow-2xs text-center">
+                                 <Trophy className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                                 <span className="text-[9px] font-black uppercase tracking-[0.2em] italic font-oswald">
+                                   {currentCutoffInfo.fullLabel}
+                                 </span>
+                               </div>
+                             </div>
                            )}
                          </React.Fragment>
                        );
                      })}
-                   </tbody>
-                </table>
-                
-                {filteredLeaderBoard.length === 0 && (
-                   <div className="py-40 text-center">
-                      <div className="w-24 h-24 bg-white/5 rounded-[3rem] flex items-center justify-center mx-auto mb-8 border border-white/5">
-                        <Monitor className="w-12 h-12 text-white/60" />
-                      </div>
-                      <p className={`text-2xl font-black uppercase font-oswald italic tracking-[0.4em] ${isTVMode ? 'text-white/10' : 'text-slate-100'}`}>Menunggu Data Skor</p>
                    </div>
-                )}
-             </div>
-           ) : (
+                 )}
+
+                 {/* 2. Desktop & Full Table View */}
+                 <div className={`${isTVMode ? 'block bg-transparent' : viewMode === 'CARDS' ? 'hidden' : viewMode === 'TABLE' ? 'block bg-white' : 'hidden sm:block bg-white'} overflow-x-auto custom-scrollbar transition-all duration-700`}>
+                   <table className={`w-full text-left border-collapse ${isTVMode ? '' : 'min-w-[700px]'}`}>
+                     <thead>
+                       <tr className={`${isTVMode ? 'bg-slate-800/30 text-white/80' : 'bg-slate-50 text-slate-700'} text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em] border-b border-slate-200/80`}>
+                         <th className={`py-3 sm:py-5 text-center ${isTVMode ? 'px-16 w-48' : 'px-3 sm:px-6 w-16 sm:w-24'}`}>Rank</th>
+                         <th className={`py-3 sm:py-5 text-center ${isTVMode ? 'px-6 w-48' : 'px-2 sm:px-6 w-16 sm:w-24'}`}>TGT</th>
+                         <th className={`px-4 sm:px-6 py-3 sm:py-5 ${isTVMode ? 'w-auto' : 'min-w-[220px]'}`}>Nama & Klub Pemanah</th>
+                         {!isTVMode && <th className="px-3 sm:px-6 py-3 sm:py-5">Scores Per Rambahan</th>}
+                         <th className="px-2 sm:px-4 py-3 sm:py-5 text-center w-12 sm:w-16">{labelSix}</th>
+                         <th className="px-2 sm:px-4 py-3 sm:py-5 text-center w-12 sm:w-16">{labelFive}</th>
+                         <th className={`py-3 sm:py-5 text-right ${isTVMode ? 'px-16' : 'px-4 sm:px-8'} w-24 sm:w-36`}>Total</th>
+                       </tr>
+                     </thead>
+                     <tbody className={`divide-y ${isTVMode ? 'divide-white/5' : 'divide-slate-100'}`}>
+                       {filteredLeaderBoard.map((row, idx) => {
+                         const isLastQualified = eliminationSize > 0 && (idx + 1) === eliminationSize;
+                         const isQualified = eliminationSize > 0 && (idx + 1) <= eliminationSize;
+                         
+                         return (
+                            <React.Fragment key={row.id}>
+                              <tr className={`group transition-all duration-300 ${isTVMode ? 'hover:bg-white/5' : 'hover:bg-slate-50/80'} ${isQualified && !isTVMode ? 'bg-emerald-50/20' : ''}`}>
+                                {/* Rank */}
+                                <td className={`${isTVMode ? 'py-12 px-16' : 'py-3 sm:py-5 px-3 sm:px-6'}`}>
+                                   <div className={`mx-auto rounded-xl sm:rounded-2xl flex items-center justify-center font-black font-oswald shadow-sm sm:shadow-md transition-all ${isTVMode ? 'w-24 h-24 text-6xl shadow-sun-500/20' : 'w-8 h-8 sm:w-11 sm:h-11 text-xs sm:text-xl'} ${
+                                     idx === 0 
+                                       ? 'bg-gradient-to-br from-amber-300 to-yellow-500 text-amber-950 ring-2 ring-amber-300/50' 
+                                       : idx === 1 
+                                         ? 'bg-gradient-to-br from-slate-200 to-zinc-400 text-slate-900 ring-2 ring-slate-300/50' 
+                                         : idx === 2 
+                                           ? 'bg-gradient-to-br from-amber-600 to-amber-700 text-white ring-2 ring-orange-400/50' 
+                                           : isTVMode 
+                                             ? 'bg-white/10 text-white/90' 
+                                             : isQualified 
+                                               ? 'bg-emerald-500 text-white shadow-emerald-500/20' 
+                                               : 'bg-slate-100 text-slate-700'
+                                   }`}>
+                                     {row.displayRank || (idx + 1)}{row.tieLabel || ''}
+                                   </div>
+                                </td>
+
+                                {/* Target */}
+                                <td className={`${isTVMode ? 'py-12 px-6' : 'py-3 sm:py-5 px-2 sm:px-6'}`}>
+                                   <div className="text-center">
+                                     <span className={`font-black font-oswald italic tracking-tighter ${isTVMode ? 'text-7xl text-arcus-sun' : 'text-sm sm:text-2xl text-blue-600'}`}>
+                                       {row.targetNo > 0 ? `${row.targetNo}${row.position}` : '-'}
+                                     </span>
+                                   </div>
+                                </td>
+
+                                {/* Archer Info (Enlarged Participant Name) */}
+                                <td className={`${isTVMode ? 'py-12 px-6' : 'py-3 sm:py-5 px-4 sm:px-6'}`}>
+                                   <div className="flex flex-col min-w-0">
+                                      <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
+                                        <p className={`font-black font-oswald italic uppercase leading-tight tracking-tight transition-colors break-words ${isTVMode ? 'text-8xl text-white' : 'text-sm sm:text-base lg:text-lg text-slate-900 group-hover:text-arcus-red'}`}>
+                                          {row.name}
+                                        </p>
+                                        {isQualified && (
+                                          <span className={`bg-emerald-500 font-black text-white rounded-md uppercase tracking-wider leading-none shadow-sm ${isTVMode ? 'px-6 py-3 text-base' : 'px-2 py-0.5 text-[8px] sm:text-[10px]'}`}>QUAL</span>
+                                        )}
+                                      </div>
+                                      <p className={`font-bold uppercase tracking-wider truncate ${isTVMode ? 'text-2xl text-white/70 mt-3' : 'text-xs sm:text-sm text-slate-600 mt-0.5 sm:mt-1'}`}>
+                                        {row.club || '-'}
+                                      </p>
+                                   </div>
+                                </td>
+
+                                {/* Scores Per Rambahan */}
+                                {!isTVMode && (
+                                  <td className="py-3 sm:py-5 px-2 sm:px-6">
+                                     <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
+                                        {(row.endScores || []).map((score, sIdx) => (
+                                          <div 
+                                            key={sIdx} 
+                                            className={`w-7 h-7 sm:w-9 sm:h-9 rounded-lg flex flex-col items-center justify-center border transition-all ${score !== null ? 'bg-slate-900 border-slate-900 text-white shadow-xs' : 'bg-slate-50 border-slate-200 text-slate-400'}`}
+                                          >
+                                            <span className="text-[6px] sm:text-[7px] font-bold opacity-60 uppercase">R{sIdx + 1}</span>
+                                            <span className="text-[10px] sm:text-xs font-black font-oswald">{score !== null ? score : '-'}</span>
+                                          </div>
+                                        ))}
+                                     </div>
+                                  </td>
+                                )}
+
+                                {/* Sixes / Xs */}
+                                <td className={`text-center ${isTVMode ? 'py-12 px-4' : 'py-3 sm:py-5 px-2 sm:px-4'}`}>
+                                   <span className={`font-black font-oswald ${isTVMode ? 'text-5xl text-white/60' : 'text-sm sm:text-xl text-slate-700'}`}>{row.sixes}</span>
+                                </td>
+
+                                {/* Fives */}
+                                <td className={`text-center ${isTVMode ? 'py-12 px-4' : 'py-3 sm:py-5 px-2 sm:px-4'}`}>
+                                   <span className={`font-black font-oswald ${isTVMode ? 'text-5xl text-white/60' : 'text-sm sm:text-xl text-slate-700'}`}>{row.fives}</span>
+                                </td>
+
+                                {/* Total */}
+                                <td className={`text-right ${isTVMode ? 'py-12 px-16' : 'py-3 sm:py-5 px-4 sm:px-8'}`}>
+                                   <span className={`font-black font-oswald tabular-nums tracking-tighter italic ${isTVMode ? 'text-[10rem] text-white animate-pulse' : 'text-2xl sm:text-4xl lg:text-5xl text-slate-900'}`}>{row.total}</span>
+                                </td>
+                             </tr>
+
+                             {/* Cutoff Row */}
+                             {isLastQualified && (
+                               <tr>
+                                 <td colSpan={isTVMode ? 6 : 7} className="px-0 py-0">
+                                   <div className={`${isTVMode ? 'bg-emerald-500/10' : 'bg-emerald-500'} py-3 sm:py-4 flex items-center justify-center gap-4 sm:gap-6`}>
+                                      <div className={`h-px flex-1 ml-6 sm:ml-16 ${isTVMode ? 'bg-emerald-500/20' : 'bg-white/30'}`} />
+                                      <div className="flex items-center gap-3">
+                                         <Trophy className={`w-4 h-4 sm:w-5 sm:h-5 ${isTVMode ? 'text-emerald-500' : 'text-white'}`} />
+                                         <span className={`text-[10px] sm:text-xs font-black uppercase tracking-[0.3em] italic ${isTVMode ? 'text-emerald-500' : 'text-white'}`}>{currentCutoffInfo.fullLabel}</span>
+                                      </div>
+                                      <div className={`h-px flex-1 mr-6 sm:mr-16 ${isTVMode ? 'bg-emerald-500/20' : 'bg-white/30'}`} />
+                                   </div>
+                                 </td>
+                               </tr>
+                             )}
+                           </React.Fragment>
+                         );
+                       })}
+                     </tbody>
+                   </table>
+                 </div>
+                 
+                 {filteredLeaderBoard.length === 0 && (
+                    <div className="py-24 sm:py-40 text-center">
+                       <div className="w-16 h-16 sm:w-24 sm:h-24 bg-white/5 rounded-3xl sm:rounded-[3rem] flex items-center justify-center mx-auto mb-6 border border-slate-200">
+                         <Monitor className="w-8 h-8 sm:w-12 sm:h-12 text-slate-400" />
+                       </div>
+                       <p className={`text-lg sm:text-2xl font-black uppercase font-oswald italic tracking-[0.3em] ${isTVMode ? 'text-white/20' : 'text-slate-400'}`}>
+                         {searchTerm ? 'Pemanah Tidak Ditemukan' : 'Menunggu Data Skor'}
+                       </p>
+                    </div>
+                 )}
+              </div>
+            ) : (
               <div className="space-y-6">
                 {!isTVMode && matches.length > 0 && (
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-100 gap-4 mb-4">
@@ -770,7 +1280,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                                       </div>
                                       <div className="min-w-0">
                                         <div className="flex items-center gap-1.5">
-                                          <span className={`font-black uppercase font-oswald text-xs italic block truncate leading-none ${match.winnerId === match.archerAId ? 'text-purple-700' : 'text-slate-600'}`}>
+                                          <span className={`font-black uppercase font-oswald text-xs sm:text-sm italic block truncate leading-tight ${match.winnerId === match.archerAId ? 'text-purple-700' : 'text-slate-900'}`}>
                                             {archerA?.name || 'BYE'}
                                           </span>
                                           {match.shootOffA !== undefined && (
@@ -779,7 +1289,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                                             </span>
                                           )}
                                         </div>
-                                        <span className="text-[7px] font-bold text-slate-700 uppercase tracking-widest mt-1 block truncate">
+                                        <span className="text-[9px] sm:text-[10px] font-semibold text-slate-600 uppercase tracking-wider mt-1 block truncate">
                                           {archerA?.club || '-'} {archerA?.targetNo ? `(Bantalan ${archerA.targetNo}${archerA.position || ''})` : ''}
                                         </span>
                                       </div>
@@ -803,7 +1313,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                                       </div>
                                       <div className="min-w-0">
                                         <div className="flex items-center gap-1.5">
-                                          <span className={`font-black uppercase font-oswald text-xs italic block truncate leading-none ${match.winnerId === match.archerBId ? 'text-purple-700' : 'text-slate-600'}`}>
+                                          <span className={`font-black uppercase font-oswald text-xs sm:text-sm italic block truncate leading-tight ${match.winnerId === match.archerBId ? 'text-purple-700' : 'text-slate-900'}`}>
                                             {archerB?.name || 'BYE'}
                                           </span>
                                           {match.shootOffB !== undefined && (
@@ -812,7 +1322,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                                             </span>
                                           )}
                                         </div>
-                                        <span className="text-[7px] font-bold text-slate-700 uppercase tracking-widest mt-1 block truncate">
+                                        <span className="text-[9px] sm:text-[10px] font-semibold text-slate-600 uppercase tracking-wider mt-1 block truncate">
                                           {archerB?.club || '-'} {archerB?.targetNo ? `(Bantalan ${archerB.targetNo}${archerB.position || ''})` : ''}
                                         </span>
                                       </div>
@@ -914,14 +1424,14 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                                   </div>
                                   <div>
                                      <div className="flex items-center gap-2">
-                                       <p className={`font-black font-oswald uppercase italic leading-none tracking-tighter ${isTVMode ? 'text-7xl text-white' : 'text-base sm:text-3xl text-slate-900'}`}>{archerA?.name || 'BYE'}</p>
+                                       <p className={`font-black font-oswald uppercase italic leading-tight tracking-tight ${isTVMode ? 'text-7xl text-white' : 'text-base sm:text-xl md:text-2xl text-slate-900'}`}>{archerA?.name || 'BYE'}</p>
                                        {match.shootOffA !== undefined && (
                                          <span className="px-2 py-0.5 bg-amber-400 text-slate-950 text-[10px] sm:text-xs font-black rounded uppercase">
                                            SO: {match.shootOffA}{match.shootOffClosestA ? ' (X)' : ''}
                                          </span>
                                        )}
                                      </div>
-                                     <p className={`font-black uppercase tracking-[0.3em] ${isTVMode ? 'text-xl text-white/70 mt-4' : 'text-[7px] sm:text-[10px] text-slate-700 mt-1 sm:mt-4'}`}>{archerA?.club || '-'}</p>
+                                     <p className={`font-bold uppercase tracking-wider ${isTVMode ? 'text-xl text-white/70 mt-4' : 'text-xs sm:text-sm text-slate-600 mt-1 sm:mt-2'}`}>{archerA?.club || '-'}</p>
                                   </div>
                                 </div>
                                 <div className={`font-black font-oswald italic tracking-tighter tabular-nums ${isTVMode ? 'text-[10rem]' : 'text-3xl sm:text-6xl'} ${match.winnerId === match.archerAId ? 'text-emerald-500' : 'text-white/80'}`}>
@@ -940,8 +1450,8 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                                      {archerB?.targetNo || '-'}{archerB?.position || ''}
                                   </div>
                                   <div>
-                                     <p className={`font-black font-oswald uppercase italic leading-none tracking-tighter ${isTVMode ? 'text-7xl text-white' : 'text-base sm:text-3xl text-slate-900'}`}>{archerB?.name || 'BYE'}</p>
-                                     <p className={`font-black uppercase tracking-[0.3em] ${isTVMode ? 'text-xl text-white/70 mt-4' : 'text-[7px] sm:text-[10px] text-slate-700 mt-1 sm:mt-4'}`}>{archerB?.club || '-'}</p>
+                                     <p className={`font-black font-oswald uppercase italic leading-tight tracking-tight ${isTVMode ? 'text-7xl text-white' : 'text-base sm:text-xl md:text-2xl text-slate-900'}`}>{archerB?.name || 'BYE'}</p>
+                                     <p className={`font-bold uppercase tracking-wider ${isTVMode ? 'text-xl text-white/70 mt-4' : 'text-xs sm:text-sm text-slate-600 mt-1 sm:mt-2'}`}>{archerB?.club || '-'}</p>
                                   </div>
                                </div>
                                <div className={`font-black font-oswald italic tracking-tighter tabular-nums ${isTVMode ? 'text-[10rem]' : 'text-3xl sm:text-6xl'} ${match.winnerId === match.archerBId ? 'text-emerald-500' : 'text-white/80'}`}>
@@ -1019,6 +1529,19 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
               <FooterSponsorshipSlider tournamentName={settings.tournamentName || 'Turnamen Panahan'} sponsorships={settings.sponsorships} isTVMode={isTVMode} />
           </div>
       </div>
+
+      {/* Floating Scroll-to-Top Button */}
+      {showScrollTop && !isTVMode && (
+        <button
+          type="button"
+          onClick={() => scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="fixed bottom-16 right-4 sm:bottom-20 sm:right-8 z-50 px-3 py-2 bg-slate-900/90 hover:bg-slate-900 text-white rounded-full shadow-xl backdrop-blur-xs transition-all flex items-center gap-1.5 text-xs font-bold border border-white/20 active:scale-95 animate-fade-in"
+          title="Kembali ke Peringkat 1 (Paling Atas)"
+        >
+          <ArrowUp className="w-3.5 h-3.5 text-arcus-sun" />
+          <span className="text-[10px] font-black font-oswald uppercase tracking-wider pr-0.5">Ke Atas</span>
+        </button>
+      )}
     </div>
   );
 };

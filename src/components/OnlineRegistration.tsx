@@ -1501,28 +1501,52 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
       )}
 
       {showInvoice && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto no-print animate-in fade-in duration-300">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto print:static print:p-0 print:bg-white print:overflow-visible print:block animate-in fade-in duration-300">
           <style dangerouslySetInnerHTML={{ __html: `
             @media print {
-              body {
-                background: white !important;
-                color: black !important;
+              @page {
+                size: A4 portrait;
+                margin: 8mm;
               }
-              body > * {
-                display: none !important;
+              html, body {
+                background: #ffffff !important;
+                color: #000000 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                height: auto !important;
+                min-height: 100% !important;
+                overflow: visible !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              body * {
+                visibility: hidden;
+              }
+              #printable-invoice-container,
+              #printable-invoice-container * {
+                visibility: visible;
               }
               #printable-invoice-container {
-                display: block !important;
                 position: absolute !important;
                 left: 0 !important;
                 top: 0 !important;
                 width: 100% !important;
-                padding: 24px !important;
-                background: white !important;
-                color: black !important;
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 16px !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+                border: 1px solid #cbd5e1 !important;
+                box-shadow: none !important;
+                max-height: none !important;
+                overflow: visible !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
               }
-              .no-print {
+              .no-print,
+              .no-print * {
                 display: none !important;
+                visibility: hidden !important;
               }
             }
           `}} />

@@ -82,32 +82,52 @@ export const ParticipantTicketModal: React.FC<Props> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-50 overflow-y-auto no-print animate-in fade-in duration-300">
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-50 overflow-y-auto print:static print:p-0 print:bg-white print:overflow-visible print:block animate-in fade-in duration-300">
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-          body {
-            background: white !important;
-            color: black !important;
+          @page {
+            size: A4 portrait;
+            margin: 10mm;
           }
-          body > * {
-            display: none !important;
+          html, body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            min-height: 100% !important;
+            overflow: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          body * {
+            visibility: hidden;
+          }
+          #printable-ticket-card,
+          #printable-ticket-card * {
+            visibility: visible;
           }
           #printable-ticket-card {
-            display: block !important;
             position: absolute !important;
             left: 0 !important;
+            right: 0 !important;
             top: 0 !important;
             width: 100% !important;
-            max-width: 480px !important;
+            max-width: 520px !important;
             margin: 0 auto !important;
-            padding: 16px !important;
-            background: white !important;
-            color: black !important;
-            border: 2px solid #000 !important;
+            padding: 20px !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+            border: 2px solid #000000 !important;
+            border-radius: 20px !important;
             box-shadow: none !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
-          .no-print {
+          .no-print,
+          .no-print * {
             display: none !important;
+            visibility: hidden !important;
           }
         }
       `}} />

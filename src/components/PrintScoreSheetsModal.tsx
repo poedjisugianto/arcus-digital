@@ -265,24 +265,32 @@ export const PrintScoreSheetsModal: React.FC<Props> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto no-print animate-in fade-in duration-300">
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto print:static print:p-0 print:bg-white print:overflow-visible print:block animate-in fade-in duration-300">
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page {
             size: A4 portrait;
             margin: 6mm 6mm 6mm 6mm;
           }
-          body {
+          html, body {
             background: white !important;
             color: black !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            min-height: 100% !important;
+            overflow: visible !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          body > * {
-            display: none !important;
+          body * {
+            visibility: hidden;
+          }
+          #printable-scoresheets-container,
+          #printable-scoresheets-container * {
+            visibility: visible;
           }
           #printable-scoresheets-container {
-            display: block !important;
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
@@ -304,8 +312,10 @@ export const PrintScoreSheetsModal: React.FC<Props> = ({
             page-break-after: avoid;
             break-after: avoid;
           }
-          .no-print {
+          .no-print,
+          .no-print * {
             display: none !important;
+            visibility: hidden !important;
           }
         }
       `}} />
