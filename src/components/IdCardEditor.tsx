@@ -11,6 +11,23 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Barcode } from './Barcode';
 import { safeFormatDate } from '../lib/dateUtils';
 import { resolveGoogleDriveUrl } from '../lib/photoService';
+import { CATEGORY_LABELS } from '../constants';
+
+export const formatCardCategoryLabel = (category?: string, isOfficial?: boolean): string => {
+  if (isOfficial) return 'OFFICIAL';
+  if (!category) return '-';
+  
+  if (CATEGORY_LABELS[category]) {
+    return CATEGORY_LABELS[category].toUpperCase();
+  }
+  
+  const cleaned = String(category)
+    .replace(/ADULT/gi, 'DEWASA')
+    .replace(/_/g, ' ')
+    .trim();
+  
+  return cleaned.toUpperCase();
+};
 
 interface Props {
   archers: Archer[];
@@ -560,7 +577,7 @@ const IdCardEditor: React.FC<Props> = ({ archers, officials: officialsProp = [],
                 className="px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-md inline-block text-white"
                 style={{ backgroundColor: isOfficial ? '#2563eb' : textAccent }}
               >
-                {isOfficial ? 'OFFICIAL CREW' : person.category}
+                {formatCardCategoryLabel(person.category, isOfficial)}
               </span>
             </div>
           )}
@@ -920,9 +937,13 @@ const IdCardEditor: React.FC<Props> = ({ archers, officials: officialsProp = [],
             {/* Category / Status Badge */}
             <div className="flex flex-col items-center gap-0.5">
               <span className={`${isB1 ? 'text-[8px] px-3.5 py-1' : isB2 ? 'text-[9px] px-5 py-1.5' : 'text-[10px] px-6 py-2'} font-black rounded-full text-white uppercase tracking-[0.2em] shadow-md ${isLegacy || isGlory || isChampion || isProX ? 'rounded-none border-y-2 border-white/20' : 'skew-x-[-10deg]'}`} style={{ backgroundColor: (isChampion || isProX) ? '#ca8a04' : cardAccent }}>
-                {isOfficial ? 'CREW' : person.category}
+                {formatCardCategoryLabel(person.category, isOfficial)}
               </span>
-              {(isChampion || isProX) && <div className="text-[7px] font-black uppercase text-yellow-500 tracking-[0.3em] mt-0.5">Official Member</div>}
+              {(isChampion || isProX) && (
+                <div className="text-[7px] font-black uppercase text-yellow-500 tracking-[0.3em] mt-0.5">
+                  {isOfficial ? 'Official Team' : 'Official Member'}
+                </div>
+              )}
             </div>
           </div>
 

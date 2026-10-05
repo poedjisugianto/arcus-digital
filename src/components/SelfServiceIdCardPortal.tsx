@@ -10,6 +10,22 @@ import { ArcheryEvent, Archer, CategoryType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
 import ArcusLogo from './ArcusLogo';
 
+const formatCardCategoryLabel = (category?: string, isOfficial?: boolean): string => {
+  if (isOfficial) return 'OFFICIAL';
+  if (!category) return '-';
+  
+  if (CATEGORY_LABELS[category]) {
+    return CATEGORY_LABELS[category];
+  }
+  
+  const cleaned = String(category)
+    .replace(/ADULT/gi, 'Dewasa')
+    .replace(/_/g, ' ')
+    .trim();
+  
+  return cleaned;
+};
+
 interface Props {
   event: ArcheryEvent;
   onBack: () => void;
@@ -461,7 +477,7 @@ export default function SelfServiceIdCardPortal({
                         <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider ${
                           isOfficial ? 'bg-blue-600 text-white' : 'bg-arcus-red text-white'
                         }`}>
-                          {isOfficial ? 'OFFICIAL CREW' : (CATEGORY_LABELS[p.category as CategoryType] || p.category)}
+                          {formatCardCategoryLabel(p.category, isOfficial)}
                         </span>
                         <span className="text-[9px] font-mono text-slate-300">
                           {p.id.slice(-6).toUpperCase()}
@@ -618,9 +634,7 @@ export default function SelfServiceIdCardPortal({
                   <span className={`inline-block px-3 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
                     selectedParticipant.category === CategoryType.OFFICIAL ? 'bg-blue-600 text-white' : 'bg-arcus-red text-white'
                   }`}>
-                    {selectedParticipant.category === CategoryType.OFFICIAL 
-                      ? 'OFFICIAL CREW' 
-                      : (CATEGORY_LABELS[selectedParticipant.category as CategoryType] || selectedParticipant.category)}
+                    {formatCardCategoryLabel(selectedParticipant.category, selectedParticipant.category === CategoryType.OFFICIAL)}
                   </span>
                   <h3 className="text-base font-black font-oswald uppercase italic tracking-tight text-white mt-1 leading-tight">
                     {selectedParticipant.name}
@@ -728,7 +742,7 @@ export default function SelfServiceIdCardPortal({
                   <span className={`inline-block px-3 py-0.5 rounded-full text-[9px] font-black uppercase border border-black ${
                     isOfficial ? 'bg-slate-200 text-black' : 'bg-black text-white'
                   }`}>
-                    {isOfficial ? 'OFFICIAL CREW' : (CATEGORY_LABELS[person.category as CategoryType] || person.category)}
+                    {formatCardCategoryLabel(person.category, isOfficial)}
                   </span>
                 </div>
 
