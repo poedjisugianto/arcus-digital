@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { ArcheryEvent, GlobalSettings, ParticipantRegistration, CategoryType, RegistrationStatus } from '../types';
 import { compressPhoto, uploadPhotoToStorage } from '../lib/photoService';
@@ -106,6 +107,23 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
       setFormData(prev => ({ ...prev, paymentType: 'MANUAL' }));
     }
   }, [isGatewayEnabled, formData.paymentType]);
+
+  useEffect(() => {
+    if (!showInvoice) return;
+    const handleBeforePrint = () => {
+      document.body.classList.add('printing-active');
+    };
+    const handleAfterPrint = () => {
+      document.body.classList.remove('printing-active');
+    };
+    window.addEventListener('beforeprint', handleBeforePrint);
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => {
+      window.removeEventListener('beforeprint', handleBeforePrint);
+      window.removeEventListener('afterprint', handleAfterPrint);
+      document.body.classList.remove('printing-active');
+    };
+  }, [showInvoice]);
 
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>, isForNewMember: boolean = false) => {
     const file = e.target.files?.[0];
@@ -692,6 +710,265 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
       }
     }
   };
+
+  const renderInvoiceContent = () => (
+    <div className="space-y-6 text-slate-900">
+      {/* Header */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-100 pb-5 gap-4">
+              <div>
+                <h2 className="text-xl font-black font-oswald text-slate-900 italic tracking-wide uppercase">ARCUS ARCHERY</h2>
+                <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">REGISTRATION INVOICE</p>
+              </div>
+              <div className="text-left md:text-right text-xs">
+                <p className="font-extrabold text-slate-800">
+                  No. Invoice: <span className="font-mono text-arcus-red italic">{recentRegistrations[0]?.registrationNo || `INV-${Date.now().toString().slice(-6)}`}</span>
+                </p>
+                <p className="text-[10px] font-bold text-slate-700">
+                  Tanggal: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+              </div>
+            </div>
+
+            {/* Tournament Details */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200/50 text-xs">
+              <div className="space-y-1">
+                <p className="text-[8px] font-black text-slate-700 uppercase">Turnamen / Event</p>
+                <p className="font-extrabold text-slate-800 uppercase leading-tight">{event.settings?.tournamentName || 'Turnamen Panahan Arcus'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[8px] font-black text-slate-700 uppercase">Kontak Pembayar</p>
+                <p className="font-extrabold text-slate-800">{formData.name || 'Pendaftar'} ({formData.club || 'Umum'})</p>
+                <p className="text-[10px] font-bold text-slate-800 leading-none">{formData.phone || '-'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[8px] font-black text-slate-700 uppercase">Metode Pembayaran</p>
+                <p className="font-extrabold text-slate-800">
+                  {formData.paymentType === 'GATEWAY' ? 'Payment Gateway (Midtrans)' : 'Transfer Bank Manual'}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[8px] font-black text-slate-700 uppercase">Status Pembayaran</p>
+                {(() => {
+                  const sampleStatus = recentRegistrations[0]?.status || RegistrationStatus.PENDING;
+                  const isPaid = sampleStatus === RegistrationStatus.APPROVED || sampleStatus === 'PAID';
+                  return (
+                    <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase ${isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                      {isPaid ? 'LUNAS / DISETUJUI' : 'MENUNGGU VERIFIKASI / PENDING'}
+                    </span>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Items List */}
+            <div className="space-y-3">
+              <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest leading-none">Rincian Komponen Pendaftar</p>
+              <div className="border border-slate-100 rounded-xl overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100 font-bold text-slate-700 text-[10px] uppercase">
+                      <th className="p-3">Nama</th>
+                      <th className="p-3">Kategori</th>
+                      <th className="p-3 text-right">Biaya Registrasi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {(() => {
+                      const items = recentRegistrations.length > 0 
+                        ? recentRegistrations 
+                        : (regMode === 'INDIVIDUAL' 
+                            ? [{
+                                id: 'temp_inv',
+                                name: formData.name || 'Pendaftar',
+                                ktaNumber: formData.ktaNumber || undefined,
+                                category: formData.regType === 'OFFICIAL' ? 'OFFICIAL' : formData.category,
+                                club: formData.club || '-',
+                                totalPaid: ((formData.regType === 'OFFICIAL' ? event.settings?.officialFee : event.settings?.categoryConfigs?.[formData.category as CategoryType]?.registrationFee) || 0),
+                                platformFee: [
+                                  CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
+                                  CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
+                                ].includes(formData.category as CategoryType) ? globalSettings.feeKids : globalSettings.feeAdult,
+                                status: formData.paymentType === 'GATEWAY' ? RegistrationStatus.APPROVED : RegistrationStatus.PENDING,
+                                paymentType: formData.paymentType,
+                                timestamp: Date.now()
+                              }]
+                            : collectiveMembers.map((m, idx) => {
+                                const regFee = (m.category === 'OFFICIAL' || m.category === CategoryType.OFFICIAL) 
+                                  ? (event.settings?.officialFee || 0) 
+                                  : (event.settings?.categoryConfigs?.[m.category as CategoryType]?.registrationFee || 0);
+                                const isKids = [
+                                  CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
+                                  CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
+                                ].includes(m.category as CategoryType);
+                                const pFee = isKids ? globalSettings.feeKids : globalSettings.feeAdult;
+                                return {
+                                  id: `temp_inv_${idx}`,
+                                  name: m.name,
+                                  ktaNumber: m.ktaNumber || undefined,
+                                  category: m.category,
+                                  club: formData.club || '-',
+                                  totalPaid: regFee,
+                                  platformFee: pFee,
+                                  status: formData.paymentType === 'GATEWAY' ? RegistrationStatus.APPROVED : RegistrationStatus.PENDING,
+                                  paymentType: formData.paymentType,
+                                  timestamp: Date.now()
+                                };
+                              })
+                          );
+
+                      return items.map((item, idx) => {
+                        return (
+                          <tr key={idx} className="hover:bg-slate-50/50">
+                            <td className="p-3 font-bold text-slate-800">
+                              <div>{item.name}</div>
+                              {(item as any).ktaNumber && (
+                                <div className="text-[8px] font-mono text-blue-700 font-bold mt-0.5">
+                                  KTA: {(item as any).ktaNumber}
+                                </div>
+                              )}
+                            </td>
+                            <td className="p-3 text-slate-700 font-extrabold uppercase text-[9px] tracking-wide">
+                              {item.category === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (CATEGORY_LABELS[item.category as CategoryType] || item.category)}
+                            </td>
+                            <td className="p-3 text-right font-extrabold text-slate-900">Rp {item.totalPaid.toLocaleString()}</td>
+                          </tr>
+                        );
+                      });
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Total Calculation */}
+            <div className="border-t border-dashed border-slate-200 pt-4 flex flex-col items-end text-xs space-y-1">
+              <div className="flex justify-between w-full max-w-xs text-slate-800 font-semibold">
+                <span>Total Biaya Pendaftaran:</span>
+                <span>
+                  Rp {(() => {
+                    if (regMode === 'INDIVIDUAL') {
+                      return ((formData.regType === 'OFFICIAL' ? event.settings?.officialFee : event.settings?.categoryConfigs?.[formData.category as CategoryType]?.registrationFee) || 0).toLocaleString();
+                    } else {
+                      return collectiveMembers.reduce((sum, member) => {
+                        const regFee = (member.category === 'OFFICIAL' || member.category === CategoryType.OFFICIAL) 
+                          ? (event.settings?.officialFee || 0) 
+                          : (event.settings?.categoryConfigs?.[member.category as CategoryType]?.registrationFee || 0);
+                        return sum + regFee;
+                      }, 0).toLocaleString();
+                    }
+                  })()}
+                </span>
+              </div>
+              <div className="flex justify-between w-full max-w-xs border-t border-slate-200 pt-2 text-slate-900 font-black">
+                <span className="uppercase text-[9px] tracking-wide">TOTAL PEMBAYARAN:</span>
+                <span className="text-arcus-red text-sm font-mono italic">
+                  Rp {(() => {
+                    if (regMode === 'INDIVIDUAL') {
+                      return ((formData.regType === 'OFFICIAL' ? event.settings?.officialFee : event.settings?.categoryConfigs?.[formData.category as CategoryType]?.registrationFee) || 0).toLocaleString();
+                    } else {
+                      return collectiveMembers.reduce((sum, member) => {
+                        const regFee = (member.category === 'OFFICIAL' || member.category === CategoryType.OFFICIAL) 
+                          ? (event.settings?.officialFee || 0) 
+                          : (event.settings?.categoryConfigs?.[member.category as CategoryType]?.registrationFee || 0);
+                        return sum + regFee;
+                      }, 0).toLocaleString();
+                    }
+                  })()}
+                </span>
+              </div>
+            </div>
+
+            {/* Barcode & QR Code Section for Daftar Ulang */}
+            <div className="border-t-2 border-dashed border-slate-200 pt-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-black font-oswald text-slate-900 uppercase tracking-wide">
+                    BARCODE DAFTAR ULANG / CHECK-IN RESMI
+                  </h4>
+                  <p className="text-[9px] text-slate-500 font-semibold">
+                    Tunjukkan barcode di bawah ini kepada panitia saat registrasi ulang di lokasi pertandingan.
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 bg-red-100 text-red-700 rounded-full text-[8px] font-black uppercase tracking-wider shrink-0">
+                  WAJIB DISIMPAN
+                </span>
+              </div>
+
+              {/* Grid of participant barcodes */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {(() => {
+                  const items = recentRegistrations.length > 0 
+                    ? recentRegistrations 
+                    : (regMode === 'INDIVIDUAL' 
+                        ? [{
+                            id: recentRegistrations[0]?.id || `reg_${Date.now()}`,
+                            registrationNo: recentRegistrations[0]?.registrationNo || `REG-${Date.now().toString().slice(-6)}`,
+                            name: formData.name || 'Pendaftar',
+                            category: formData.regType === 'OFFICIAL' ? 'OFFICIAL' : formData.category,
+                            club: formData.club || '-'
+                          }]
+                        : collectiveMembers.map((m, idx) => ({
+                            id: `reg_${Date.now()}_${idx}`,
+                            registrationNo: `REG-${Date.now().toString().slice(-6)}-${idx + 1}`,
+                            name: m.name,
+                            category: m.category,
+                            club: formData.club || '-'
+                          }))
+                      );
+
+                  return items.map((item: any, idx) => {
+                    const barcodeVal = item.id || item.registrationNo || `REG-${idx + 1}`;
+                    const catLabel = item.category === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (CATEGORY_LABELS[item.category as CategoryType] || item.category);
+                    return (
+                      <div key={idx} className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 flex flex-col items-center justify-between text-center space-y-2">
+                        <div className="w-full text-left border-b border-slate-200/60 pb-1.5 flex justify-between items-center">
+                          <div className="truncate pr-2">
+                            <p className="font-extrabold text-slate-900 text-[11px] truncate uppercase">{item.name}</p>
+                            <p className="text-[8px] font-black text-slate-500 uppercase">{catLabel}</p>
+                          </div>
+                          <span className="text-[8px] font-mono font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded shrink-0">
+                            {item.registrationNo || barcodeVal}
+                          </span>
+                        </div>
+
+                        {/* Barcode & QR Display */}
+                        <div className="flex items-center justify-center gap-3 w-full py-1">
+                          <div className="bg-white p-1 rounded-lg border border-slate-200 shrink-0 shadow-sm">
+                            <QRCodeSVG value={barcodeVal} size={54} level="M" />
+                          </div>
+                          <div className="flex-1 overflow-hidden flex flex-col items-center justify-center">
+                            <Barcode 
+                              value={barcodeVal} 
+                              width={1.2} 
+                              height={34} 
+                              fontSize={9} 
+                              displayValue={true} 
+                            />
+                          </div>
+                        </div>
+
+                        <p className="text-[7.5px] font-bold text-slate-500 uppercase tracking-tight">
+                          Pindai saat daftar ulang di lokasi
+                        </p>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+
+              {/* Instructions Callout */}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-slate-700 text-[10px] space-y-1">
+                <div className="flex items-center gap-1.5 text-amber-900 font-black uppercase text-[10px]">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  PERINTAH PENTING UNTUK PESERTA & OFFICIAL:
+                </div>
+                <p className="leading-relaxed text-slate-600 font-medium">
+                  Harap simpan lembar Invoice ini atau tangkapan layar (screenshot) barcode di atas. Saat tiba di lokasi turnamen, tunjukkan barcode kepada panitia di meja registrasi untuk dipindai (scan) agar status kehadiran Anda langsung <strong>otomatis tercatat HADIR (Check-in)</strong>.
+                </p>
+              </div>
+            </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 relative overflow-hidden">
@@ -1501,329 +1778,47 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
       )}
 
       {showInvoice && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto print:static print:p-0 print:bg-white print:overflow-visible print:block animate-in fade-in duration-300">
-          <style dangerouslySetInnerHTML={{ __html: `
-            @media print {
-              @page {
-                size: A4 portrait;
-                margin: 8mm;
-              }
-              html, body {
-                background: #ffffff !important;
-                color: #000000 !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                height: auto !important;
-                min-height: 100% !important;
-                overflow: visible !important;
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-              }
-              body * {
-                visibility: hidden;
-              }
-              #printable-invoice-container,
-              #printable-invoice-container * {
-                visibility: visible;
-              }
-              #printable-invoice-container {
-                position: absolute !important;
-                left: 0 !important;
-                top: 0 !important;
-                width: 100% !important;
-                max-width: 100% !important;
-                margin: 0 !important;
-                padding: 16px !important;
-                background: #ffffff !important;
-                color: #000000 !important;
-                border: 1px solid #cbd5e1 !important;
-                box-shadow: none !important;
-                max-height: none !important;
-                overflow: visible !important;
-                page-break-inside: avoid !important;
-                break-inside: avoid !important;
-              }
-              .no-print,
-              .no-print * {
-                display: none !important;
-                visibility: hidden !important;
-              }
-            }
-          `}} />
-          <div id="printable-invoice-container" className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl p-6 md:p-8 space-y-6 relative border border-slate-100 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-100 pb-5 gap-4">
-              <div>
-                <h2 className="text-xl font-black font-oswald text-slate-900 italic tracking-wide uppercase">ARCUS ARCHERY</h2>
-                <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">REGISTRATION INVOICE</p>
-              </div>
-              <div className="text-left md:text-right text-xs">
-                <p className="font-extrabold text-slate-800">
-                  No. Invoice: <span className="font-mono text-arcus-red italic">{recentRegistrations[0]?.registrationNo || `INV-${Date.now().toString().slice(-6)}`}</span>
-                </p>
-                <p className="text-[10px] font-bold text-slate-700">
-                  Tanggal: {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-                </p>
-              </div>
-            </div>
+        <>
+          {/* Onscreen Invoice Modal (hidden on print) */}
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto no-print animate-in fade-in duration-300">
+            <div id="printable-invoice-container" className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl p-6 md:p-8 space-y-6 relative border border-slate-100 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+              {renderInvoiceContent()}
 
-            {/* Tournament Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200/50 text-xs">
-              <div className="space-y-1">
-                <p className="text-[8px] font-black text-slate-700 uppercase">Turnamen / Event</p>
-                <p className="font-extrabold text-slate-800 uppercase leading-tight">{event.settings?.tournamentName || 'Turnamen Panahan Arcus'}</p>
+              {/* Action Buttons */}
+              <div className="flex gap-2.5 justify-end border-t border-slate-100 pt-5 no-print">
+                <button 
+                  onClick={() => setShowInvoice(false)} 
+                  className="px-5 py-3 bg-slate-100 text-slate-800 rounded-xl font-bold uppercase text-[10px] hover:bg-slate-200 transition-all"
+                >
+                  Tutup
+                </button>
+                <button 
+                  onClick={() => {
+                    document.body.classList.add('printing-active');
+                    setTimeout(() => window.print(), 80);
+                  }} 
+                  className="px-5 py-3 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] hover:bg-arcus-red transition-all flex items-center gap-2 shadow-lg animate-pulse"
+                >
+                  <Printer className="w-3.5 h-3.5" /> CETAK / SIMPAN BUKTI
+                </button>
               </div>
-              <div className="space-y-1">
-                <p className="text-[8px] font-black text-slate-700 uppercase">Kontak Pembayar</p>
-                <p className="font-extrabold text-slate-800">{formData.name || 'Pendaftar'} ({formData.club || 'Umum'})</p>
-                <p className="text-[10px] font-bold text-slate-800 leading-none">{formData.phone || '-'}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-[8px] font-black text-slate-700 uppercase">Metode Pembayaran</p>
-                <p className="font-extrabold text-slate-800">
-                  {formData.paymentType === 'GATEWAY' ? 'Payment Gateway (Midtrans)' : 'Transfer Bank Manual'}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-[8px] font-black text-slate-700 uppercase">Status Pembayaran</p>
-                {(() => {
-                  const sampleStatus = recentRegistrations[0]?.status || RegistrationStatus.PENDING;
-                  const isPaid = sampleStatus === RegistrationStatus.APPROVED || sampleStatus === 'PAID';
-                  return (
-                    <span className={`inline-block px-2 py-0.5 rounded text-[8px] font-black uppercase ${isPaid ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
-                      {isPaid ? 'LUNAS / DISETUJUI' : 'MENUNGGU VERIFIKASI / PENDING'}
-                    </span>
-                  );
-                })()}
-              </div>
-            </div>
-
-            {/* Items List */}
-            <div className="space-y-3">
-              <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest leading-none">Rincian Komponen Pendaftar</p>
-              <div className="border border-slate-100 rounded-xl overflow-hidden">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-100 font-bold text-slate-700 text-[10px] uppercase">
-                      <th className="p-3">Nama</th>
-                      <th className="p-3">Kategori</th>
-                      <th className="p-3 text-right">Biaya Registrasi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {(() => {
-                      const items = recentRegistrations.length > 0 
-                        ? recentRegistrations 
-                        : (regMode === 'INDIVIDUAL' 
-                            ? [{
-                                id: 'temp_inv',
-                                name: formData.name || 'Pendaftar',
-                                ktaNumber: formData.ktaNumber || undefined,
-                                category: formData.regType === 'OFFICIAL' ? 'OFFICIAL' : formData.category,
-                                club: formData.club || '-',
-                                totalPaid: ((formData.regType === 'OFFICIAL' ? event.settings?.officialFee : event.settings?.categoryConfigs?.[formData.category as CategoryType]?.registrationFee) || 0),
-                                platformFee: [
-                                  CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
-                                  CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
-                                ].includes(formData.category as CategoryType) ? globalSettings.feeKids : globalSettings.feeAdult,
-                                status: formData.paymentType === 'GATEWAY' ? RegistrationStatus.APPROVED : RegistrationStatus.PENDING,
-                                paymentType: formData.paymentType,
-                                timestamp: Date.now()
-                              }]
-                            : collectiveMembers.map((m, idx) => {
-                                const regFee = (m.category === 'OFFICIAL' || m.category === CategoryType.OFFICIAL) 
-                                  ? (event.settings?.officialFee || 0) 
-                                  : (event.settings?.categoryConfigs?.[m.category as CategoryType]?.registrationFee || 0);
-                                const isKids = [
-                                  CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
-                                  CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
-                                ].includes(m.category as CategoryType);
-                                const pFee = isKids ? globalSettings.feeKids : globalSettings.feeAdult;
-                                return {
-                                  id: `temp_inv_${idx}`,
-                                  name: m.name,
-                                  ktaNumber: m.ktaNumber || undefined,
-                                  category: m.category,
-                                  club: formData.club || '-',
-                                  totalPaid: regFee,
-                                  platformFee: pFee,
-                                  status: formData.paymentType === 'GATEWAY' ? RegistrationStatus.APPROVED : RegistrationStatus.PENDING,
-                                  paymentType: formData.paymentType,
-                                  timestamp: Date.now()
-                                };
-                              })
-                          );
-
-                      return items.map((item, idx) => {
-                        return (
-                          <tr key={idx} className="hover:bg-slate-50/50">
-                            <td className="p-3 font-bold text-slate-800">
-                              <div>{item.name}</div>
-                              {(item as any).ktaNumber && (
-                                <div className="text-[8px] font-mono text-blue-700 font-bold mt-0.5">
-                                  KTA: {(item as any).ktaNumber}
-                                </div>
-                              )}
-                            </td>
-                            <td className="p-3 text-slate-700 font-extrabold uppercase text-[9px] tracking-wide">
-                              {item.category === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (CATEGORY_LABELS[item.category as CategoryType] || item.category)}
-                            </td>
-                            <td className="p-3 text-right font-extrabold text-slate-900">Rp {item.totalPaid.toLocaleString()}</td>
-                          </tr>
-                        );
-                      });
-                    })()}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Total Calculation */}
-            <div className="border-t border-dashed border-slate-200 pt-4 flex flex-col items-end text-xs space-y-1">
-              <div className="flex justify-between w-full max-w-xs text-slate-800 font-semibold">
-                <span>Total Biaya Pendaftaran:</span>
-                <span>
-                  Rp {(() => {
-                    if (regMode === 'INDIVIDUAL') {
-                      return ((formData.regType === 'OFFICIAL' ? event.settings?.officialFee : event.settings?.categoryConfigs?.[formData.category as CategoryType]?.registrationFee) || 0).toLocaleString();
-                    } else {
-                      return collectiveMembers.reduce((sum, member) => {
-                        const regFee = (member.category === 'OFFICIAL' || member.category === CategoryType.OFFICIAL) 
-                          ? (event.settings?.officialFee || 0) 
-                          : (event.settings?.categoryConfigs?.[member.category as CategoryType]?.registrationFee || 0);
-                        return sum + regFee;
-                      }, 0).toLocaleString();
-                    }
-                  })()}
-                </span>
-              </div>
-              <div className="flex justify-between w-full max-w-xs border-t border-slate-200 pt-2 text-slate-900 font-black">
-                <span className="uppercase text-[9px] tracking-wide">TOTAL PEMBAYARAN:</span>
-                <span className="text-arcus-red text-sm font-mono italic">
-                  Rp {(() => {
-                    if (regMode === 'INDIVIDUAL') {
-                      return ((formData.regType === 'OFFICIAL' ? event.settings?.officialFee : event.settings?.categoryConfigs?.[formData.category as CategoryType]?.registrationFee) || 0).toLocaleString();
-                    } else {
-                      return collectiveMembers.reduce((sum, member) => {
-                        const regFee = (member.category === 'OFFICIAL' || member.category === CategoryType.OFFICIAL) 
-                          ? (event.settings?.officialFee || 0) 
-                          : (event.settings?.categoryConfigs?.[member.category as CategoryType]?.registrationFee || 0);
-                        return sum + regFee;
-                      }, 0).toLocaleString();
-                    }
-                  })()}
-                </span>
-              </div>
-            </div>
-
-            {/* Barcode & QR Code Section for Daftar Ulang */}
-            <div className="border-t-2 border-dashed border-slate-200 pt-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-black font-oswald text-slate-900 uppercase tracking-wide">
-                    BARCODE DAFTAR ULANG / CHECK-IN RESMI
-                  </h4>
-                  <p className="text-[9px] text-slate-500 font-semibold">
-                    Tunjukkan barcode di bawah ini kepada panitia saat registrasi ulang di lokasi pertandingan.
-                  </p>
-                </div>
-                <span className="px-2.5 py-1 bg-red-100 text-red-700 rounded-full text-[8px] font-black uppercase tracking-wider shrink-0">
-                  WAJIB DISIMPAN
-                </span>
-              </div>
-
-              {/* Grid of participant barcodes */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {(() => {
-                  const items = recentRegistrations.length > 0 
-                    ? recentRegistrations 
-                    : (regMode === 'INDIVIDUAL' 
-                        ? [{
-                            id: recentRegistrations[0]?.id || `reg_${Date.now()}`,
-                            registrationNo: recentRegistrations[0]?.registrationNo || `REG-${Date.now().toString().slice(-6)}`,
-                            name: formData.name || 'Pendaftar',
-                            category: formData.regType === 'OFFICIAL' ? 'OFFICIAL' : formData.category,
-                            club: formData.club || '-'
-                          }]
-                        : collectiveMembers.map((m, idx) => ({
-                            id: `reg_${Date.now()}_${idx}`,
-                            registrationNo: `REG-${Date.now().toString().slice(-6)}-${idx + 1}`,
-                            name: m.name,
-                            category: m.category,
-                            club: formData.club || '-'
-                          }))
-                      );
-
-                  return items.map((item: any, idx) => {
-                    const barcodeVal = item.id || item.registrationNo || `REG-${idx + 1}`;
-                    const catLabel = item.category === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (CATEGORY_LABELS[item.category as CategoryType] || item.category);
-                    return (
-                      <div key={idx} className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 flex flex-col items-center justify-between text-center space-y-2">
-                        <div className="w-full text-left border-b border-slate-200/60 pb-1.5 flex justify-between items-center">
-                          <div className="truncate pr-2">
-                            <p className="font-extrabold text-slate-900 text-[11px] truncate uppercase">{item.name}</p>
-                            <p className="text-[8px] font-black text-slate-500 uppercase">{catLabel}</p>
-                          </div>
-                          <span className="text-[8px] font-mono font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded shrink-0">
-                            {item.registrationNo || barcodeVal}
-                          </span>
-                        </div>
-
-                        {/* Barcode & QR Display */}
-                        <div className="flex items-center justify-center gap-3 w-full py-1">
-                          <div className="bg-white p-1 rounded-lg border border-slate-200 shrink-0 shadow-sm">
-                            <QRCodeSVG value={barcodeVal} size={54} level="M" />
-                          </div>
-                          <div className="flex-1 overflow-hidden flex flex-col items-center justify-center">
-                            <Barcode 
-                              value={barcodeVal} 
-                              width={1.2} 
-                              height={34} 
-                              fontSize={9} 
-                              displayValue={true} 
-                            />
-                          </div>
-                        </div>
-
-                        <p className="text-[7.5px] font-bold text-slate-500 uppercase tracking-tight">
-                          Pindai saat daftar ulang di lokasi
-                        </p>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-
-              {/* Instructions Callout */}
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-slate-700 text-[10px] space-y-1">
-                <div className="flex items-center gap-1.5 text-amber-900 font-black uppercase text-[10px]">
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                  PERINTAH PENTING UNTUK PESERTA & OFFICIAL:
-                </div>
-                <p className="leading-relaxed text-slate-600 font-medium">
-                  Harap simpan lembar Invoice ini atau tangkapan layar (screenshot) barcode di atas. Saat tiba di lokasi turnamen, tunjukkan barcode kepada panitia di meja registrasi untuk dipindai (scan) agar status kehadiran Anda langsung <strong>otomatis tercatat HADIR (Check-in)</strong>.
-                </p>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-2.5 justify-end border-t border-slate-100 pt-5 no-print">
-              <button 
-                onClick={() => setShowInvoice(false)} 
-                className="px-5 py-3 bg-slate-100 text-slate-800 rounded-xl font-bold uppercase text-[10px] hover:bg-slate-200 transition-all"
-              >
-                Tutup
-              </button>
-              <button 
-                onClick={() => window.print()} 
-                className="px-5 py-3 bg-slate-900 text-white rounded-xl font-black uppercase text-[10px] hover:bg-arcus-red transition-all flex items-center gap-2 shadow-lg animate-pulse"
-              >
-                <Printer className="w-3.5 h-3.5" /> CETAK / SIMPAN BUKTI
-              </button>
             </div>
           </div>
-        </div>
+
+          {/* Pure Print Portal in document.body (Only visible on browser print) */}
+          {typeof document !== 'undefined' && createPortal(
+            <div className="print-area-portal">
+              <div className="w-full bg-white flex flex-col items-center justify-start pt-6 px-4">
+                <div className="bg-white rounded-2xl border-2 border-slate-900 w-full max-w-2xl p-6 space-y-6 text-slate-900 shadow-none">
+                  {renderInvoiceContent()}
+                </div>
+              </div>
+            </div>,
+            document.body
+          )}
+        </>
       )}
+
       {/* Payment Error Diagnostic Modal */}
       {paymentErrorDetail && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[150] flex items-center justify-center p-4">

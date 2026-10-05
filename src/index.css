@@ -125,12 +125,25 @@
       background: transparent !important;
     }
 
+    body.printing-active {
+      background: white !important;
+      color: black !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
     body.printing-active #root {
       display: none !important;
     }
 
     body.printing-active .print-area-portal {
       display: block !important;
+      width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: white !important;
     }
 
     /* Certificate Specific Print Rules */
