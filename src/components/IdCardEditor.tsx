@@ -1,11 +1,12 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   ArrowLeft, Printer, Image as ImageIcon, Plus, Trash2, 
   Settings, User, MapPin, Calendar, Layout, Download,
   Type, Move, Maximize, Activity, CreditCard, ShieldCheck, Star, Trophy, Crown, Crosshair, Target,
   Barcode as BarcodeIcon, QrCode, Upload, Eye, EyeOff, Sliders, Palette, Check, Sparkles, RefreshCw, Layers, FileImage, HelpCircle, Scissors
 } from 'lucide-react';
-import { Archer, TournamentSettings, CategoryType } from '../types';
+import { Archer, TournamentSettings, CategoryType, RegistrationStatus } from '../types';
 import { QRCodeSVG } from 'qrcode.react';
 import { Barcode } from './Barcode';
 import { safeFormatDate } from '../lib/dateUtils';
@@ -13,6 +14,7 @@ import { resolveGoogleDriveUrl } from '../lib/photoService';
 
 interface Props {
   archers: Archer[];
+  officials?: (Archer | any)[];
   settings: TournamentSettings;
   onBack: () => void;
 }
@@ -164,7 +166,7 @@ const DEFAULT_CUSTOM_CONFIG: CustomCardConfig = {
   nameFontSize: 'LARGE'
 };
 
-const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
+const IdCardEditor: React.FC<Props> = ({ archers, officials: officialsProp = [], settings, onBack }) => {
   const storageKey = useMemo(() => {
     return `arcus_idcard_config_${settings?.tournamentName ? encodeURIComponent(settings.tournamentName) : 'default'}`;
   }, [settings?.tournamentName]);
@@ -279,8 +281,41 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
     }
   }, [customConfig, storageKey]);
 
-  const participants = useMemo(() => archers.filter(a => a.category !== CategoryType.OFFICIAL), [archers]);
-  const officials = useMemo(() => archers.filter(a => a.category === CategoryType.OFFICIAL), [archers]);
+  const isOfficialItem = (item: any) => {
+    if (!item) return false;
+    const cat = String(item.category || '').toUpperCase().trim();
+    const regType = String(item.regType || '').toUpperCase().trim();
+    return regType === 'OFFICIAL' || cat === 'OFFICIAL' || cat === CategoryType.OFFICIAL || cat.includes('OFISIAL') || cat.includes('OFFICIAL');
+  };
+
+  const participants = useMemo(() => archers.filter(a => !isOfficialItem(a)), [archers]);
+  const officials = useMemo(() => {
+    const fromProps = (officialsProp || []).map(o => ({
+      ...o,
+      category: CategoryType.OFFICIAL
+    }));
+    const fromArchers = archers.filter(a => isOfficialItem(a)).map(o => ({
+      ...o,
+      category: CategoryType.OFFICIAL
+    }));
+    const combined = [...fromProps, ...fromArchers];
+    return Array.from(new Map(combined.map(item => [item.id || item.name, item])).values());
+  }, [officialsProp, archers]);
+
+  const sampleOfficial: Archer = useMemo(() => ({
+    id: 'sample_official_preview',
+    name: 'OFFICIAL KONTINGEN',
+    club: settings?.location ? `TIM ${settings.location.toUpperCase()}` : 'OFFICIAL RESMI',
+    category: CategoryType.OFFICIAL,
+    gender: 'MALE',
+    targetNo: 0,
+    position: '',
+    wave: 1,
+    pin: '0000',
+    email: 'official@arcus.id',
+    status: RegistrationStatus.CONFIRMED,
+    registrationNo: 'OFF-001'
+  }), [settings?.location]);
 
   const handleAthleteBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -339,12 +374,29 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
     setLogos(logos.filter(l => l.id !== id));
   };
 
+  useEffect(() => {
+    const handleBeforePrint = () => {
+      document.body.classList.add('printing-active');
+    };
+    const handleAfterPrint = () => {
+      document.body.classList.remove('printing-active');
+    };
+
+    window.addEventListener('beforeprint', handleBeforePrint);
+    window.addEventListener('afterprint', handleAfterPrint);
+
+    return () => {
+      window.removeEventListener('beforeprint', handleBeforePrint);
+      window.removeEventListener('afterprint', handleAfterPrint);
+      document.body.classList.remove('printing-active');
+    };
+  }, []);
+
   const handlePrint = () => {
-    setShowEditor(false);
+    document.body.classList.add('printing-active');
     setTimeout(() => {
       window.print();
-      setShowEditor(true);
-    }, 500);
+    }, 80);
   };
 
   const getPatternStyles = (pattern: BgPattern, color: string) => {
@@ -938,10 +990,10 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 no-print">
       {/* Editor UI - Hidden on Print */}
       {showEditor && (
-        <div className="p-4 md:p-8 space-y-8 animate-in fade-in duration-500 print:hidden">
+        <div className="p-4 md:p-8 space-y-8 animate-in fade-in duration-500">
           {/* Top Bar Navigation */}
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-4">
@@ -975,7 +1027,7 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
                   className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 ${viewMode === 'FULL_PREVIEW' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-700 hover:text-slate-600'}`}
                 >
                   <CreditCard className="w-3.5 h-3.5" />
-                  Preview Semua ({archers.length})
+                  Preview Semua ({participants.length + officials.length})
                 </button>
               </div>
 
@@ -1010,7 +1062,7 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
                 className="bg-arcus-red text-white px-7 py-3.5 rounded-2xl font-black uppercase text-[10px] tracking-widest flex items-center gap-2 shadow-xl shadow-red-600/20 active:scale-95 transition-all hover:bg-red-700"
               >
                 <Printer className="w-4 h-4" />
-                Cetak {archers.length} Kartu
+                Cetak {participants.length + officials.length} Kartu
               </button>
             </div>
           </div>
@@ -1701,18 +1753,22 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
                             <ShieldCheck className="w-4 h-4 text-blue-600" />
                             <span className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-700">Kartu Official</span>
                          </div>
-                         <span className="text-[9px] font-bold text-slate-700 uppercase">{officials.length} Ofisial</span>
+                         <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${officials.length > 0 ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                           {officials.length > 0 ? `${officials.length} Ofisial` : 'Contoh Desain'}
+                         </span>
                       </div>
 
-                      <div className="max-w-xs mx-auto">
-                         {officials[0] ? renderCard(officials[0], true) : (
-                            <div 
-                              className="w-full bg-slate-100 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-700 p-10 text-center"
-                              style={{ aspectRatio: sizeConfig.aspectRatio }}
-                            >
-                               <ShieldCheck className="w-12 h-12 mb-4 opacity-20" />
-                               <span className="text-[10px] font-black uppercase tracking-widest">Belum Ada Data Official</span>
-                            </div>
+                      <div className="max-w-xs mx-auto space-y-3">
+                         {renderCard(officials[0] || sampleOfficial, true)}
+                         {officials.length === 0 && (
+                           <div className="p-3 bg-amber-50/80 rounded-2xl border border-amber-200/80 text-center">
+                             <p className="text-[10px] font-bold text-amber-900 leading-tight">
+                               ℹ️ Menampilkan contoh kartu ofisial.
+                             </p>
+                             <p className="text-[9px] text-amber-700 mt-1">
+                               Belum ada ofisial terdaftar di event ini. Data ofisial akan muncul otomatis saat ditambahkan di menu <b>Official &amp; Wasit</b> atau pendaftaran online.
+                             </p>
+                           </div>
                          )}
                       </div>
                    </div>
@@ -1731,13 +1787,13 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
                      </span>
                    </div>
                    <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest mt-1">
-                     Reviewing {archers.length} generated identifiers • {sizeConfig.pouchName}
+                     Reviewing {participants.length + officials.length} generated identifiers • {sizeConfig.pouchName}
                    </p>
                  </div>
                  <div className="flex items-center gap-6">
                     <div className="flex flex-col items-end">
                        <span className="text-[10px] font-black text-slate-700 uppercase">Perkiraan Kertas</span>
-                       <span className="text-xl font-black text-slate-900">{Math.ceil(archers.length / sizeConfig.cardsPerPage)} × Lembar A4</span>
+                       <span className="text-xl font-black text-slate-900">{Math.ceil((participants.length + officials.length) / sizeConfig.cardsPerPage)} × Lembar A4</span>
                     </div>
                  </div>
               </div>
@@ -1759,7 +1815,7 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
                    </div>
                  )}
 
-                 {officials.length > 0 && (
+                 {officials.length > 0 ? (
                    <div className="space-y-6 pt-12 border-t border-slate-100">
                       <div className="flex items-center gap-3 border-l-4 border-blue-600 pl-4">
                          <span className="font-black font-oswald uppercase italic text-slate-900 text-xl">Daftar Official</span>
@@ -1773,6 +1829,20 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
                          ))}
                       </div>
                    </div>
+                 ) : (
+                   <div className="space-y-6 pt-12 border-t border-slate-100">
+                      <div className="flex items-center gap-3 border-l-4 border-slate-300 pl-4">
+                         <span className="font-black font-oswald uppercase italic text-slate-400 text-xl">Daftar Official</span>
+                         <span className="px-3 py-1 bg-slate-100 text-slate-500 text-[10px] font-black rounded-full uppercase italic">0</span>
+                      </div>
+                      <div className="p-8 bg-slate-50 rounded-3xl border border-dashed border-slate-200 text-center max-w-lg mx-auto">
+                        <ShieldCheck className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                        <p className="text-xs font-bold text-slate-700">Belum ada official terdaftar di turnamen ini.</p>
+                        <p className="text-[10px] text-slate-500 mt-1">
+                          Tambahkan official melalui menu Admin &gt; Official &amp; Wasit atau melalui formulir pendaftaran online agar kartu official tergenerate otomatis.
+                        </p>
+                      </div>
+                   </div>
                  )}
               </div>
             </div>
@@ -1780,41 +1850,37 @@ const IdCardEditor: React.FC<Props> = ({ archers, settings, onBack }) => {
         </div>
       )}
 
-      {/* Actual Printable Layout for Standard Browser Print */}
-      <div className={`${showEditor ? 'hidden' : 'block'} bg-white`}>
-        {/* Participants Group */}
-        {participants.length > 0 && (
-           <div className="mb-12">
-             <div className="grid grid-cols-2 gap-4 p-4">
-               {participants.map(archer => renderCard(archer, false))}
-             </div>
-           </div>
-        )}
+      {/* 2. PURE PRINT PORTAL: Attached directly to document.body, isolated from #root */}
+      {typeof document !== 'undefined' && createPortal(
+        <div className="print-area-portal">
+          <div className="w-full bg-white p-2">
+            {/* Participants Group */}
+            {participants.length > 0 && (
+              <div className="id-card-print-group mb-8">
+                <div className="grid grid-cols-2 gap-4 p-2">
+                  {participants.map(archer => renderCard(archer, false))}
+                </div>
+              </div>
+            )}
 
-        {/* Officials Group */}
-        {officials.length > 0 && (
-           <div className="page-break-before">
-             <div className="grid grid-cols-2 gap-4 p-4">
-               {officials.map(official => renderCard(official, true))}
-             </div>
-           </div>
-        )}
-      </div>
+            {/* Officials Group */}
+            {officials.length > 0 && (
+              <div className="id-card-print-group page-break-before">
+                <div className="grid grid-cols-2 gap-4 p-2">
+                  {officials.map(official => renderCard(official, true))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
 
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page {
             size: A4;
             margin: 0.5cm;
-          }
-          body {
-            background: white !important;
-          }
-          .page-break-before {
-             page-break-before: always;
-          }
-          .animate-in {
-            animation: none !important;
           }
           .id-card-item {
              width: ${sizeConfig.printWidthCm}cm !important;

@@ -2007,12 +2007,20 @@ export default function App() {
 
   const activeEventOfficials = useMemo(() => {
     if (!activeEvent) return [];
-    const fromArchers = (activeEvent.archers || []).filter(a => a.category === CategoryType.OFFICIAL);
+    const isOfficialCat = (cat: any) => {
+      if (!cat) return false;
+      const s = String(cat).toUpperCase().trim();
+      return s === 'OFFICIAL' || s === CategoryType.OFFICIAL || s.includes('OFISIAL') || s.includes('OFFICIAL');
+    };
+    const fromArchers = (activeEvent.archers || []).filter(a => isOfficialCat(a.category));
     const fromOfficials = activeEvent.officials || [];
     const fromRegs = (activeEvent.registrations || [])
-      .filter((r: any) => r.regType === 'OFFICIAL' || r.category === CategoryType.OFFICIAL);
+      .filter((r: any) => r.regType === 'OFFICIAL' || isOfficialCat(r.category));
     const combined = [...fromArchers, ...fromOfficials, ...fromRegs];
-    return Array.from(new Map(combined.map(item => [item.id, item])).values());
+    return Array.from(new Map(combined.map(item => [item.id || item.name, item])).values()).map(o => ({
+      ...o,
+      category: CategoryType.OFFICIAL
+    }));
   }, [activeEvent]);
 
   // Main UI Router
@@ -2502,6 +2510,7 @@ export default function App() {
         if (!activeEvent) return renderEventNotFoundOrLoading();
         return <IdCardEditor 
           archers={activeEventArchers}
+          officials={activeEventOfficials}
           settings={activeEvent.settings}
           onBack={() => setView('EVENT_ADMIN')}
         />;

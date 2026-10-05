@@ -172,6 +172,16 @@
       break-after: avoid !important;
     }
 
+    .page-break-before {
+      page-break-before: always !important;
+      break-before: page !important;
+    }
+
+    .id-card-print-group {
+      width: 100% !important;
+      box-sizing: border-box !important;
+    }
+
     /* Certificate Specific Print Rules */
     body.printing-certificate-active #root {
       display: none !important;
