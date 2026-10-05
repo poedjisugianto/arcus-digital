@@ -146,6 +146,32 @@
       background: white !important;
     }
 
+    .scoresheets-print-wrapper {
+      width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      background: white !important;
+    }
+
+    .scoresheet-print-page {
+      page-break-after: always !important;
+      break-after: page !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+      width: 100% !important;
+      box-sizing: border-box !important;
+      margin: 0 !important;
+      padding: 4mm !important;
+      border: 2px solid #000 !important;
+      background: white !important;
+      color: black !important;
+    }
+
+    .scoresheet-print-page:last-child {
+      page-break-after: avoid !important;
+      break-after: avoid !important;
+    }
+
     /* Certificate Specific Print Rules */
     body.printing-certificate-active #root {
       display: none !important;

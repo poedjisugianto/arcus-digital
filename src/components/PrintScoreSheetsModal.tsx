@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   X, Printer, Target, Trophy, Filter, Users, 
   CheckCircle2, AlertCircle, FileText, Download, ShieldCheck,
@@ -260,258 +261,49 @@ export const PrintScoreSheetsModal: React.FC<Props> = ({
     });
   }, [sheetType, blankCount, filteredArchers, selectedCategory, formatMode, customEnds, customArrows, targetTypeMode, event.settings?.categoryConfigs, categories]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleBeforePrint = () => {
+      document.body.classList.add('printing-active');
+    };
+    const handleAfterPrint = () => {
+      document.body.classList.remove('printing-active');
+    };
+
+    window.addEventListener('beforeprint', handleBeforePrint);
+    window.addEventListener('afterprint', handleAfterPrint);
+
+    return () => {
+      window.removeEventListener('beforeprint', handleBeforePrint);
+      window.removeEventListener('afterprint', handleAfterPrint);
+      document.body.classList.remove('printing-active');
+    };
+  }, [isOpen]);
+
   const handlePrint = () => {
-    window.print();
+    document.body.classList.add('printing-active');
+    setTimeout(() => {
+      window.print();
+    }, 80);
   };
 
-  return (
-    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto print:static print:p-0 print:bg-white print:overflow-visible print:block animate-in fade-in duration-300">
-      <style dangerouslySetInnerHTML={{ __html: `
-        @media print {
-          @page {
-            size: A4 portrait;
-            margin: 6mm 6mm 6mm 6mm;
-          }
-          html, body {
-            background: white !important;
-            color: black !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            height: auto !important;
-            min-height: 100% !important;
-            overflow: visible !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          body * {
-            visibility: hidden;
-          }
-          #printable-scoresheets-container,
-          #printable-scoresheets-container * {
-            visibility: visible;
-          }
-          #printable-scoresheets-container {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            background: white !important;
-            color: black !important;
-          }
-          .scoresheet-page {
-            page-break-after: always;
-            break-after: page;
-            padding: 4mm !important;
-            border: 2px solid #000 !important;
-            margin-bottom: 0 !important;
-            background: white !important;
-            color: black !important;
-            box-shadow: none !important;
-          }
-          .scoresheet-page:last-child {
-            page-break-after: avoid;
-            break-after: avoid;
-          }
-          .no-print,
-          .no-print * {
-            display: none !important;
-            visibility: hidden !important;
-          }
+  const renderSingleScoreSheet = (sheet: any, index: number, isPrint = false) => {
+    const catConfig = getCategoryConfig(sheet.rawCategory || sheet.category);
+    const scoringInfo = targetTypeMode !== 'AUTO'
+      ? getTargetScoringInfo(sheet.targetType)
+      : getTargetScoringInfo(sheet.targetType, catConfig);
+
+    return (
+      <div 
+        key={sheet.id || index}
+        className={
+          isPrint
+            ? "scoresheet-print-page bg-white text-slate-950 p-4 border-2 border-slate-900 space-y-3 font-sans rounded-none shadow-none"
+            : "scoresheet-page bg-white text-slate-950 p-4 sm:p-5 rounded-2xl shadow-xl border-2 border-slate-900 space-y-3 font-sans"
         }
-      `}} />
-
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-6xl text-white shadow-2xl overflow-hidden flex flex-col max-h-[95vh] my-auto">
-        
-        {/* Modal Top Control Bar */}
-        <div className="p-4 sm:p-5 border-b border-slate-800 flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-slate-950/70 no-print">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-red-600/20 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
-              <FileText className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base sm:text-lg font-black font-oswald uppercase tracking-wide italic">
-                Cetak Lembar Skor Resmi (Score Sheet)
-              </h3>
-              <p className="text-[10px] text-slate-400">
-                Format Standar World Archery / INORGA • Dilengkapi Barcode & QR Scanner Lapangan
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={handlePrint}
-              className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black text-xs uppercase flex items-center gap-2 shadow-lg shadow-red-600/25 transition-all active:scale-95"
-            >
-              <Printer className="w-4 h-4" /> Cetak Lembar Skor ({sheetsToRender.length})
-            </button>
-            <button
-              onClick={onClose}
-              className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-all"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-
-        {/* Filter & Customization Toolbar */}
-        <div className="p-4 bg-slate-850 border-b border-slate-800/80 flex flex-wrap items-center gap-3 text-xs no-print">
-          {/* Sheet Mode */}
-          <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-750">
-            <button
-              onClick={() => setSheetType('REGISTERED')}
-              className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${sheetType === 'REGISTERED' ? 'bg-red-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-            >
-              Terisi Nama Peserta & Bantalan ({filteredArchers.length})
-            </button>
-            <button
-              onClick={() => setSheetType('BLANK')}
-              className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${sheetType === 'BLANK' ? 'bg-red-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
-            >
-              Blanko Kosong
-            </button>
-          </div>
-
-          {/* Category Filter if REGISTERED */}
-          {sheetType === 'REGISTERED' && (
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase text-slate-400">Kategori:</span>
-              <select
-                value={selectedCategory}
-                onChange={e => setSelectedCategory(e.target.value as any)}
-                className="bg-slate-900 border border-slate-750 text-white rounded-xl px-3 py-1.5 font-bold text-xs outline-none focus:border-red-500"
-              >
-                <option value="ALL">Semua Kategori ({event.archers?.length || 0})</option>
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>
-                    {CATEGORY_LABELS[cat] || cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Blank count if BLANK */}
-          {sheetType === 'BLANK' && (
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-black uppercase text-slate-400">Jumlah Lembar:</span>
-              <input
-                type="number"
-                min={1}
-                max={50}
-                value={blankCount}
-                onChange={e => setBlankCount(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-16 bg-slate-900 border border-slate-750 text-white rounded-xl px-3 py-1.5 font-bold text-xs text-center outline-none focus:border-red-500"
-              >
-              </input>
-            </div>
-          )}
-
-          {/* Ends & Arrows Config */}
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase text-slate-400">Format Rambahan:</span>
-            <select
-              value={formatMode}
-              onChange={e => setFormatMode(e.target.value as any)}
-              className="bg-slate-900 border border-slate-750 text-white rounded-xl px-3 py-1.5 font-bold text-xs outline-none focus:border-red-500"
-            >
-              <option value="AUTO">
-                {selectedCategory !== 'ALL'
-                  ? `🎯 Sesuai Kategori (${getEffectiveFormat(selectedCategory).ends} Rambahan × ${getEffectiveFormat(selectedCategory).arrows} Panah)`
-                  : '🎯 Otomatis Sesuai Kategori Admin'}
-              </option>
-              <option value="6x6">Manual: 6 Rambahan × 6 Panah (Total 36)</option>
-              <option value="10x3">Manual: 10 Rambahan × 3 Panah (Total 30)</option>
-              <option value="6x3">Manual: 6 Rambahan × 3 Panah (Total 18)</option>
-              <option value="5x3">Manual: 5 Rambahan × 3 Panah (Aduan / 15)</option>
-              <option value="CUSTOM">Manual: Custom (Tentukan Sendiri)...</option>
-            </select>
-
-            {formatMode === 'CUSTOM' && (
-              <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-750">
-                <span className="text-[9px] font-bold text-slate-400 pl-1">Rambahan:</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={24}
-                  value={customEnds}
-                  onChange={e => setCustomEnds(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-12 bg-slate-950 border border-slate-700 text-white rounded-lg px-2 py-1 text-center font-bold text-xs"
-                />
-                <span className="text-[9px] font-bold text-slate-400">Panah:</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={12}
-                  value={customArrows}
-                  onChange={e => setCustomArrows(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-12 bg-slate-950 border border-slate-700 text-white rounded-lg px-2 py-1 text-center font-bold text-xs"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Target Face / Point Tertinggi Selector */}
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase text-slate-400">Kolom Poin Tertinggi:</span>
-            <select
-              value={targetTypeMode}
-              onChange={e => setTargetTypeMode(e.target.value)}
-              className="bg-slate-900 border border-slate-750 text-white rounded-xl px-3 py-1.5 font-bold text-xs outline-none focus:border-red-500"
-            >
-              <option value="AUTO">🎯 Otomatis (Sesuai Settingan Kategori Admin)</option>
-              <option value={TargetType.STANDARD}>Standard 10-Zone (Point 10 &amp; X)</option>
-              <option value={TargetType.TRADITIONAL_6_RING}>Traditional 6-Ring (Point 6 &amp; 5)</option>
-              <option value={TargetType.FACE_5_RING}>Face 5-Ring U9/U12 (Point 5 &amp; 4)</option>
-              <option value={TargetType.PUTA}>Puta Turkey (Point 2 &amp; 1)</option>
-              <option value={TargetType.FACE_MEGA_MENDUNG}>Face Mega Mendung (Point 10 &amp; 9)</option>
-            </select>
-          </div>
-
-          {/* Barcode & QR Options */}
-          <div className="flex items-center gap-2 ml-auto">
-            <label className="flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-750 cursor-pointer hover:border-slate-600 transition-all select-none">
-              <input 
-                type="checkbox" 
-                checked={showBarcode} 
-                onChange={e => setShowBarcode(e.target.checked)}
-                className="accent-red-600 w-4 h-4 rounded"
-              />
-              <span className="text-[11px] font-bold text-white flex items-center gap-1.5">
-                <QrCode className="w-3.5 h-3.5 text-red-400" />
-                Barcode / QR Scorer
-              </span>
-            </label>
-
-            {showBarcode && (
-              <select
-                value={barcodeStyle}
-                onChange={e => setBarcodeStyle(e.target.value as any)}
-                className="bg-slate-900 border border-slate-750 text-white rounded-xl px-2.5 py-1.5 font-bold text-xs outline-none focus:border-red-500"
-              >
-                <option value="QR">QR Code (Kamera HP)</option>
-                <option value="BARCODE">Barcode Garis 1D</option>
-                <option value="BOTH">QR + Barcode</option>
-              </select>
-            )}
-          </div>
-        </div>
-
-        {/* Preview Container */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-slate-950/40">
-          <div id="printable-scoresheets-container" className="space-y-6 max-w-3xl mx-auto">
-            {sheetsToRender.map((sheet, index) => {
-              const catConfig = getCategoryConfig(sheet.rawCategory || sheet.category);
-              const scoringInfo = targetTypeMode !== 'AUTO'
-                ? getTargetScoringInfo(sheet.targetType)
-                : getTargetScoringInfo(sheet.targetType, catConfig);
-
-              return (
-                <div 
-                  key={sheet.id || index}
-                  className="scoresheet-page bg-white text-slate-950 p-4 sm:p-5 rounded-2xl shadow-xl border-2 border-slate-900 space-y-3 font-sans"
-                >
-                  {/* OFFICIAL MULTI-LOGO KOP DOKUMEN */}
+      >
+        {/* OFFICIAL MULTI-LOGO KOP DOKUMEN */}
                   <div className="flex justify-between items-center border-b-2 border-slate-900 pb-2.5 gap-3">
                     {/* Left Logos: Event Logo + Club Logo */}
                     <div className="flex items-center gap-2 max-w-[140px] shrink-0">
@@ -764,14 +556,210 @@ export const PrintScoreSheetsModal: React.FC<Props> = ({
                     <span>* Setiap koreksi angka skor WAJIB diparaf oleh Wasit (Judge). Scan barcode di pojok atas untuk penginputan cepat.</span>
                     <span>ARCUS Archery Tournament System</span>
                   </div>
-                </div>
-              );
-            })}
+      </div>
+    );
+  };
+
+  return (
+    <>
+      {/* 1. ONSCREEN MODAL VIEW (Hidden during print) */}
+      <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 z-50 overflow-y-auto no-print animate-in fade-in duration-300">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-6xl text-white shadow-2xl overflow-hidden flex flex-col max-h-[95vh] my-auto">
+          {/* Modal Top Control Bar */}
+        <div className="p-4 sm:p-5 border-b border-slate-800 flex flex-col sm:flex-row justify-between sm:items-center gap-4 bg-slate-950/70 no-print">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-red-600/20 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base sm:text-lg font-black font-oswald uppercase tracking-wide italic">
+                Cetak Lembar Skor Resmi (Score Sheet)
+              </h3>
+              <p className="text-[10px] text-slate-400">
+                Format Standar World Archery / INORGA • Dilengkapi Barcode & QR Scanner Lapangan
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handlePrint}
+              className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black text-xs uppercase flex items-center gap-2 shadow-lg shadow-red-600/25 transition-all active:scale-95"
+            >
+              <Printer className="w-4 h-4" /> Cetak Lembar Skor ({sheetsToRender.length})
+            </button>
+            <button
+              onClick={onClose}
+              className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Filter & Customization Toolbar */}
+        <div className="p-4 bg-slate-850 border-b border-slate-800/80 flex flex-wrap items-center gap-3 text-xs no-print">
+          {/* Sheet Mode */}
+          <div className="flex items-center bg-slate-900 p-1 rounded-xl border border-slate-750">
+            <button
+              onClick={() => setSheetType('REGISTERED')}
+              className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${sheetType === 'REGISTERED' ? 'bg-red-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+            >
+              Terisi Nama Peserta & Bantalan ({filteredArchers.length})
+            </button>
+            <button
+              onClick={() => setSheetType('BLANK')}
+              className={`px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${sheetType === 'BLANK' ? 'bg-red-600 text-white shadow-sm' : 'text-slate-400 hover:text-white'}`}
+            >
+              Blanko Kosong
+            </button>
+          </div>
+
+          {/* Category Filter if REGISTERED */}
+          {sheetType === 'REGISTERED' && (
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase text-slate-400">Kategori:</span>
+              <select
+                value={selectedCategory}
+                onChange={e => setSelectedCategory(e.target.value as any)}
+                className="bg-slate-900 border border-slate-750 text-white rounded-xl px-3 py-1.5 font-bold text-xs outline-none focus:border-red-500"
+              >
+                <option value="ALL">Semua Kategori ({event.archers?.length || 0})</option>
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>
+                    {CATEGORY_LABELS[cat] || cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Blank count if BLANK */}
+          {sheetType === 'BLANK' && (
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase text-slate-400">Jumlah Lembar:</span>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={blankCount}
+                onChange={e => setBlankCount(Math.max(1, parseInt(e.target.value) || 1))}
+                className="w-16 bg-slate-900 border border-slate-750 text-white rounded-xl px-3 py-1.5 font-bold text-xs text-center outline-none focus:border-red-500"
+              >
+              </input>
+            </div>
+          )}
+
+          {/* Ends & Arrows Config */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase text-slate-400">Format Rambahan:</span>
+            <select
+              value={formatMode}
+              onChange={e => setFormatMode(e.target.value as any)}
+              className="bg-slate-900 border border-slate-750 text-white rounded-xl px-3 py-1.5 font-bold text-xs outline-none focus:border-red-500"
+            >
+              <option value="AUTO">
+                {selectedCategory !== 'ALL'
+                  ? `🎯 Sesuai Kategori (${getEffectiveFormat(selectedCategory).ends} Rambahan × ${getEffectiveFormat(selectedCategory).arrows} Panah)`
+                  : '🎯 Otomatis Sesuai Kategori Admin'}
+              </option>
+              <option value="6x6">Manual: 6 Rambahan × 6 Panah (Total 36)</option>
+              <option value="10x3">Manual: 10 Rambahan × 3 Panah (Total 30)</option>
+              <option value="6x3">Manual: 6 Rambahan × 3 Panah (Total 18)</option>
+              <option value="5x3">Manual: 5 Rambahan × 3 Panah (Aduan / 15)</option>
+              <option value="CUSTOM">Manual: Custom (Tentukan Sendiri)...</option>
+            </select>
+
+            {formatMode === 'CUSTOM' && (
+              <div className="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-750">
+                <span className="text-[9px] font-bold text-slate-400 pl-1">Rambahan:</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={24}
+                  value={customEnds}
+                  onChange={e => setCustomEnds(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-12 bg-slate-950 border border-slate-700 text-white rounded-lg px-2 py-1 text-center font-bold text-xs"
+                />
+                <span className="text-[9px] font-bold text-slate-400">Panah:</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={customArrows}
+                  onChange={e => setCustomArrows(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-12 bg-slate-950 border border-slate-700 text-white rounded-lg px-2 py-1 text-center font-bold text-xs"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Target Face / Point Tertinggi Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-black uppercase text-slate-400">Kolom Poin Tertinggi:</span>
+            <select
+              value={targetTypeMode}
+              onChange={e => setTargetTypeMode(e.target.value)}
+              className="bg-slate-900 border border-slate-750 text-white rounded-xl px-3 py-1.5 font-bold text-xs outline-none focus:border-red-500"
+            >
+              <option value="AUTO">🎯 Otomatis (Sesuai Settingan Kategori Admin)</option>
+              <option value={TargetType.STANDARD}>Standard 10-Zone (Point 10 &amp; X)</option>
+              <option value={TargetType.TRADITIONAL_6_RING}>Traditional 6-Ring (Point 6 &amp; 5)</option>
+              <option value={TargetType.FACE_5_RING}>Face 5-Ring U9/U12 (Point 5 &amp; 4)</option>
+              <option value={TargetType.PUTA}>Puta Turkey (Point 2 &amp; 1)</option>
+              <option value={TargetType.FACE_MEGA_MENDUNG}>Face Mega Mendung (Point 10 &amp; 9)</option>
+            </select>
+          </div>
+
+          {/* Barcode & QR Options */}
+          <div className="flex items-center gap-2 ml-auto">
+            <label className="flex items-center gap-2 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-750 cursor-pointer hover:border-slate-600 transition-all select-none">
+              <input 
+                type="checkbox" 
+                checked={showBarcode} 
+                onChange={e => setShowBarcode(e.target.checked)}
+                className="accent-red-600 w-4 h-4 rounded"
+              />
+              <span className="text-[11px] font-bold text-white flex items-center gap-1.5">
+                <QrCode className="w-3.5 h-3.5 text-red-400" />
+                Barcode / QR Scorer
+              </span>
+            </label>
+
+            {showBarcode && (
+              <select
+                value={barcodeStyle}
+                onChange={e => setBarcodeStyle(e.target.value as any)}
+                className="bg-slate-900 border border-slate-750 text-white rounded-xl px-2.5 py-1.5 font-bold text-xs outline-none focus:border-red-500"
+              >
+                <option value="QR">QR Code (Kamera HP)</option>
+                <option value="BARCODE">Barcode Garis 1D</option>
+                <option value="BOTH">QR + Barcode</option>
+              </select>
+            )}
+          </div>
+        </div>
+
+        {/* Preview Container */}
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-slate-950/40">
+          <div id="printable-scoresheets-container" className="space-y-6 max-w-3xl mx-auto">
+            {sheetsToRender.map((sheet, index) => renderSingleScoreSheet(sheet, index, false))}
           </div>
         </div>
 
       </div>
     </div>
+
+      {/* 2. PURE PRINT PORTAL: Attached directly to document.body, isolated from #root */}
+      {typeof document !== 'undefined' && createPortal(
+        <div className="print-area-portal">
+          <div className="w-full bg-white scoresheets-print-wrapper">
+            {sheetsToRender.map((sheet, index) => renderSingleScoreSheet(sheet, index, true))}
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   );
 };
 
