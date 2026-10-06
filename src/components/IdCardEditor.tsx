@@ -48,6 +48,7 @@ interface Logo {
 type BgPattern = 'CLEAN' | 'SPORTY_MESH' | 'DIAGONAL_SPEED' | 'DYNAMIC_WAVES' | 'CARBON' | 'HERITAGE_PAPER' | 'BAMBOO_WEAVE' | 'ETHNIC_MODERN' | 'SPORTY_BURST';
 type CardTheme = 'SPORTY_MODERN' | 'TRADITIONAL_LEGACY' | 'STEALTH_ELITE' | 'ASYMETRIC_PRO' | 'GLORY_ULTIMATE' | 'CHAMPION_ELITE' | 'PRO_ARCHER_X';
 type DesignMode = 'TEMPLATE' | 'CUSTOM_UPLOAD';
+export type NameAccentStyle = 'BADGE_PLATE' | 'ACCENT_BORDER' | 'RIBBON_BANNER' | 'MINIMAL_GLOW' | 'NONE';
 
 export type IdCardSize = 'B1' | 'B2' | 'B3' | 'B4';
 
@@ -239,6 +240,69 @@ const IdCardEditor: React.FC<Props> = ({ archers, officials: officialsProp = [],
     }
     return list;
   });
+
+  // Logo gap/spacing state (in pixels) - default 0px (tidak ada jarak antar logo)
+  const [logoGap, setLogoGap] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('arcus_id_card_logo_gap');
+      return saved !== null ? Math.max(0, parseInt(saved, 10)) : 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('arcus_id_card_logo_gap', logoGap.toString());
+    } catch {}
+  }, [logoGap]);
+
+  // Font color customization states (Primary: Title & Name, Secondary: Club & Info)
+  const [fontColor, setFontColor] = useState<string>(() => {
+    try {
+      return localStorage.getItem('arcus_id_card_font_color') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const [fontSecondaryColor, setFontSecondaryColor] = useState<string>(() => {
+    try {
+      return localStorage.getItem('arcus_id_card_font_sub_color') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('arcus_id_card_font_color', fontColor);
+    } catch {}
+  }, [fontColor]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('arcus_id_card_font_sub_color', fontSecondaryColor);
+    } catch {}
+  }, [fontSecondaryColor]);
+
+  // Name accent style for high legibility
+  const [nameAccentStyle, setNameAccentStyle] = useState<NameAccentStyle>(() => {
+    try {
+      const saved = localStorage.getItem('arcus_id_card_name_accent_style');
+      if (saved && ['BADGE_PLATE', 'ACCENT_BORDER', 'RIBBON_BANNER', 'MINIMAL_GLOW', 'NONE'].includes(saved)) {
+        return saved as NameAccentStyle;
+      }
+    } catch {}
+    return 'BADGE_PLATE'; // default active so it's immediately easy to read!
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('arcus_id_card_name_accent_style', nameAccentStyle);
+    } catch {}
+  }, [nameAccentStyle]);
+
   const [cardTitle, setCardTitle] = useState(settings?.tournamentName || 'KARTU PESERTA');
   const [cardSubtitle, setCardSubtitle] = useState(settings?.location || 'ARCUS ARCHERY TOURNAMENT');
   const [cardDate, setCardDate] = useState(safeFormatDate(settings?.eventDate, { day: 'numeric', month: 'long', year: 'numeric' }));
@@ -544,14 +608,14 @@ const IdCardEditor: React.FC<Props> = ({ archers, officials: officialsProp = [],
         {/* Optional Header Banner */}
         {customConfig.showHeader && (
           <div className="p-4 flex items-center justify-between relative z-10 bg-black/20 backdrop-blur-xs">
-            <div className="flex -space-x-2">
+            <div className="flex items-center flex-wrap" style={{ gap: `${logoGap}px` }}>
               {logos.map(logo => (
                 <img 
                   key={logo.id} 
                   src={logo.url} 
                   alt="" 
                   style={{ maxHeight: logo.size / 2, width: 'auto' }}
-                  className="object-contain ring-2 ring-white rounded-lg bg-white shadow-lg"
+                  className="object-contain rounded-lg bg-white/95 shadow-sm p-0.5 border border-white/40 shrink-0"
                 />
               ))}
               {logos.length === 0 && <span className="text-[10px] font-black uppercase tracking-widest text-white/70">{cardTitle}</span>}
@@ -582,18 +646,67 @@ const IdCardEditor: React.FC<Props> = ({ archers, officials: officialsProp = [],
             </div>
           )}
 
-          {/* Name & Club Area */}
-          <div className="space-y-1 w-full mb-4">
+          {/* Name & Club Area with Legibility Accent */}
+          <div className={`w-full mb-4 transition-all ${
+            nameAccentStyle === 'BADGE_PLATE'
+              ? (customConfig.textColorMode === 'LIGHT'
+                  ? 'py-2.5 px-3 rounded-2xl bg-black/60 backdrop-blur-md border border-white/20 shadow-lg relative ring-1 ring-white/10'
+                  : 'py-2.5 px-3 rounded-2xl bg-white/92 backdrop-blur-md border border-slate-200/90 shadow-md relative ring-1 ring-black/5')
+              : nameAccentStyle === 'ACCENT_BORDER'
+              ? 'py-1.5 px-2 relative'
+              : nameAccentStyle === 'RIBBON_BANNER'
+              ? 'py-2 px-3 rounded-xl border relative shadow-md overflow-hidden'
+              : 'space-y-1'
+          }`}
+          style={
+            nameAccentStyle === 'RIBBON_BANNER'
+              ? {
+                  background: customConfig.textColorMode === 'LIGHT'
+                    ? `linear-gradient(90deg, transparent, ${textAccent}44 15%, ${textAccent}44 85%, transparent)`
+                    : `linear-gradient(90deg, transparent, ${textAccent}20 15%, ${textAccent}20 85%, transparent)`,
+                  borderColor: `${textAccent}50`
+                }
+              : undefined
+          }
+          >
+            {nameAccentStyle === 'BADGE_PLATE' && (
+              <>
+                <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-1.5 h-7 rounded-full shadow-sm" style={{ backgroundColor: textAccent }} />
+                <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-1.5 h-7 rounded-full shadow-sm" style={{ backgroundColor: textAccent }} />
+              </>
+            )}
+
+            {nameAccentStyle === 'ACCENT_BORDER' && (
+              <div className="flex items-center justify-center gap-2 mb-1.5 opacity-80">
+                <div className="w-8 h-0.5 rounded-full" style={{ backgroundColor: textAccent }} />
+                <div className="w-1.5 h-1.5 rotate-45" style={{ backgroundColor: textAccent }} />
+                <div className="w-8 h-0.5 rounded-full" style={{ backgroundColor: textAccent }} />
+              </div>
+            )}
+
             {customConfig.showName && (
-              <h1 className={`${nameSizeClasses} font-black font-oswald uppercase italic leading-none drop-shadow-md tracking-tight ${textPrimary}`}>
+              <h1 
+                className={`${nameSizeClasses} font-black font-oswald uppercase italic leading-none drop-shadow-md tracking-tight ${fontColor ? '' : textPrimary} ${nameAccentStyle === 'MINIMAL_GLOW' ? 'drop-shadow-[0_4px_14px_rgba(0,0,0,0.95)]' : ''}`}
+                style={{ color: fontColor || undefined }}
+              >
                 <span className="block">{person.name.split(' ')[0]}</span>
-                <span className="block mt-0.5" style={{ color: textAccent }}>
+                <span className="block mt-0.5 truncate" style={{ color: fontColor || textAccent }}>
                   {person.name.split(' ').slice(1).join(' ')}
                 </span>
               </h1>
             )}
+
+            {nameAccentStyle === 'ACCENT_BORDER' && (
+              <div className="flex items-center justify-center gap-2 mt-1.5 opacity-80">
+                <div className="w-12 h-0.5 rounded-full" style={{ backgroundColor: textAccent }} />
+              </div>
+            )}
+
             {customConfig.showClub && (
-              <p className={`text-xs font-black uppercase tracking-wider drop-shadow-sm ${textSecondary}`}>
+              <p 
+                className={`text-xs font-black uppercase tracking-wider drop-shadow-sm mt-1 truncate ${fontSecondaryColor ? '' : textSecondary}`}
+                style={{ color: fontSecondaryColor || (fontColor ? `${fontColor}cc` : undefined) }}
+              >
                 {person.club || 'INDEPENDENT'}
               </p>
             )}
@@ -824,14 +937,14 @@ const IdCardEditor: React.FC<Props> = ({ archers, officials: officialsProp = [],
 
         {/* Header */}
         <div className={`${isB1 ? 'h-18 p-3' : isB2 ? 'h-20 p-4' : 'h-24 p-5'} flex items-center justify-between relative z-10 ${isAsymmetric ? 'flex-row-reverse' : ''}`}>
-          <div className="flex -space-x-2">
+          <div className="flex items-center flex-wrap" style={{ gap: `${logoGap}px` }}>
             {logos.map(logo => (
               <img 
                 key={logo.id} 
                 src={logo.url} 
                 alt="" 
                 style={{ maxHeight: isB1 ? Math.min(logo.size / 2.6, 28) : isB2 ? Math.min(logo.size / 2.3, 34) : logo.size / 2, width: 'auto' }}
-                className="object-contain ring-2 ring-white rounded-lg bg-white shadow-lg"
+                className="object-contain rounded-lg bg-white/95 shadow-sm p-0.5 border border-white/40 shrink-0"
               />
             ))}
             {logos.length === 0 && <div className={`${isB1 ? 'w-8 h-8' : 'w-12 h-12'} rounded-xl flex items-center justify-center border-2 border-dashed border-slate-300 bg-white/50 backdrop-blur-sm`}><ImageIcon className={`${isB1 ? 'w-3.5 h-3.5' : 'w-5 h-5'} text-slate-600`} /></div>}
@@ -850,34 +963,101 @@ const IdCardEditor: React.FC<Props> = ({ archers, officials: officialsProp = [],
         {/* Main Content Area */}
         <div className={`${isB1 ? 'p-3 gap-3' : isB2 ? 'p-4 gap-4' : 'p-5 gap-5'} flex flex-col flex-1 relative z-10 ${isAsymmetric ? 'items-start pl-6' : 'items-center'}`}>
           <div className={`w-full ${isB1 ? 'mb-2' : isB2 ? 'mb-3' : 'mb-4'} ${isAsymmetric ? 'text-left' : 'text-center'}`}>
-            <h2 className={`${isB1 ? 'text-[9px] tracking-[0.2em]' : isB2 ? 'text-[10px] tracking-[0.25em]' : 'text-[12px] tracking-[0.3em]'} font-black uppercase mb-0.5 scale-y-110 ${isLegacy || isGlory || isChampion || isProX ? 'font-serif italic' : 'font-oswald'} ${textPrimary} truncate`}>
+            <h2 
+              className={`${isB1 ? 'text-[9px] tracking-[0.2em]' : isB2 ? 'text-[10px] tracking-[0.25em]' : 'text-[12px] tracking-[0.3em]'} font-black uppercase mb-0.5 scale-y-110 ${isLegacy || isGlory || isChampion || isProX ? 'font-serif italic' : 'font-oswald'} ${fontColor ? '' : textPrimary} truncate`}
+              style={{ color: fontColor || undefined }}
+            >
               {cardTitle}
             </h2>
             <div className={`h-px ${isB1 ? 'w-10' : 'w-16'} mx-auto mt-1 ${isChampion || isProX ? 'bg-gradient-to-r from-transparent via-yellow-400/50 to-transparent' : 'bg-slate-200'}`} style={{ backgroundColor: (isAsymmetric || isChampion || isProX) ? undefined : `${cardAccent}33` }} />
           </div>
 
           <div className={`flex flex-col ${isB1 ? 'gap-3' : isB2 ? 'gap-4' : 'gap-5'} w-full ${isAsymmetric ? 'items-start' : 'items-center'}`}>
-            {/* Name Section with Custom Typography */}
-            <div className="relative group text-center w-full px-1">
+            {/* Name Section with Custom Typography & Legibility Accent */}
+            <div className={`relative group text-center w-full px-1 transition-all ${
+              nameAccentStyle === 'BADGE_PLATE'
+                ? (isStealth || isChampion || isProX
+                    ? 'py-2 px-3 rounded-2xl bg-black/55 backdrop-blur-md border border-white/20 shadow-lg ring-1 ring-white/5 relative'
+                    : 'py-2 px-3 rounded-2xl bg-white/92 backdrop-blur-md border border-slate-200/90 shadow-md ring-1 ring-black/5 relative')
+                : nameAccentStyle === 'ACCENT_BORDER'
+                ? 'py-1.5 px-2 relative'
+                : nameAccentStyle === 'RIBBON_BANNER'
+                ? 'py-2 px-3 rounded-xl border relative shadow-md overflow-hidden'
+                : ''
+            }`}
+            style={
+              nameAccentStyle === 'RIBBON_BANNER'
+                ? {
+                    background: (isStealth || isChampion || isProX)
+                      ? `linear-gradient(90deg, transparent, ${cardAccent}44 15%, ${cardAccent}44 85%, transparent)`
+                      : `linear-gradient(90deg, transparent, ${cardAccent}22 15%, ${cardAccent}22 85%, transparent)`,
+                    borderColor: `${cardAccent}55`
+                  }
+                : undefined
+            }
+            >
+              {/* Side Accent Notches for BADGE_PLATE */}
+              {nameAccentStyle === 'BADGE_PLATE' && (
+                <>
+                  <div className="absolute -left-1 top-1/2 -translate-y-1/2 w-1.5 h-7 rounded-full shadow-sm" style={{ backgroundColor: (isChampion || isProX) ? '#eab308' : cardAccent }} />
+                  <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-1.5 h-7 rounded-full shadow-sm" style={{ backgroundColor: (isChampion || isProX) ? '#eab308' : cardAccent }} />
+                </>
+              )}
+
+              {/* Accent Bars for ACCENT_BORDER */}
+              {nameAccentStyle === 'ACCENT_BORDER' && (
+                <div className="flex items-center justify-center gap-2 mb-1 opacity-80">
+                  <div className="w-8 h-0.5 rounded-full" style={{ backgroundColor: (isChampion || isProX) ? '#eab308' : cardAccent }} />
+                  <div className="w-1.5 h-1.5 rotate-45" style={{ backgroundColor: (isChampion || isProX) ? '#eab308' : cardAccent }} />
+                  <div className="w-8 h-0.5 rounded-full" style={{ backgroundColor: (isChampion || isProX) ? '#eab308' : cardAccent }} />
+                </div>
+              )}
+
               {(isLegacy || isGlory || isChampion || isProX) && (
-                <div className={`absolute -top-3.5 left-0 w-full text-center ${isB1 ? 'text-[8px]' : 'text-[10px]'} uppercase font-black tracking-[0.2em] ${isChampion || isProX ? 'text-yellow-500' : 'font-serif italic text-slate-700 opacity-50'}`}>
+                <div 
+                  className={`text-center ${isB1 ? 'text-[8px]' : 'text-[10px]'} uppercase font-black tracking-[0.2em] mb-0.5 ${fontSecondaryColor ? '' : (isChampion || isProX ? 'text-yellow-400 drop-shadow-sm' : 'font-serif italic text-slate-700 opacity-60')}`}
+                  style={{ color: fontSecondaryColor || undefined }}
+                >
                   {isChampion || isProX ? 'Elite Pro Archer' : 'Grand Athlete'}
                 </div>
               )}
-              <h1 className={`${isB1 ? 'text-xl sm:text-2xl leading-[0.9]' : isB2 ? 'text-2xl sm:text-3xl leading-[0.9]' : 'text-3xl sm:text-4xl leading-[0.85]'} font-black uppercase mb-0.5 drop-shadow-sm truncate ${isProX ? 'font-oswald italic tracking-tighter' : isLegacy || isGlory || isChampion ? 'font-serif tracking-normal' : 'font-oswald italic tracking-tighter'} ${textPrimary}`}>
+              <h1 
+                className={`${isB1 ? 'text-xl sm:text-2xl leading-[0.9]' : isB2 ? 'text-2xl sm:text-3xl leading-[0.9]' : 'text-3xl sm:text-4xl leading-[0.85]'} font-black uppercase mb-0.5 drop-shadow-sm truncate ${isProX ? 'font-oswald italic tracking-tighter' : isLegacy || isGlory || isChampion ? 'font-serif tracking-normal' : 'font-oswald italic tracking-tighter'} ${fontColor ? '' : textPrimary} ${nameAccentStyle === 'MINIMAL_GLOW' ? 'drop-shadow-[0_4px_14px_rgba(0,0,0,0.95)]' : ''}`}
+                style={{ color: fontColor || undefined }}
+              >
                 {isChampion || isProX ? (
                   <>
                     <span className="block drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">{person.name.split(' ')[0]}</span>
-                    <span className="text-yellow-400 block mt-0.5 drop-shadow-[0_0_20px_rgba(234,179,8,0.5)] truncate">{person.name.split(' ').slice(1).join(' ')}</span>
+                    <span 
+                      className="block mt-0.5 drop-shadow-[0_0_20px_rgba(234,179,8,0.5)] truncate"
+                      style={{ color: fontColor ? fontColor : '#facc15' }}
+                    >
+                      {person.name.split(' ').slice(1).join(' ')}
+                    </span>
                   </>
                 ) : (
                   <>
                     <span className="block">{person.name.split(' ')[0]}</span>
-                    <span className="block truncate" style={{ color: (isLegacy || isGlory) ? '#78350f' : cardAccent }}>{person.name.split(' ').slice(1).join(' ')}</span>
+                    <span 
+                      className="block truncate" 
+                      style={{ color: fontColor ? fontColor : ((isLegacy || isGlory) ? '#78350f' : cardAccent) }}
+                    >
+                      {person.name.split(' ').slice(1).join(' ')}
+                    </span>
                   </>
                 )}
               </h1>
-              <p className={`${isB1 ? 'text-[9px]' : isB2 ? 'text-[10px]' : 'text-[12px]'} font-black mt-1 tracking-wider uppercase truncate ${textSecondary}`}>
+
+              {nameAccentStyle === 'ACCENT_BORDER' && (
+                <div className="flex items-center justify-center gap-2 mt-1 opacity-80">
+                  <div className="w-12 h-0.5 rounded-full" style={{ backgroundColor: (isChampion || isProX) ? '#eab308' : cardAccent }} />
+                </div>
+              )}
+
+              <p 
+                className={`${isB1 ? 'text-[9px]' : isB2 ? 'text-[10px]' : 'text-[12px]'} font-black mt-1 tracking-wider uppercase truncate ${fontSecondaryColor ? '' : textSecondary}`}
+                style={{ color: fontSecondaryColor || undefined }}
+              >
                 {person.club || 'INDEPENDENT'}
               </p>
             </div>
@@ -953,12 +1133,12 @@ const IdCardEditor: React.FC<Props> = ({ archers, officials: officialsProp = [],
                <div className={`${isStealth ? 'bg-slate-900' : (isChampion || isProX) ? 'bg-white/5' : 'bg-white/50'} ${isB1 ? 'p-2' : isB2 ? 'p-3' : 'p-4'} flex flex-col items-center relative overflow-hidden`}>
                   {(isGlory || isChampion || isProX) && <div className="absolute top-0 left-0 w-full h-0.5" style={{ background: (isChampion || isProX) ? '#eab308' : cardAccent }} />}
                   <span className={`text-[7px] font-black uppercase tracking-widest mb-0.5 ${(isChampion || isProX) ? 'text-yellow-500' : 'text-slate-700'}`}>Target</span>
-                  <span className={`${isB1 ? 'text-base' : isB2 ? 'text-xl' : 'text-2xl'} font-black ${textPrimary}`}>{person.targetNo}{person.position}</span>
+                  <span className={`${isB1 ? 'text-base' : isB2 ? 'text-xl' : 'text-2xl'} font-black ${fontColor ? '' : textPrimary}`} style={{ color: fontColor || undefined }}>{person.targetNo}{person.position}</span>
                </div>
                <div className={`${isStealth ? 'bg-slate-900' : (isChampion || isProX) ? 'bg-white/5' : 'bg-white/50'} ${isB1 ? 'p-2' : isB2 ? 'p-3' : 'p-4'} flex flex-col items-center relative overflow-hidden`}>
                   {(isGlory || isChampion || isProX) && <div className="absolute top-0 left-0 w-full h-0.5" style={{ background: (isChampion || isProX) ? '#eab308' : cardAccent }} />}
                   <span className={`text-[7px] font-black uppercase tracking-widest mb-0.5 ${(isChampion || isProX) ? 'text-yellow-500' : 'text-slate-700'}`}>Session</span>
-                  <span className={`${isB1 ? 'text-base' : isB2 ? 'text-xl' : 'text-2xl'} font-black ${textPrimary}`}>{person.wave}</span>
+                  <span className={`${isB1 ? 'text-base' : isB2 ? 'text-xl' : 'text-2xl'} font-black ${fontColor ? '' : textPrimary}`} style={{ color: fontColor || undefined }}>{person.wave}</span>
                </div>
             </div>
           )}
@@ -1401,6 +1581,88 @@ const IdCardEditor: React.FC<Props> = ({ archers, officials: officialsProp = [],
                           />
                         ))}
                       </div>
+
+                      {/* Custom Mode Font Color Selection */}
+                      <div className="pt-2 border-t border-slate-100/80 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-black text-slate-700 uppercase tracking-tight">
+                            Warna Font Spesifik:
+                          </span>
+                          <span className="text-[8px] font-mono font-bold text-slate-700">
+                            {fontColor || 'Default Kontras'}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setFontColor('')}
+                            className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase border transition-all ${
+                              !fontColor ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200'
+                            }`}
+                          >
+                            Auto
+                          </button>
+                          {['#ffffff', '#0f172a', '#eab308', '#ef4444', '#2563eb', '#16a34a', '#f97316'].map(c => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => setFontColor(c)}
+                              className={`w-6 h-6 rounded-lg border-2 transition-transform ${
+                                fontColor.toLowerCase() === c.toLowerCase() ? 'border-slate-900 scale-110 shadow-sm ring-2 ring-emerald-400' : 'border-slate-300'
+                              }`}
+                              style={{ backgroundColor: c }}
+                            />
+                          ))}
+                          <label className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-100">
+                            <span className="text-[7px] font-bold text-slate-600">Kustom:</span>
+                            <input
+                              type="color"
+                              value={fontColor || '#ffffff'}
+                              onChange={(e) => setFontColor(e.target.value)}
+                              className="w-4 h-4 rounded cursor-pointer border-0 p-0 bg-transparent"
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Aksen Keterbacaan Nama */}
+                      <div className="pt-3 border-t border-slate-100 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                            <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
+                              Aksen Keterbacaan Nama
+                            </span>
+                          </div>
+                          <span className="text-[7px] font-black uppercase text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
+                            Kontras
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {[
+                            { id: 'BADGE_PLATE', name: 'Plat Kaca Kontras', desc: 'Plat frosted glass' },
+                            { id: 'RIBBON_BANNER', name: 'Banner Gradien', desc: 'Ribbon aksen warna' },
+                            { id: 'ACCENT_BORDER', name: 'Garis Aksen', desc: 'Garis ornamen' },
+                            { id: 'MINIMAL_GLOW', name: 'Glow Kontras', desc: 'Drop shadow tebal' },
+                            { id: 'NONE', name: 'Polos', desc: 'Tanpa plat' }
+                          ].map(opt => (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => setNameAccentStyle(opt.id as NameAccentStyle)}
+                              className={`p-2 rounded-xl border-2 text-left transition-all ${
+                                nameAccentStyle === opt.id
+                                  ? 'border-amber-500 bg-amber-50/80 text-slate-900 shadow-xs'
+                                  : 'border-slate-100 bg-white text-slate-700 hover:border-slate-200'
+                              } ${opt.id === 'NONE' ? 'col-span-2' : ''}`}
+                            >
+                              <div className="text-[8.5px] font-black uppercase">{opt.name}</div>
+                              <div className="text-[7px] text-slate-500">{opt.desc}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Vertical Position Tuning (Offset Slider) */}
@@ -1628,6 +1890,275 @@ const IdCardEditor: React.FC<Props> = ({ archers, officials: officialsProp = [],
                                 <Trash2 className="w-3 h-3" />
                               </button>
                             </div>
+                          ))}
+                        </div>
+
+                        {/* Pengaturan Jarak Antar Logo */}
+                        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black text-slate-700 uppercase tracking-wider">
+                              Jarak Antar Logo:
+                            </span>
+                            <span className="px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 text-[10px] font-mono font-black">
+                              {logoGap === 0 ? '0px (Tanpa Jarak)' : `${logoGap}px`}
+                            </span>
+                          </div>
+
+                          <div className="grid grid-cols-4 gap-1.5">
+                            {[
+                              { label: '0px (Rapat)', val: 0 },
+                              { label: '4px', val: 4 },
+                              { label: '8px', val: 8 },
+                              { label: '12px', val: 12 },
+                            ].map(item => (
+                              <button
+                                key={item.val}
+                                type="button"
+                                onClick={() => setLogoGap(item.val)}
+                                className={`py-1.5 px-1 rounded-xl text-[9px] font-black uppercase text-center transition-all ${
+                                  logoGap === item.val
+                                    ? 'bg-blue-600 text-white shadow-sm ring-2 ring-blue-300'
+                                    : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                                }`}
+                              >
+                                {item.label}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="flex items-center gap-2 pt-1">
+                            <span className="text-[8px] font-bold text-slate-500">0px</span>
+                            <input
+                              type="range"
+                              min={0}
+                              max={24}
+                              step={2}
+                              value={logoGap}
+                              onChange={(e) => setLogoGap(Number(e.target.value))}
+                              className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            />
+                            <span className="text-[8px] font-bold text-slate-500">24px</span>
+                          </div>
+                          <p className="text-[8px] text-slate-500 italic">
+                            {logoGap === 0 ? '✓ Logo menempel rapat berdampingan tanpa celah & tidak saling menumpuk.' : '✓ Jarak antar logo di bagian atas kartu peserta.'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Pilihan Warna Font */}
+                      <div className="space-y-4 pt-4 border-t border-slate-50">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Palette className="w-3.5 h-3.5 text-blue-600" />
+                            <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
+                              Pilihan Warna Font
+                            </span>
+                          </div>
+                          {(fontColor || fontSecondaryColor) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFontColor('');
+                                setFontSecondaryColor('');
+                              }}
+                              className="text-[9px] font-bold text-red-500 hover:text-red-700 uppercase"
+                            >
+                              Reset Auto
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Warna Font Utama (Nama & Judul) */}
+                        <div className="space-y-2 p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-black text-slate-700 uppercase tracking-tight">
+                              Warna Font Utama (Nama & Judul):
+                            </span>
+                            <span className="text-[9px] font-mono font-bold text-slate-700">
+                              {fontColor ? fontColor.toUpperCase() : 'Auto (Tema)'}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setFontColor('')}
+                              className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase border transition-all ${
+                                !fontColor
+                                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              Auto
+                            </button>
+                            {[
+                              { label: 'Putih', hex: '#ffffff' },
+                              { label: 'Hitam', hex: '#0f172a' },
+                              { label: 'Emas/Kuning', hex: '#eab308' },
+                              { label: 'Merah', hex: '#ef4444' },
+                              { label: 'Biru', hex: '#2563eb' },
+                              { label: 'Hijau', hex: '#16a34a' },
+                              { label: 'Oranye', hex: '#f97316' },
+                              { label: 'Ungu', hex: '#9333ea' },
+                              { label: 'Cokelat', hex: '#78350f' },
+                            ].map(c => (
+                              <button
+                                key={c.hex}
+                                type="button"
+                                title={c.label}
+                                onClick={() => setFontColor(c.hex)}
+                                className={`w-6 h-6 rounded-lg border-2 transition-transform relative ${
+                                  fontColor.toLowerCase() === c.hex.toLowerCase()
+                                    ? 'border-blue-600 scale-110 shadow-md ring-2 ring-blue-400'
+                                    : 'border-slate-300 hover:scale-105'
+                                }`}
+                                style={{ backgroundColor: c.hex }}
+                              />
+                            ))}
+
+                            {/* Custom Color Input */}
+                            <label className="flex items-center gap-1 px-2 py-0.5 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-100">
+                              <span className="text-[8px] font-bold text-slate-600">Kustom:</span>
+                              <input
+                                type="color"
+                                value={fontColor || '#ffffff'}
+                                onChange={(e) => setFontColor(e.target.value)}
+                                className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent"
+                              />
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* Warna Font Sekunder (Klub & Info) */}
+                        <div className="space-y-2 p-3 bg-slate-50 rounded-2xl border border-slate-200/80">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] font-black text-slate-700 uppercase tracking-tight">
+                              Warna Font Sekunder (Klub & Info):
+                            </span>
+                            <span className="text-[9px] font-mono font-bold text-slate-700">
+                              {fontSecondaryColor ? fontSecondaryColor.toUpperCase() : 'Auto (Tema)'}
+                            </span>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setFontSecondaryColor('')}
+                              className={`px-2.5 py-1 rounded-lg text-[8px] font-black uppercase border transition-all ${
+                                !fontSecondaryColor
+                                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                              }`}
+                            >
+                              Auto
+                            </button>
+                            {[
+                              { label: 'Putih Redup', hex: '#f1f5f9' },
+                              { label: 'Abu-abu', hex: '#94a3b8' },
+                              { label: 'Hitam', hex: '#0f172a' },
+                              { label: 'Kuning', hex: '#fde047' },
+                              { label: 'Merah Muda', hex: '#f87171' },
+                              { label: 'Biru Muda', hex: '#60a5fa' },
+                              { label: 'Hijau Muda', hex: '#4ade80' },
+                              { label: 'Oranye', hex: '#fb923c' },
+                            ].map(c => (
+                              <button
+                                key={c.hex}
+                                type="button"
+                                title={c.label}
+                                onClick={() => setFontSecondaryColor(c.hex)}
+                                className={`w-6 h-6 rounded-lg border-2 transition-transform relative ${
+                                  fontSecondaryColor.toLowerCase() === c.hex.toLowerCase()
+                                    ? 'border-blue-600 scale-110 shadow-md ring-2 ring-blue-400'
+                                    : 'border-slate-300 hover:scale-105'
+                                }`}
+                                style={{ backgroundColor: c.hex }}
+                              />
+                            ))}
+
+                            {/* Custom Color Input */}
+                            <label className="flex items-center gap-1 px-2 py-0.5 rounded-lg border border-slate-200 bg-white cursor-pointer hover:bg-slate-100">
+                              <span className="text-[8px] font-bold text-slate-600">Kustom:</span>
+                              <input
+                                type="color"
+                                value={fontSecondaryColor || '#94a3b8'}
+                                onChange={(e) => setFontSecondaryColor(e.target.value)}
+                                className="w-5 h-5 rounded cursor-pointer border-0 p-0 bg-transparent"
+                              />
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Aksen Keterbacaan Nama */}
+                      <div className="space-y-3 pt-4 border-t border-slate-50">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                            <span className="text-[10px] font-black text-slate-800 uppercase tracking-widest">
+                              Aksen Bagian Nama (Keterbacaan)
+                            </span>
+                          </div>
+                          <span className="text-[8px] font-black uppercase text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
+                            Tinggi Kontras
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          {[
+                            { 
+                              id: 'BADGE_PLATE', 
+                              name: 'Plat Kaca Kontras', 
+                              desc: 'Latar semi-transparan + notch samping agar nama sangat mudah dibaca',
+                              badge: 'Rekomendasi'
+                            },
+                            { 
+                              id: 'RIBBON_BANNER', 
+                              name: 'Banner Gradien', 
+                              desc: 'Ribbon aksen warna turnamen di belakang nama atlet',
+                              badge: 'Sporty'
+                            },
+                            { 
+                              id: 'ACCENT_BORDER', 
+                              name: 'Garis Aksen', 
+                              desc: 'Ornamen garis atas & bawah nama',
+                              badge: 'Elegan'
+                            },
+                            { 
+                              id: 'MINIMAL_GLOW', 
+                              name: 'Glow Kontras', 
+                              desc: 'Bayangan drop shadow tebal tanpa plat',
+                              badge: 'Minimalis'
+                            },
+                            { 
+                              id: 'NONE', 
+                              name: 'Polos / Tanpa Plat', 
+                              desc: 'Teks langsung tanpa aksen plat tambahan',
+                              badge: 'Standar'
+                            },
+                          ].map(opt => (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => setNameAccentStyle(opt.id as NameAccentStyle)}
+                              className={`p-2.5 rounded-2xl border-2 text-left transition-all relative flex flex-col justify-between ${
+                                nameAccentStyle === opt.id
+                                  ? 'border-amber-500 bg-amber-50/80 text-slate-900 shadow-sm ring-1 ring-amber-400'
+                                  : 'border-slate-100 bg-white text-slate-700 hover:border-slate-200 hover:bg-slate-50'
+                              } ${opt.id === 'NONE' ? 'col-span-2' : ''}`}
+                            >
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-[9px] font-black uppercase tracking-tight">{opt.name}</span>
+                                  <span className={`text-[7px] font-bold px-1.5 py-0.5 rounded ${
+                                    nameAccentStyle === opt.id ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-500'
+                                  }`}>
+                                    {opt.badge}
+                                  </span>
+                                </div>
+                                <p className="text-[7.5px] text-slate-500 leading-tight">{opt.desc}</p>
+                              </div>
+                            </button>
                           ))}
                         </div>
                       </div>

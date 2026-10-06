@@ -76,6 +76,15 @@ export default function PrintCertificateModal({
   const [nameFontSize, setNameFontSize] = useState<'sm' | 'md' | 'lg' | 'xl'>(existingConfig?.nameFontSize || 'lg');
   const [primaryTextColor, setPrimaryTextColor] = useState<string>(existingConfig?.primaryTextColor || '#0f172a');
   const [customStampUrl, setCustomStampUrl] = useState<string>(existingConfig?.customStampUrl || '');
+  const [participantPredicateStyle, setParticipantPredicateStyle] = useState<'PESERTA_ONLY' | 'WITH_RANK'>(
+    existingConfig?.participantPredicateStyle || 'PESERTA_ONLY'
+  );
+  const [participantCustomLabel, setParticipantCustomLabel] = useState<string>(
+    existingConfig?.participantCustomLabel || 'Peserta'
+  );
+  const [layoutDensity, setLayoutDensity] = useState<'COMPACT' | 'BALANCED' | 'SPACIOUS'>(
+    existingConfig?.layoutDensity || 'COMPACT'
+  );
 
   // Signatories
   const [signatories, setSignatories] = useState<CertificateSignatory[]>(() => {
@@ -213,6 +222,11 @@ export default function PrintCertificateModal({
       // Build Participant list
       const participantList: CertificateRecipient[] = rankedArchers.map((archer, idx) => {
         const numStr = String(idx + 1).padStart(3, '0');
+        const defaultLabel = participantCustomLabel?.trim() || 'Peserta';
+        const participantPredicate = participantPredicateStyle === 'WITH_RANK' && archer.total > 0
+          ? `${defaultLabel} (Peringkat ke-${idx + 1})`
+          : defaultLabel;
+
         return {
           id: `${cat}-part-${archer.id}`,
           archerId: archer.id,
@@ -223,7 +237,7 @@ export default function PrintCertificateModal({
           targetNo: archer.targetNo,
           position: archer.position,
           awardType: 'PARTICIPANT',
-          predicate: archer.total > 0 ? `PESERTA (PERINGKAT KE-${idx + 1})` : 'PESERTA RESMI',
+          predicate: participantPredicate,
           medalType: 'PARTICIPANT',
           scoreTotal: archer.total,
           rank: idx + 1,
@@ -243,7 +257,7 @@ export default function PrintCertificateModal({
     });
 
     return resultList;
-  }, [event, selectedCategory, recipientFilter, selectedArcherIds]);
+  }, [event, selectedCategory, recipientFilter, selectedArcherIds, participantPredicateStyle, participantCustomLabel]);
 
   // Ensure current preview index is safe
   useEffect(() => {
@@ -276,7 +290,10 @@ export default function PrintCertificateModal({
       customStampUrl,
       nameOffsetY,
       nameFontSize,
-      primaryTextColor
+      primaryTextColor,
+      participantPredicateStyle,
+      participantCustomLabel,
+      layoutDensity
     };
 
     onSaveSettings({
@@ -421,9 +438,9 @@ export default function PrintCertificateModal({
                     <div className="absolute top-4 right-4 w-12 h-12 border-t-4 border-r-4 border-[#B8860B]" />
                     <div className="absolute bottom-4 left-4 w-12 h-12 border-b-4 border-l-4 border-[#B8860B]" />
                     <div className="absolute bottom-4 right-4 w-12 h-12 border-b-4 border-r-4 border-[#B8860B]" />
-                    {/* Watermark Target Rings */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rounded-full border border-amber-900/5 pointer-events-none" />
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-56 h-56 rounded-full border border-amber-900/5 pointer-events-none" />
+                    {/* Watermark Target Rings - widened & subtle */}
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[440px] h-[440px] rounded-full border border-amber-900/[0.03] pointer-events-none" />
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[320px] h-[320px] rounded-full border border-amber-900/[0.03] pointer-events-none" />
                   </div>
                 )}
 
@@ -466,17 +483,23 @@ export default function PrintCertificateModal({
         )}
 
         {/* 2. FOREGROUND CONTENT LAYER */}
-        <div className="relative z-10 w-full h-full flex flex-col justify-between p-6 sm:p-10 md:p-12">
+        <div className={`relative z-10 w-full h-full flex flex-col justify-between ${
+          layoutDensity === 'COMPACT' 
+            ? 'p-5 sm:p-7 md:p-8 print:p-6' 
+            : layoutDensity === 'SPACIOUS'
+            ? 'p-8 sm:p-11 md:p-12 print:p-10'
+            : 'p-6 sm:p-9 md:p-10 print:p-8'
+        }`}>
           
           {/* TOP HEADER: Logos & Tournament Identity */}
           <div className="w-full flex items-center justify-between gap-4">
             {/* Left Logos */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5 sm:gap-3">
               {showTournamentLogo && tournamentLogo && (
                 <img 
                   src={tournamentLogo} 
                   alt="Tournament Logo" 
-                  className="h-10 sm:h-14 md:h-16 w-auto object-contain max-w-[120px]" 
+                  className="h-10 sm:h-13 md:h-15 w-auto object-contain max-w-[120px]" 
                   referrerPolicy="no-referrer"
                 />
               )}
@@ -492,17 +515,21 @@ export default function PrintCertificateModal({
 
             {/* Center Header: Official Title */}
             <div className="text-center flex-1 px-2">
-              <p className="text-[9px] sm:text-xs tracking-[0.3em] font-black uppercase text-amber-700/90 mb-1 font-sans">
+              <p className="text-[10px] sm:text-xs md:text-sm tracking-[0.25em] font-black uppercase text-amber-700/90 mb-0.5 sm:mb-1 font-sans">
                 {tournamentName}
               </p>
-              <h1 className="text-2xl sm:text-4xl md:text-5xl font-black tracking-wider text-slate-900 uppercase leading-none" style={{ fontFamily: "'Playfair Display', serif" }}>
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-wider text-slate-900 uppercase leading-none" style={{ fontFamily: "'Playfair Display', serif" }}>
                 {certTitle}
               </h1>
-              <div className="w-24 sm:w-36 h-0.5 bg-gradient-to-r from-transparent via-amber-600 to-transparent mx-auto mt-2" />
+              <div className="flex items-center justify-center gap-2 mt-1.5 sm:mt-2">
+                <div className="w-16 sm:w-28 h-0.5 bg-gradient-to-r from-transparent to-amber-600" />
+                <div className="w-1.5 h-1.5 bg-amber-600 rotate-45 shrink-0" />
+                <div className="w-16 sm:w-28 h-0.5 bg-gradient-to-l from-transparent to-amber-600" />
+              </div>
             </div>
 
             {/* Right Logos & Medal/Badge */}
-            <div className="flex items-center gap-3 justify-end">
+            <div className="flex items-center gap-2.5 sm:gap-3 justify-end">
               {showSecondaryLogo && secondaryLogo && (
                 <img 
                   src={secondaryLogo} 
@@ -533,19 +560,26 @@ export default function PrintCertificateModal({
             </div>
           </div>
 
-          {/* MAIN BODY: Awardee Name & Predicate */}
+          {/* MAIN BODY: Awardee Name & Predicate - Compact, cohesive & dignified */}
           <div 
-            className="w-full text-center flex flex-col items-center justify-center my-auto transition-transform"
+            className={`w-full text-center flex flex-col items-center justify-center my-auto px-4 transition-transform ${
+              layoutDensity === 'COMPACT' 
+                ? 'space-y-1 sm:space-y-1.5' 
+                : layoutDensity === 'SPACIOUS'
+                ? 'space-y-2.5 sm:space-y-3.5'
+                : 'space-y-2 sm:space-y-2.5'
+            }`}
             style={{ transform: `translateY(${nameOffsetY}px)` }}
           >
-            <p className="text-xs sm:text-sm md:text-base font-medium text-slate-600 italic mb-2 tracking-wide font-serif">
+            {/* Subtitle */}
+            <p className="text-xs sm:text-sm md:text-base font-semibold text-slate-600 italic tracking-wide font-serif">
               {certSubtitle}
             </p>
 
             {/* Awardee Full Name */}
-            <div className="relative inline-block my-1 sm:my-2 max-w-full px-4">
+            <div className="relative inline-block max-w-full px-4 sm:px-6">
               <h2 
-                className={`${nameSizeClass} font-black tracking-wide uppercase px-4 truncate leading-tight`}
+                className={`${nameSizeClass} font-black tracking-wide uppercase px-4 truncate leading-none drop-shadow-xs`}
                 style={{ 
                   fontFamily: "'Playfair Display', serif",
                   color: primaryTextColor
@@ -553,16 +587,21 @@ export default function PrintCertificateModal({
               >
                 {recipient.archerName}
               </h2>
-              <div className="h-0.5 w-full bg-slate-900/40 mt-1" />
+              {/* Prestigious decorative rule under the name */}
+              <div className="flex items-center justify-center gap-2 mt-1 sm:mt-1.5">
+                <div className="h-0.5 w-24 sm:w-36 bg-gradient-to-r from-transparent via-slate-700 to-slate-900" />
+                <div className="w-1.5 h-1.5 bg-amber-600 rotate-45 shrink-0" />
+                <div className="h-0.5 w-24 sm:w-36 bg-gradient-to-l from-transparent via-slate-700 to-slate-900" />
+              </div>
             </div>
 
             {/* Club / Contingent */}
-            <p className="text-xs sm:text-base font-bold text-slate-700 uppercase tracking-widest font-sans mt-0.5">
+            <p className="text-xs sm:text-base md:text-lg font-black text-slate-800 uppercase tracking-widest font-sans">
               {recipient.club}
             </p>
 
             {/* Predicate Ribbon / Box */}
-            <div className="mt-3 sm:mt-4 inline-flex items-center gap-2 px-5 py-1.5 sm:px-8 sm:py-2 rounded-full border shadow-xs"
+            <div className="inline-flex items-center gap-2 px-6 py-1 sm:px-8 sm:py-1.5 rounded-full border shadow-xs"
               style={{
                 backgroundColor: isGold ? '#FEF3C7' : isSilver ? '#F1F5F9' : isBronze ? '#FFEDD5' : '#F8FAFC',
                 borderColor: isGold ? '#F59E0B' : isSilver ? '#94A3B8' : isBronze ? '#EA580C' : '#CBD5E1',
@@ -570,13 +609,13 @@ export default function PrintCertificateModal({
               }}
             >
               <Award className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
-              <span className="text-xs sm:text-base md:text-lg font-black tracking-wider uppercase font-sans">
+              <span className="text-xs sm:text-sm md:text-base font-black tracking-widest uppercase font-sans">
                 {recipient.predicate}
               </span>
             </div>
 
             {/* Narrative Body Description */}
-            <p className="max-w-2xl text-[10px] sm:text-xs md:text-sm text-slate-600 font-sans leading-relaxed mt-3 sm:mt-4 px-6 text-center">
+            <p className="max-w-3xl text-[11px] sm:text-xs md:text-sm text-slate-700 font-serif leading-relaxed px-6 text-center italic">
               {renderedBody}
             </p>
           </div>
@@ -1177,6 +1216,93 @@ export default function PrintCertificateModal({
                             </button>
                           ))}
                         </div>
+                      </div>
+                    </div>
+
+                    {/* Kepadatan Tata Letak Sertifikat */}
+                    <div className="p-3.5 rounded-xl bg-slate-950/60 border border-white/5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-300">
+                          Kerapatan Jarak Teks (Layout Density):
+                        </span>
+                        <span className="text-[10px] font-mono font-bold text-amber-400">
+                          {layoutDensity === 'COMPACT' ? 'Padat & Proporsional' : layoutDensity === 'BALANCED' ? 'Standar Seimbang' : 'Renggang Luas'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          { id: 'COMPACT', label: 'Padat & Proporsional', desc: 'Rapat, padat & berbobot (Rekomendasi)' },
+                          { id: 'BALANCED', label: 'Standar Seimbang', desc: 'Jarak proporsional medium' },
+                          { id: 'SPACIOUS', label: 'Renggang', desc: 'Jarak lebih lega antar elemen' }
+                        ].map(d => (
+                          <button
+                            key={d.id}
+                            type="button"
+                            onClick={() => setLayoutDensity(d.id as any)}
+                            className={`p-2 rounded-lg border text-left transition-all ${
+                              layoutDensity === d.id
+                                ? 'bg-amber-400/20 border-amber-400 text-white shadow-xs'
+                                : 'bg-slate-900 border-white/5 text-slate-400 hover:bg-slate-800'
+                            }`}
+                          >
+                            <p className="text-[10px] font-black uppercase text-white leading-tight">{d.label}</p>
+                            <p className="text-[8px] text-slate-400 leading-tight mt-0.5">{d.desc}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Pengaturan Tulisan Predikat Peserta */}
+                    <div className="p-3.5 rounded-xl bg-slate-950/60 border border-white/5 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-300">
+                          Format Tulisan Predikat Peserta:
+                        </span>
+                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-md">
+                          {participantPredicateStyle === 'PESERTA_ONLY' ? 'Hanya "Peserta"' : 'Dengan Peringkat'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setParticipantPredicateStyle('PESERTA_ONLY')}
+                          className={`p-2.5 rounded-lg border text-left transition-all ${
+                            participantPredicateStyle === 'PESERTA_ONLY'
+                              ? 'bg-amber-400/20 border-amber-400 text-white shadow-xs'
+                              : 'bg-slate-900 border-white/5 text-slate-400 hover:bg-slate-800'
+                          }`}
+                        >
+                          <p className="text-xs font-black uppercase text-white">Hanya "{participantCustomLabel || 'Peserta'}"</p>
+                          <p className="text-[8.5px] text-slate-400 mt-0.5 leading-tight">
+                            Menampilkan tulisan "Peserta" saja tanpa embel-embel "Resmi" atau peringkat.
+                          </p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setParticipantPredicateStyle('WITH_RANK')}
+                          className={`p-2.5 rounded-lg border text-left transition-all ${
+                            participantPredicateStyle === 'WITH_RANK'
+                              ? 'bg-amber-400/20 border-amber-400 text-white shadow-xs'
+                              : 'bg-slate-900 border-white/5 text-slate-400 hover:bg-slate-800'
+                          }`}
+                        >
+                          <p className="text-xs font-black uppercase text-white">Sertakan Peringkat</p>
+                          <p className="text-[8.5px] text-slate-400 mt-0.5 leading-tight">
+                            Menampilkan peringkat (contoh: "Peserta (Peringkat ke-5)").
+                          </p>
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <span className="text-[10px] font-bold text-slate-400 shrink-0">Teks Kustom Peserta:</span>
+                        <input
+                          type="text"
+                          value={participantCustomLabel}
+                          onChange={e => setParticipantCustomLabel(e.target.value)}
+                          placeholder="Peserta"
+                          className="flex-1 bg-slate-900 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white font-bold"
+                        />
                       </div>
                     </div>
 

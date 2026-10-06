@@ -271,6 +271,9 @@ export interface CertificateConfig {
   primaryTextColor?: string; // Warna teks nama penerima (default #0f172a)
   nameOffsetY?: number; // Penyesuaian posisi vertikal nama (pixel offset +/- untuk pas di blanko custom)
   nameFontSize?: 'sm' | 'md' | 'lg' | 'xl'; // Ukuran nama pemanah
+  participantPredicateStyle?: 'PESERTA_ONLY' | 'WITH_RANK';
+  participantCustomLabel?: string;
+  layoutDensity?: 'COMPACT' | 'BALANCED' | 'SPACIOUS';
 }
 
 export interface TechnicalSupportAccess {
