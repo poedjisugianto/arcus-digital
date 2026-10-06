@@ -242,6 +242,7 @@
     }
 
     @page {
+      size: landscape;
       margin: 0;
     }
 
