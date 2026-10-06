@@ -271,6 +271,12 @@ export interface CertificateConfig {
   primaryTextColor?: string; // Warna teks nama penerima (default #0f172a)
   nameOffsetY?: number; // Penyesuaian posisi vertikal nama (pixel offset +/- untuk pas di blanko custom)
   nameFontSize?: 'sm' | 'md' | 'lg' | 'xl'; // Ukuran nama pemanah
+  titleFontSize?: 'sm' | 'md' | 'lg' | 'xl'; // Ukuran judul sertifikat
+  fontFamily?: 'PLAYFAIR' | 'CINZEL' | 'GARAMOND' | 'OSWALD' | 'MONTSERRAT'; // Jenis font sertifikat
+  sectionSpacing?: 'COMPACT' | 'BALANCED' | 'SPREAD'; // Jarak antar bagian (Header - Nama - TTD)
+  sectionGap?: number; // Nilai jarak dalam pixel antara bagian atas, tengah, dan bawah
+  manualCertNumberFormat?: string; // Format nomor manual, misal: "001/PAN-KEBUMEN/2026"
+  manualCertNumbers?: Record<string, string>; // Nomor sertifikat manual spesifik per archerId
   participantPredicateStyle?: 'PESERTA_ONLY' | 'WITH_RANK';
   participantCustomLabel?: string;
   layoutDensity?: 'COMPACT' | 'BALANCED' | 'SPACIOUS';

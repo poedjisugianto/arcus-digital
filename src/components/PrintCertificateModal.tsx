@@ -74,6 +74,20 @@ export default function PrintCertificateModal({
   const [showDateLocation, setShowDateLocation] = useState<boolean>(existingConfig?.showDateLocation ?? true);
   const [nameOffsetY, setNameOffsetY] = useState<number>(existingConfig?.nameOffsetY ?? 0);
   const [nameFontSize, setNameFontSize] = useState<'sm' | 'md' | 'lg' | 'xl'>(existingConfig?.nameFontSize || 'lg');
+  const [titleFontSize, setTitleFontSize] = useState<'sm' | 'md' | 'lg' | 'xl'>(existingConfig?.titleFontSize || 'lg');
+  const [fontFamily, setFontFamily] = useState<'PLAYFAIR' | 'CINZEL' | 'GARAMOND' | 'OSWALD' | 'MONTSERRAT'>(
+    existingConfig?.fontFamily || 'PLAYFAIR'
+  );
+  const [sectionSpacing, setSectionSpacing] = useState<'COMPACT' | 'BALANCED' | 'SPREAD'>(
+    existingConfig?.sectionSpacing || 'COMPACT'
+  );
+  const [sectionGap, setSectionGap] = useState<number>(existingConfig?.sectionGap ?? 14);
+  const [manualCertNumbers, setManualCertNumbers] = useState<Record<string, string>>(
+    existingConfig?.manualCertNumbers || {}
+  );
+  const [manualCertNumberFormat, setManualCertNumberFormat] = useState<string>(
+    existingConfig?.manualCertNumberFormat || ''
+  );
   const [primaryTextColor, setPrimaryTextColor] = useState<string>(existingConfig?.primaryTextColor || '#0f172a');
   const [customStampUrl, setCustomStampUrl] = useState<string>(existingConfig?.customStampUrl || '');
   const [participantPredicateStyle, setParticipantPredicateStyle] = useState<'PESERTA_ONLY' | 'WITH_RANK'>(
@@ -85,6 +99,30 @@ export default function PrintCertificateModal({
     return raw || 'Peserta';
   });
   const [centerOffsetY, setCenterOffsetY] = useState<number>(existingConfig?.centerOffsetY ?? 0);
+
+  // Helper font family styling
+  const getFontFamilyStyle = (font: string) => {
+    switch (font) {
+      case 'CINZEL':
+        return "'Cinzel', Georgia, serif";
+      case 'GARAMOND':
+        return "'Cormorant Garamond', Georgia, serif";
+      case 'OSWALD':
+        return "'Oswald', sans-serif";
+      case 'MONTSERRAT':
+        return "'Montserrat', sans-serif";
+      case 'PLAYFAIR':
+      default:
+        return "'Playfair Display', Georgia, serif";
+    }
+  };
+
+  const handleUpdateRecipientCertNumber = (archerId: string, newNumber: string) => {
+    setManualCertNumbers(prev => ({
+      ...prev,
+      [archerId]: newNumber
+    }));
+  };
 
   // Signatories
   const [signatories, setSignatories] = useState<CertificateSignatory[]>(() => {
@@ -205,6 +243,13 @@ export default function PrintCertificateModal({
         const archer = rankedArchers.find(a => a.id === p.id);
         if (!archer || (archer.total || 0) <= 0) return;
 
+        const defaultPodiumNum = `CERT/${eventCode}/${catCode}/POD-${String(p.rank).padStart(2, '0')}`;
+        const finalCertNum = manualCertNumbers[archer.id]
+          ? manualCertNumbers[archer.id]
+          : manualCertNumberFormat && manualCertNumberFormat.trim()
+          ? manualCertNumberFormat.replace('{NUMBER}', String(p.rank).padStart(3, '0')).replace('{NUM}', String(p.rank))
+          : defaultPodiumNum;
+
         podiumList.push({
           id: `${cat}-pod-${archer.id}`,
           archerId: archer.id,
@@ -219,7 +264,7 @@ export default function PrintCertificateModal({
           medalType: p.medalType,
           scoreTotal: archer.total,
           rank: p.rank,
-          certificateNumber: `CERT/${eventCode}/${catCode}/POD-${String(p.rank).padStart(2, '0')}`
+          certificateNumber: finalCertNum
         });
       });
 
@@ -231,6 +276,13 @@ export default function PrintCertificateModal({
         const participantPredicate = participantPredicateStyle === 'WITH_RANK' && archer.total > 0
           ? `${cleanLabel} (Peringkat ke-${idx + 1})`
           : cleanLabel;
+
+        const defaultPartNum = `CERT/${eventCode}/${catCode}/${numStr}`;
+        const finalCertNum = manualCertNumbers[archer.id]
+          ? manualCertNumbers[archer.id]
+          : manualCertNumberFormat && manualCertNumberFormat.trim()
+          ? manualCertNumberFormat.replace('{NUMBER}', numStr).replace('{NUM}', String(idx + 1))
+          : defaultPartNum;
 
         return {
           id: `${cat}-part-${archer.id}`,
@@ -246,7 +298,7 @@ export default function PrintCertificateModal({
           medalType: 'PARTICIPANT',
           scoreTotal: archer.total,
           rank: idx + 1,
-          certificateNumber: `CERT/${eventCode}/${catCode}/${numStr}`
+          certificateNumber: finalCertNum
         };
       });
 
@@ -262,7 +314,7 @@ export default function PrintCertificateModal({
     });
 
     return resultList;
-  }, [event, selectedCategory, recipientFilter, selectedArcherIds, participantPredicateStyle, participantCustomLabel]);
+  }, [event, selectedCategory, recipientFilter, selectedArcherIds, participantPredicateStyle, participantCustomLabel, manualCertNumbers, manualCertNumberFormat]);
 
   // Ensure current preview index is safe
   useEffect(() => {
@@ -295,6 +347,12 @@ export default function PrintCertificateModal({
       customStampUrl,
       nameOffsetY,
       nameFontSize,
+      titleFontSize,
+      fontFamily,
+      sectionSpacing,
+      sectionGap,
+      manualCertNumbers,
+      manualCertNumberFormat,
       primaryTextColor,
       participantPredicateStyle,
       participantCustomLabel,
@@ -306,6 +364,30 @@ export default function PrintCertificateModal({
       certificateConfig: newConfig
     });
     toast.success('Pengaturan & desain sertifikat berhasil disimpan!');
+  };
+
+  // Apply batch manual certificate numbering
+  const handleApplyManualNumberFormat = () => {
+    if (!manualCertNumberFormat || !manualCertNumberFormat.trim()) {
+      toast.warning('Masukkan format nomor sertifikat terlebih dahulu (contoh: {NUMBER}/PAN-KEBUMEN/2026)');
+      return;
+    }
+    const newNumbers: Record<string, string> = {};
+    recipients.forEach((rec, idx) => {
+      const numStr = String(idx + 1).padStart(3, '0');
+      newNumbers[rec.archerId] = manualCertNumberFormat
+        .replace('{NUMBER}', numStr)
+        .replace('{NUM}', String(idx + 1))
+        .replace('{YEAR}', String(new Date().getFullYear()));
+    });
+    setManualCertNumbers(newNumbers);
+    toast.success(`Format nomor manual diterapkan ke ${recipients.length} sertifikat!`);
+  };
+
+  const handleResetCertNumbers = () => {
+    setManualCertNumbers({});
+    setManualCertNumberFormat('');
+    toast.info('Nomor sertifikat dikembalikan ke penomoran otomatis sistem.');
   };
 
   // Upload Custom Background Handlers
@@ -410,14 +492,22 @@ export default function PrintCertificateModal({
       xl: 'text-5xl sm:text-6xl md:text-7xl print:text-6xl'
     }[nameFontSize];
 
+    // Font size classes for title
+    const titleSizeClass = {
+      sm: 'text-2xl sm:text-3xl md:text-4xl print:text-4xl',
+      md: 'text-3xl sm:text-4xl md:text-5xl print:text-5xl',
+      lg: 'text-4xl sm:text-5xl md:text-6xl print:text-6xl',
+      xl: 'text-5xl sm:text-6xl md:text-7xl print:text-7xl'
+    }[titleFontSize];
+
     return (
       <div 
         key={recipient.id}
-        className={`certificate-sheet-page relative w-full aspect-[297/210] flex flex-col justify-between overflow-hidden select-none ${
+        className={`certificate-sheet-page relative w-full aspect-[297/210] flex flex-col overflow-hidden select-none ${
           printTextOnlyMode ? 'bg-transparent text-slate-900' : 'bg-white'
         }`}
         style={{
-          fontFamily: "'Playfair Display', serif, sans-serif",
+          fontFamily: getFontFamilyStyle(fontFamily),
           boxSizing: 'border-box'
         }}
       >
@@ -499,18 +589,28 @@ export default function PrintCertificateModal({
           </>
         )}
 
-        {/* 2. FOREGROUND CONTENT LAYER - DENSE, PROPORTIONAL, PRESTIGIOUS */}
-        <div className="relative z-10 w-full h-full flex flex-col justify-between px-8 py-7 sm:px-12 sm:py-9 md:px-14 md:py-10 print:px-10 print:py-7">
+        {/* 2. FOREGROUND CONTENT LAYER - CLOSE, DENSE & PROPORTIONAL */}
+        <div 
+          className={`relative z-10 w-full h-full flex flex-col items-center px-8 sm:px-12 md:px-14 print:px-10 transition-all ${
+            sectionSpacing === 'SPREAD'
+              ? 'justify-between py-6 sm:py-8 md:py-9 print:py-7'
+              : 'justify-center py-4 print:py-4'
+          }`}
+          style={{
+            rowGap: sectionSpacing === 'SPREAD' ? undefined : `${sectionGap}px`,
+            transform: centerOffsetY ? `translateY(${centerOffsetY}px)` : undefined
+          }}
+        >
           
           {/* HEADER: Logos Kiri & Kanan, Judul Sertifikat & Nomor di Tengah */}
           <div className="w-full flex items-center justify-between gap-3 shrink-0">
             {/* Left Logos */}
-            <div className="flex items-center gap-2.5 w-36 sm:w-44 justify-start">
+            <div className="flex items-center gap-2.5 w-32 sm:w-40 justify-start">
               {showTournamentLogo && tournamentLogo && (
                 <img 
                   src={tournamentLogo} 
                   alt="Tournament Logo" 
-                  className="h-11 sm:h-13 md:h-15 w-auto object-contain max-w-[110px]" 
+                  className="h-10 sm:h-12 md:h-14 w-auto object-contain max-w-[100px]" 
                   referrerPolicy="no-referrer"
                 />
               )}
@@ -518,7 +618,7 @@ export default function PrintCertificateModal({
                 <img 
                   src={clubLogo} 
                   alt="Club Logo" 
-                  className="h-10 sm:h-12 md:h-13 w-auto object-contain max-w-[95px]" 
+                  className="h-9 sm:h-11 md:h-12 w-auto object-contain max-w-[85px]" 
                   referrerPolicy="no-referrer"
                 />
               )}
@@ -526,20 +626,20 @@ export default function PrintCertificateModal({
 
             {/* Center: Kop Event, Judul SERTIFIKAT, dan Nomor Sertifikat */}
             <div className="text-center flex-1 px-2">
-              <p className="text-[10px] sm:text-xs md:text-sm tracking-[0.22em] font-black uppercase text-amber-900/90 mb-1 font-sans">
+              <p className="text-[10px] sm:text-xs md:text-sm tracking-[0.22em] font-black uppercase text-amber-900/90 mb-0.5 font-sans">
                 {tournamentName}
               </p>
               <h1 
-                className="text-4xl sm:text-5xl md:text-6xl font-black tracking-wider text-slate-900 uppercase leading-none drop-shadow-2xs"
-                style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+                className={`${titleSizeClass} font-black tracking-wider text-slate-900 uppercase leading-none drop-shadow-2xs`}
+                style={{ fontFamily: getFontFamilyStyle(fontFamily) }}
               >
                 {certTitle}
               </h1>
-              {/* Nomor Sertifikat tepat di bawah tulisan SERTIFIKAT seperti pada gambar referensi */}
-              <p className="text-xs sm:text-sm font-sans font-bold text-slate-700 tracking-wider mt-1.5">
+              {/* Nomor Sertifikat tepat di bawah tulisan SERTIFIKAT */}
+              <p className="text-xs sm:text-[13px] font-sans font-bold text-slate-700 tracking-wider mt-1">
                 Nomor : <span className="font-mono font-black text-slate-900">{recipient.certificateNumber}</span>
               </p>
-              <div className="flex items-center justify-center gap-2 mt-1.5">
+              <div className="flex items-center justify-center gap-2 mt-1">
                 <div className="w-16 sm:w-28 h-0.5 bg-gradient-to-r from-transparent to-amber-600" />
                 <div className="w-1.5 h-1.5 bg-amber-600 rotate-45 shrink-0 shadow-xs" />
                 <div className="w-16 sm:w-28 h-0.5 bg-gradient-to-l from-transparent to-amber-600" />
@@ -547,26 +647,26 @@ export default function PrintCertificateModal({
             </div>
 
             {/* Right Logos & Medal/Badge */}
-            <div className="flex items-center gap-2.5 w-36 sm:w-44 justify-end">
+            <div className="flex items-center gap-2.5 w-32 sm:w-40 justify-end">
               {showSecondaryLogo && secondaryLogo && (
                 <img 
                   src={secondaryLogo} 
                   alt="Organization Logo" 
-                  className="h-10 sm:h-12 md:h-13 w-auto object-contain max-w-[95px]" 
+                  className="h-9 sm:h-11 md:h-12 w-auto object-contain max-w-[85px]" 
                   referrerPolicy="no-referrer"
                 />
               )}
               {showMedalBadge && (isGold || isSilver || isBronze || isFourth) && (
                 <div className="flex flex-col items-center">
-                  <div className={`w-11 h-11 sm:w-13 sm:h-13 rounded-full flex items-center justify-center shadow-md border-2 ${
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shadow-md border-2 ${
                     isGold ? 'bg-amber-400 border-amber-300 text-amber-950' :
                     isSilver ? 'bg-slate-300 border-slate-200 text-slate-900' :
                     isBronze ? 'bg-amber-700 border-amber-600 text-amber-100' :
                     'bg-indigo-600 border-indigo-400 text-white'
                   }`}>
-                    {isGold ? <Trophy className="w-6 h-6" /> : <Medal className="w-6 h-6" />}
+                    {isGold ? <Trophy className="w-5 h-5 sm:w-6 sm:h-6" /> : <Medal className="w-5 h-5 sm:w-6 sm:h-6" />}
                   </div>
-                  <span className="text-[8.5px] sm:text-[10px] font-black uppercase tracking-wider font-sans mt-0.5 text-slate-800">
+                  <span className="text-[8px] sm:text-[9.5px] font-black uppercase tracking-wider font-sans mt-0.5 text-slate-800">
                     {isGold ? 'Emas' : isSilver ? 'Perak' : isBronze ? 'Perunggu' : 'Podium'}
                   </span>
                 </div>
@@ -574,60 +674,53 @@ export default function PrintCertificateModal({
             </div>
           </div>
 
-          {/* MAIN BODY: Center Page Focused, Dense, Compact & Authoritative Typography */}
-          <div 
-            className="w-full flex-1 flex flex-col items-center justify-center text-center px-4 my-auto transition-transform"
-            style={{
-              transform: centerOffsetY ? `translateY(${centerOffsetY}px)` : undefined
-            }}
-          >
-            <div className="w-full max-w-2xl mx-auto flex flex-col items-center justify-center">
-              {/* Kalimat Pengantar */}
-              <p className="text-xs sm:text-sm font-serif italic text-slate-700 tracking-wide mb-1 leading-none font-medium">
-                {certSubtitle}
-              </p>
+          {/* MAIN BODY: Center Page Focused, Dense, Close to Header and Footer */}
+          <div className="w-full max-w-2xl mx-auto flex flex-col items-center justify-center text-center px-4 shrink-0">
+            {/* Kalimat Pengantar */}
+            <p className="text-xs sm:text-sm font-serif italic text-slate-700 tracking-wide mb-1 leading-none font-medium">
+              {certSubtitle}
+            </p>
 
-              {/* Nama Atlet - Besar, Gagah, Berwibawa */}
-              <div className="w-full max-w-xl px-2 my-1">
-                <h2 
-                  className={`${nameSizeClass} font-black tracking-wide uppercase px-2 truncate leading-tight drop-shadow-xs`}
-                  style={{ 
-                    fontFamily: "'Playfair Display', Georgia, serif",
-                    color: primaryTextColor
-                  }}
-                >
-                  {recipient.archerName}
-                </h2>
-                {/* Garis tegas di bawah nama atlet */}
-                <div className="w-48 sm:w-72 h-[1.5px] bg-slate-900/80 mx-auto mt-1" />
-              </div>
-
-              {/* Asal Klub / Kontingen - Menempel Rapat & Rapi */}
-              {recipient.club && recipient.club !== 'Individu / Bebas' && (
-                <p className="text-[11px] sm:text-xs font-bold text-slate-600 uppercase tracking-widest font-sans mb-1.5 leading-none">
-                  {`Klub : ${recipient.club}`}
-                </p>
-              )}
-
-              {/* Teks Sebagai */}
-              <p className="text-[11px] sm:text-xs font-serif italic text-slate-600 mb-0.5 leading-none">
-                Sebagai :
-              </p>
-
-              {/* Predikat - Murni Tipografi Tanpa Pill, Bersih & Gagah (Contoh: PESERTA / JUARA 1) */}
-              <p className="text-xl sm:text-2xl md:text-3xl font-black tracking-[0.16em] text-slate-950 uppercase font-sans mb-1.5 leading-none">
-                {displayPredicate}
-              </p>
-
-              {/* Kalimat Narasi Turnamen - Padat, Rapat, Mengalir & Menyatu */}
-              <p className="max-w-xl text-[11px] sm:text-xs md:text-[13px] text-slate-700 font-serif leading-snug px-2 text-center italic">
-                {renderedBody}
-              </p>
+            {/* Nama Atlet - Besar, Gagah, Berwibawa */}
+            <div className="w-full max-w-xl px-2 my-1">
+              <h2 
+                className={`${nameSizeClass} font-black tracking-wide uppercase px-2 truncate leading-tight drop-shadow-xs`}
+                style={{ 
+                  fontFamily: getFontFamilyStyle(fontFamily),
+                  color: primaryTextColor
+                }}
+              >
+                {recipient.archerName}
+              </h2>
+              {/* Garis tegas di bawah nama atlet */}
+              <div className="w-48 sm:w-72 h-[1.5px] bg-slate-900/80 mx-auto mt-1" />
             </div>
+
+            {/* Asal Klub / Kontingen - Menempel Rapat & Rapi */}
+            {recipient.club && recipient.club !== 'Individu / Bebas' && (
+              <p className="text-[11px] sm:text-xs font-bold text-slate-600 uppercase tracking-widest font-sans mb-1.5 leading-none">
+                {`Klub : ${recipient.club}`}
+              </p>
+            )}
+
+            {/* Teks Sebagai */}
+            <p className="text-[11px] sm:text-xs font-serif italic text-slate-600 mb-0.5 leading-none">
+              Sebagai :
+            </p>
+
+            {/* Predikat - Murni Tipografi Tanpa Pill, Bersih & Gagah (Contoh: PESERTA / JUARA 1) */}
+            <p className="text-xl sm:text-2xl md:text-3xl font-black tracking-[0.16em] text-slate-950 uppercase font-sans mb-1.5 leading-none">
+              {displayPredicate}
+            </p>
+
+            {/* Kalimat Narasi Turnamen - Padat, Rapat, Mengalir & Menyatu */}
+            <p className="max-w-xl text-[11px] sm:text-xs md:text-[13px] text-slate-700 font-serif leading-snug px-2 text-center italic">
+              {renderedBody}
+            </p>
           </div>
 
           {/* FOOTER: Tanggal/Kota di atas tanda tangan kanan, 2 Penandatangan, Stempel, dan QR Verifikasi */}
-          <div className="w-full shrink-0 flex items-end justify-between gap-6 pt-2 font-sans">
+          <div className="w-full shrink-0 flex items-end justify-between gap-6 pt-1 font-sans">
             
             {/* Kiri: QR Verification & Keaslian Dokumen */}
             <div className="flex items-center gap-3">
@@ -924,6 +1017,9 @@ export default function PrintCertificateModal({
                           <p className={`text-[9px] truncate ${currentPreviewIndex === idx ? 'text-slate-800' : 'text-slate-400'}`}>
                             {rec.predicate} • {rec.club}
                           </p>
+                          <p className={`text-[8.5px] font-mono truncate ${currentPreviewIndex === idx ? 'text-slate-900 font-bold' : 'text-amber-400/80'}`}>
+                            No: {rec.certificateNumber}
+                          </p>
                         </div>
                         <span className={`text-[8px] font-black px-1.5 py-0.5 rounded font-mono shrink-0 ${
                           rec.medalType === 'GOLD' ? 'bg-amber-400/30 text-amber-950 border border-amber-500/40' :
@@ -980,6 +1076,21 @@ export default function PrintCertificateModal({
                       >
                         <ChevronRight className="w-4 h-4" />
                       </button>
+
+                      {/* Manual Cert Number Editor for Currently Viewed Archer */}
+                      {currentRecipient && (
+                        <div className="hidden sm:flex items-center gap-1.5 ml-2 bg-slate-900 border border-white/10 rounded-xl px-2.5 py-1">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase shrink-0">No. Sertifikat:</span>
+                          <input
+                            type="text"
+                            value={currentRecipient.certificateNumber}
+                            onChange={e => handleUpdateRecipientCertNumber(currentRecipient.archerId, e.target.value)}
+                            className="bg-slate-950 border border-white/20 rounded-md px-2 py-0.5 text-xs font-mono font-bold text-amber-300 w-44 md:w-56 focus:outline-hidden focus:border-amber-400"
+                            placeholder="Nomor manual..."
+                            title="Edit langsung nomor sertifikat untuk pemanah ini"
+                          />
+                        </div>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -1179,54 +1290,193 @@ export default function PrintCertificateModal({
                     </div>
                   </div>
 
-                  {/* SECTION 3: KUSTOMISASI POSISI & UKURAN TEKS */}
-                  <div className="p-5 rounded-2xl bg-slate-900 border border-white/10 space-y-4">
+                  {/* SECTION 3: KUSTOMISASI JARAK, FONT & PENOMORAN MANUAL */}
+                  <div className="p-5 rounded-2xl bg-slate-900 border border-white/10 space-y-6">
                     <h5 className="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
                       <Sliders className="w-4 h-4 text-amber-400" />
-                      <span>Penyesuaian Posisi Center Page &amp; Teks</span>
+                      <span>Penyesuaian Jarak, Font &amp; Penomoran Manual</span>
                     </h5>
 
-                    {/* Center Page Vertical Offset - Simple, Single Master Control */}
-                    <div className="space-y-2 p-3.5 rounded-xl bg-slate-950/60 border border-amber-400/20">
-                      <div className="flex items-center justify-between text-xs font-bold text-slate-300">
-                        <span className="flex items-center gap-1.5 text-white">
-                          <span>🎯 Posisi Vertikal Teks Tengah (Fokus Center Page):</span>
+                    {/* 1. JARAK VERTIKAL ANTAR BAGIAN (HEADER - NAMA - TANDA TANGAN) */}
+                    <div className="space-y-3 p-4 rounded-xl bg-slate-950/70 border border-amber-400/30">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <span>📐 Kerapatan Vertikal (Jarak Judul &amp; Tanda Tangan ke Teks Tengah):</span>
                         </span>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-amber-400 font-bold bg-amber-400/10 px-2 py-0.5 rounded-md border border-amber-400/30">
-                            {centerOffsetY === 0 ? '0 px (Presisi Center)' : `${centerOffsetY > 0 ? '+' : ''}${centerOffsetY} px`}
-                          </span>
-                          {centerOffsetY !== 0 && (
-                            <button
-                              type="button"
-                              onClick={() => setCenterOffsetY(0)}
-                              className="text-[10px] text-slate-400 hover:text-white underline font-semibold"
-                            >
-                              Reset Center
-                            </button>
-                          )}
-                        </div>
+                        <span className="text-xs font-mono font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md border border-amber-400/30">
+                          {sectionSpacing === 'SPREAD' ? 'Menyebar ke Tepi' : `${sectionGap} px (${sectionSpacing === 'COMPACT' ? 'Sangat Dekat' : 'Seimbang'})`}
+                        </span>
                       </div>
-                      <input 
-                        type="range"
-                        min="-40"
-                        max="40"
-                        value={centerOffsetY}
-                        onChange={e => setCenterOffsetY(parseInt(e.target.value))}
-                        className="w-full accent-amber-400"
-                      />
-                      <p className="text-[10px] text-slate-400 leading-tight">
-                        Secara otomatis seluruh susunan nama, predikat, dan narasi terkunci padat di titik pusat kertas (Center Page). Geser slider ini hanya jika Anda mencetak pada kertas blanko berdesain khusus.
-                      </p>
+
+                      {/* 3 Presets for Closeness */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSectionSpacing('COMPACT');
+                            setSectionGap(10);
+                          }}
+                          className={`p-2.5 rounded-xl border text-left transition-all ${
+                            sectionSpacing === 'COMPACT'
+                              ? 'bg-amber-400/20 border-amber-400 text-white shadow-xs'
+                              : 'bg-slate-900 border-white/5 text-slate-400 hover:bg-slate-800'
+                          }`}
+                        >
+                          <p className="text-xs font-black uppercase text-white">Sangat Dekat &amp; Padat</p>
+                          <p className="text-[8.5px] text-slate-400 mt-0.5 leading-tight">
+                            Jarak pendek 10px. Judul, Nama, dan Tanda Tangan saling berdekatan di tengah kertas (Rekomendasi).
+                          </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSectionSpacing('BALANCED');
+                            setSectionGap(22);
+                          }}
+                          className={`p-2.5 rounded-xl border text-left transition-all ${
+                            sectionSpacing === 'BALANCED'
+                              ? 'bg-amber-400/20 border-amber-400 text-white shadow-xs'
+                              : 'bg-slate-900 border-white/5 text-slate-400 hover:bg-slate-800'
+                          }`}
+                        >
+                          <p className="text-xs font-black uppercase text-white">Proporsional Seimbang</p>
+                          <p className="text-[8.5px] text-slate-400 mt-0.5 leading-tight">
+                            Jarak sedang 22px. Tata letak elegan dengan ruang napas teratur.
+                          </p>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setSectionSpacing('SPREAD')}
+                          className={`p-2.5 rounded-xl border text-left transition-all ${
+                            sectionSpacing === 'SPREAD'
+                              ? 'bg-amber-400/20 border-amber-400 text-white shadow-xs'
+                              : 'bg-slate-900 border-white/5 text-slate-400 hover:bg-slate-800'
+                          }`}
+                        >
+                          <p className="text-xs font-black uppercase text-white">Menyebar ke Tepi</p>
+                          <p className="text-[8.5px] text-slate-400 mt-0.5 leading-tight">
+                            Judul di tepi paling atas, Tanda Tangan di tepi paling bawah kertas.
+                          </p>
+                        </button>
+                      </div>
+
+                      {/* Fine-Tuning Slider for Section Gap */}
+                      {sectionSpacing !== 'SPREAD' && (
+                        <div className="pt-2 border-t border-white/5 space-y-1.5">
+                          <div className="flex justify-between text-[11px] font-bold text-slate-300">
+                            <span>Atur Jarak Pendek / Panjang secara Presisi:</span>
+                            <span className="font-mono text-amber-400 font-bold">{sectionGap} px</span>
+                          </div>
+                          <input 
+                            type="range"
+                            min="4"
+                            max="48"
+                            value={sectionGap}
+                            onChange={e => setSectionGap(parseInt(e.target.value))}
+                            className="w-full accent-amber-400"
+                          />
+                          <p className="text-[9px] text-slate-400">
+                            Semakin kecil angkanya, tulisan judul atas dan tanda tangan bawah semakin menempel dekat ke nama peserta di tengah.
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Center Page Vertical Offset */}
+                      <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex justify-between text-[11px] font-bold text-slate-300">
+                            <span>Geser Seluruh Blok Tengah (Center Page Offset):</span>
+                            <span className="font-mono text-amber-400">{centerOffsetY} px</span>
+                          </div>
+                          <input 
+                            type="range"
+                            min="-40"
+                            max="40"
+                            value={centerOffsetY}
+                            onChange={e => setCenterOffsetY(parseInt(e.target.value))}
+                            className="w-full accent-amber-400 mt-1"
+                          />
+                        </div>
+                        {centerOffsetY !== 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setCenterOffsetY(0)}
+                            className="text-[10px] text-amber-400 hover:underline font-bold shrink-0 self-end mb-1"
+                          >
+                            Reset Tengah
+                          </button>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {/* Name Font Size */}
-                      <div className="space-y-1.5">
+                    {/* 2. PILIHAN JENIS FONT (FONT FAMILY) */}
+                    <div className="space-y-2 p-4 rounded-xl bg-slate-950/60 border border-white/5">
+                      <span className="text-xs font-bold text-white block">
+                        🔤 Pilihan Jenis Huruf (Font Family) Sertifikat:
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                        {[
+                          { id: 'PLAYFAIR', name: 'Playfair Display', label: 'Serif Mewah', fontCss: "'Playfair Display', serif" },
+                          { id: 'CINZEL', name: 'Cinzel', label: 'Royal Formal', fontCss: "'Cinzel', serif" },
+                          { id: 'GARAMOND', name: 'Garamond', label: 'Klasik Piagam', fontCss: "'Cormorant Garamond', serif" },
+                          { id: 'OSWALD', name: 'Oswald', label: 'Modern Sport', fontCss: "'Oswald', sans-serif" },
+                          { id: 'MONTSERRAT', name: 'Montserrat', label: 'Clean Elegan', fontCss: "'Montserrat', sans-serif" }
+                        ].map(f => (
+                          <button
+                            key={f.id}
+                            type="button"
+                            onClick={() => setFontFamily(f.id as any)}
+                            className={`p-2.5 rounded-xl border text-center transition-all ${
+                              fontFamily === f.id
+                                ? 'bg-amber-400/20 border-amber-400 text-white shadow-xs'
+                                : 'bg-slate-900 border-white/5 text-slate-400 hover:bg-slate-800'
+                            }`}
+                          >
+                            <p 
+                              className="text-xs font-black truncate"
+                              style={{ fontFamily: f.fontCss }}
+                            >
+                              {f.name}
+                            </p>
+                            <p className="text-[8.5px] text-slate-400 mt-0.5">{f.label}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* 3. PILIHAN UKURAN FONT & WARNA */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {/* Title Font Size */}
+                      <div className="space-y-1.5 p-3 rounded-xl bg-slate-950/60 border border-white/5">
                         <span className="text-xs font-bold text-slate-300 block">
-                          Ukuran Huruf Nama Atlet:
+                          Ukuran Judul (SERTIFIKAT):
                         </span>
-                        <div className="flex gap-2">
+                        <div className="flex gap-1.5">
+                          {(['sm', 'md', 'lg', 'xl'] as const).map(size => (
+                            <button
+                              key={size}
+                              type="button"
+                              onClick={() => setTitleFontSize(size)}
+                              className={`flex-1 py-1.5 rounded-lg text-xs font-black uppercase transition-all ${
+                                titleFontSize === size 
+                                  ? 'bg-amber-400 text-slate-950 shadow-xs' 
+                                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                              }`}
+                            >
+                              {size}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Name Font Size */}
+                      <div className="space-y-1.5 p-3 rounded-xl bg-slate-950/60 border border-white/5">
+                        <span className="text-xs font-bold text-slate-300 block">
+                          Ukuran Nama Atlet:
+                        </span>
+                        <div className="flex gap-1.5">
                           {(['sm', 'md', 'lg', 'xl'] as const).map(size => (
                             <button
                               key={size}
@@ -1245,9 +1495,9 @@ export default function PrintCertificateModal({
                       </div>
 
                       {/* Name Text Color */}
-                      <div className="space-y-1.5">
+                      <div className="space-y-1.5 p-3 rounded-xl bg-slate-950/60 border border-white/5">
                         <span className="text-xs font-bold text-slate-300 block">
-                          Warna Teks Nama Atlet:
+                          Warna Huruf Nama:
                         </span>
                         <div className="flex items-center gap-2">
                           <input 
@@ -1260,13 +1510,57 @@ export default function PrintCertificateModal({
                             type="text"
                             value={primaryTextColor}
                             onChange={e => setPrimaryTextColor(e.target.value)}
-                            className="flex-1 bg-slate-950 border border-white/10 rounded-lg px-2.5 py-1 text-xs font-mono text-white"
+                            className="flex-1 bg-slate-950 border border-white/10 rounded-lg px-2 py-1 text-xs font-mono text-white"
                           />
                         </div>
                       </div>
                     </div>
 
-                    {/* Pengaturan Tulisan Predikat Peserta */}
+                    {/* 4. PENOMORAN SERTIFIKAT MANUAL OLEH PENYELENGGARA */}
+                    <div className="p-4 rounded-xl bg-slate-950/70 border border-blue-400/30 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <span>🔢 Format &amp; Penomoran Manual oleh Penyelenggara:</span>
+                        </span>
+                        {Object.keys(manualCertNumbers).length > 0 && (
+                          <span className="text-[10px] text-blue-300 bg-blue-950/80 px-2 py-0.5 rounded-md border border-blue-500/30 font-mono">
+                            {Object.keys(manualCertNumbers).length} nomor manual terpasang
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-[10px] text-slate-400 leading-tight">
+                        Penyelenggara bebas menentukan format penomoran sendiri. Masukkan template format di bawah (gunakan <code className="text-amber-300 font-mono">{'{NUMBER}'}</code> untuk urutan nomor 001, 002, dst). Anda juga bisa langsung mengedit nomor perorangan di atas tampilan preview.
+                      </p>
+
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        <input
+                          type="text"
+                          value={manualCertNumberFormat}
+                          onChange={e => setManualCertNumberFormat(e.target.value)}
+                          placeholder="Contoh: NOMOR: {NUMBER}/PAN-KEBUMEN/2026"
+                          className="flex-1 bg-slate-900 border border-white/15 rounded-xl px-3 py-2 text-xs font-mono text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-400"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleApplyManualNumberFormat}
+                          className="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0"
+                        >
+                          Terapkan ke Semua Peserta
+                        </button>
+                        {Object.keys(manualCertNumbers).length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleResetCertNumbers}
+                            className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all shrink-0"
+                          >
+                            Reset Nomor
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 5. Pengaturan Tulisan Predikat Peserta */}
                     <div className="p-4 rounded-xl bg-slate-950/60 border border-emerald-400/20 space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-xs font-bold text-white flex items-center gap-1.5">
