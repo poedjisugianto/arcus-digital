@@ -274,6 +274,8 @@ export interface CertificateConfig {
   participantPredicateStyle?: 'PESERTA_ONLY' | 'WITH_RANK';
   participantCustomLabel?: string;
   layoutDensity?: 'COMPACT' | 'BALANCED' | 'SPACIOUS';
+  contentGap?: number; // Jarak antar baris/elemen tengah dalam pixel (default: 4px untuk padat)
+  centerOffsetY?: number; // Penyesuaian posisi vertikal seluruh blok tengah (-80 s/d +80 px)
 }
 
 export interface TechnicalSupportAccess {
