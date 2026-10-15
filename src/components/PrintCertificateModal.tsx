@@ -75,6 +75,9 @@ export default function PrintCertificateModal({
   const [nameOffsetY, setNameOffsetY] = useState<number>(existingConfig?.nameOffsetY ?? 0);
   const [nameFontSize, setNameFontSize] = useState<'sm' | 'md' | 'lg' | 'xl'>(existingConfig?.nameFontSize || 'lg');
   const [titleFontSize, setTitleFontSize] = useState<'sm' | 'md' | 'lg' | 'xl'>(existingConfig?.titleFontSize || 'lg');
+  const [bodyFontSize, setBodyFontSize] = useState<'sm' | 'md' | 'lg' | 'xl'>(existingConfig?.bodyFontSize || 'lg');
+  const [logoSize, setLogoSize] = useState<'sm' | 'md' | 'lg' | 'xl' | '2xl'>((existingConfig?.logoSize as any) || 'lg');
+  const [qrCodeSize, setQrCodeSize] = useState<'sm' | 'md' | 'lg' | 'xl'>(existingConfig?.qrCodeSize || 'lg');
   const [fontFamily, setFontFamily] = useState<'PLAYFAIR' | 'CINZEL' | 'GARAMOND' | 'OSWALD' | 'MONTSERRAT'>(
     existingConfig?.fontFamily || 'PLAYFAIR'
   );
@@ -348,6 +351,9 @@ export default function PrintCertificateModal({
       nameOffsetY,
       nameFontSize,
       titleFontSize,
+      bodyFontSize,
+      logoSize,
+      qrCodeSize,
       fontFamily,
       sectionSpacing,
       sectionGap,
@@ -500,6 +506,31 @@ export default function PrintCertificateModal({
       xl: 'text-5xl sm:text-6xl md:text-7xl print:text-7xl'
     }[titleFontSize];
 
+    // Logo size classes - enlarged, 1 baris di tengah atas
+    const logoHeightClass = {
+      sm: 'h-10 sm:h-12 md:h-14 max-w-[100px]',
+      md: 'h-14 sm:h-16 md:h-18 max-w-[130px]',
+      lg: 'h-16 sm:h-20 md:h-24 max-w-[170px]',
+      xl: 'h-20 sm:h-24 md:h-28 max-w-[210px]',
+      '2xl': 'h-24 sm:h-28 md:h-32 max-w-[250px]'
+    }[logoSize] || 'h-16 sm:h-20 md:h-24 max-w-[170px]';
+
+    // QR code / barcode size in pixels - enlarged
+    const qrPixelSize = {
+      sm: 56,
+      md: 68,
+      lg: 84,
+      xl: 104
+    }[qrCodeSize] || 84;
+
+    // Body font size classes for deskripsi & keterangan - enlarged
+    const bodySizeClass = {
+      sm: 'text-xs sm:text-sm md:text-base leading-relaxed',
+      md: 'text-sm sm:text-base md:text-lg leading-relaxed',
+      lg: 'text-base sm:text-lg md:text-xl leading-relaxed',
+      xl: 'text-lg sm:text-xl md:text-2xl leading-relaxed'
+    }[bodyFontSize] || 'text-base sm:text-lg md:text-xl leading-relaxed';
+
     return (
       <div 
         key={recipient.id}
@@ -602,31 +633,94 @@ export default function PrintCertificateModal({
           }}
         >
           
-          {/* HEADER: Logos Kiri & Kanan, Judul Sertifikat & Nomor di Tengah */}
-          <div className="w-full flex items-center justify-between gap-3 shrink-0">
-            {/* Left Logos */}
-            <div className="flex items-center gap-2.5 w-32 sm:w-40 justify-start">
-              {showTournamentLogo && tournamentLogo && (
-                <img 
-                  src={tournamentLogo} 
-                  alt="Tournament Logo" 
-                  className="h-10 sm:h-12 md:h-14 w-auto object-contain max-w-[100px]" 
-                  referrerPolicy="no-referrer"
-                />
-              )}
-              {showClubLogo && clubLogo && (
-                <img 
-                  src={clubLogo} 
-                  alt="Club Logo" 
-                  className="h-9 sm:h-11 md:h-12 w-auto object-contain max-w-[85px]" 
-                  referrerPolicy="no-referrer"
-                />
-              )}
-            </div>
+          {/* HEADER: BADGE MEDALI TERPISAH PALING ATAS SENDIRI (DI TENGAH & LEBIH BESAR), DIIKUTI BARIS LOGO */}
+          <div className="w-full flex flex-col items-center justify-center shrink-0">
+            
+            {/* 1. BADGE MEDALI JUARA: Terpisah paling atas sendiri, di tengah, lebih besar & mencolok */}
+            {showMedalBadge && (isGold || isSilver || isBronze || isFourth) && (
+              <div className="flex flex-col items-center justify-center shrink-0 mb-2 transition-all">
+                <div className="relative flex items-center justify-center">
+                  {/* Outer Subtle Glow Effect */}
+                  <div className={`absolute -inset-1.5 rounded-full blur-xs opacity-70 ${
+                    isGold ? 'bg-amber-400' :
+                    isSilver ? 'bg-slate-300' :
+                    isBronze ? 'bg-amber-600' :
+                    'bg-indigo-400'
+                  }`} />
+                  
+                  {/* Large Medallion Circle */}
+                  <div className={`relative w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-full flex flex-col items-center justify-center shadow-xl border-3 sm:border-4 ${
+                    isGold 
+                      ? 'bg-gradient-to-br from-yellow-200 via-amber-400 to-amber-600 border-yellow-100 ring-2 ring-amber-500/50 text-amber-950' 
+                      : isSilver 
+                      ? 'bg-gradient-to-br from-white via-slate-200 to-slate-400 border-slate-100 ring-2 ring-slate-400/50 text-slate-900' 
+                      : isBronze 
+                      ? 'bg-gradient-to-br from-amber-400 via-amber-600 to-amber-900 border-amber-300 ring-2 ring-amber-800/50 text-amber-50' 
+                      : 'bg-gradient-to-br from-indigo-400 via-indigo-600 to-purple-800 border-indigo-200 ring-2 ring-indigo-500/50 text-white'
+                  }`}>
+                    {/* Inner Fine Accent Ring */}
+                    <div className="absolute inset-1.5 sm:inset-2 rounded-full border border-white/40 pointer-events-none" />
+                    
+                    {isGold ? (
+                      <Trophy className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 drop-shadow-md stroke-[2.2]" />
+                    ) : (
+                      <Medal className="w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 drop-shadow-md stroke-[2.2]" />
+                    )}
+                  </div>
+                </div>
 
-            {/* Center: Kop Event, Judul SERTIFIKAT, dan Nomor Sertifikat */}
-            <div className="text-center flex-1 px-2">
-              <p className="text-[10px] sm:text-xs md:text-sm tracking-[0.22em] font-black uppercase text-amber-900/90 mb-0.5 font-sans">
+                {/* Banner Label Medali Juara */}
+                <div className={`mt-1.5 px-3 sm:px-4 py-0.5 rounded-full shadow-sm border font-sans font-black uppercase tracking-wider text-[10px] sm:text-xs md:text-[13px] flex items-center gap-1.5 ${
+                  isGold ? 'bg-amber-100/95 border-amber-300 text-amber-950' :
+                  isSilver ? 'bg-slate-100/95 border-slate-300 text-slate-900' :
+                  isBronze ? 'bg-amber-900/90 border-amber-700 text-amber-100' :
+                  'bg-indigo-900/90 border-indigo-500 text-white'
+                }`}>
+                  <span className="text-amber-500 font-bold">★</span>
+                  <span>
+                    {isGold ? 'MEDALI EMAS • JUARA 1' : 
+                     isSilver ? 'MEDALI PERAK • JUARA 2' : 
+                     isBronze ? 'MEDALI PERUNGGU • JUARA 3' : 
+                     'PODIUM 4'}
+                  </span>
+                  <span className="text-amber-500 font-bold">★</span>
+                </div>
+              </div>
+            )}
+
+            {/* 2. BARIS LOGO TURNAMEN, KLUB & ORGANISASI (1 BARIS DI TENGAH PERSIS) */}
+            {((showTournamentLogo && tournamentLogo) || (showClubLogo && clubLogo) || (showSecondaryLogo && secondaryLogo)) && (
+              <div className="flex items-center justify-center gap-6 sm:gap-8 md:gap-10 mb-2 shrink-0 flex-wrap">
+                {showTournamentLogo && tournamentLogo && (
+                  <img 
+                    src={tournamentLogo} 
+                    alt="Tournament Logo" 
+                    className={`${logoHeightClass} w-auto object-contain drop-shadow-xs transition-all`} 
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+                {showClubLogo && clubLogo && (
+                  <img 
+                    src={clubLogo} 
+                    alt="Club Logo" 
+                    className={`${logoHeightClass} w-auto object-contain drop-shadow-xs transition-all`} 
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+                {showSecondaryLogo && secondaryLogo && (
+                  <img 
+                    src={secondaryLogo} 
+                    alt="Organization Logo" 
+                    className={`${logoHeightClass} w-auto object-contain drop-shadow-xs transition-all`} 
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+              </div>
+            )}
+
+            {/* KOP EVENT, JUDUL SERTIFIKAT, DAN NOMOR SERTIFIKAT */}
+            <div className="text-center w-full px-2">
+              <p className="text-xs sm:text-sm md:text-base tracking-[0.24em] font-black uppercase text-amber-950/90 mb-1 font-sans">
                 {tournamentName}
               </p>
               <h1 
@@ -636,53 +730,26 @@ export default function PrintCertificateModal({
                 {certTitle}
               </h1>
               {/* Nomor Sertifikat tepat di bawah tulisan SERTIFIKAT */}
-              <p className="text-xs sm:text-[13px] font-sans font-bold text-slate-700 tracking-wider mt-1">
+              <p className="text-xs sm:text-sm md:text-base font-sans font-bold text-slate-700 tracking-wider mt-1.5">
                 Nomor : <span className="font-mono font-black text-slate-900">{recipient.certificateNumber}</span>
               </p>
-              <div className="flex items-center justify-center gap-2 mt-1">
-                <div className="w-16 sm:w-28 h-0.5 bg-gradient-to-r from-transparent to-amber-600" />
-                <div className="w-1.5 h-1.5 bg-amber-600 rotate-45 shrink-0 shadow-xs" />
-                <div className="w-16 sm:w-28 h-0.5 bg-gradient-to-l from-transparent to-amber-600" />
+              <div className="flex items-center justify-center gap-2 mt-1.5">
+                <div className="w-20 sm:w-36 h-0.5 bg-gradient-to-r from-transparent to-amber-600" />
+                <div className="w-2 h-2 bg-amber-600 rotate-45 shrink-0 shadow-xs" />
+                <div className="w-20 sm:w-36 h-0.5 bg-gradient-to-l from-transparent to-amber-600" />
               </div>
-            </div>
-
-            {/* Right Logos & Medal/Badge */}
-            <div className="flex items-center gap-2.5 w-32 sm:w-40 justify-end">
-              {showSecondaryLogo && secondaryLogo && (
-                <img 
-                  src={secondaryLogo} 
-                  alt="Organization Logo" 
-                  className="h-9 sm:h-11 md:h-12 w-auto object-contain max-w-[85px]" 
-                  referrerPolicy="no-referrer"
-                />
-              )}
-              {showMedalBadge && (isGold || isSilver || isBronze || isFourth) && (
-                <div className="flex flex-col items-center">
-                  <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shadow-md border-2 ${
-                    isGold ? 'bg-amber-400 border-amber-300 text-amber-950' :
-                    isSilver ? 'bg-slate-300 border-slate-200 text-slate-900' :
-                    isBronze ? 'bg-amber-700 border-amber-600 text-amber-100' :
-                    'bg-indigo-600 border-indigo-400 text-white'
-                  }`}>
-                    {isGold ? <Trophy className="w-5 h-5 sm:w-6 sm:h-6" /> : <Medal className="w-5 h-5 sm:w-6 sm:h-6" />}
-                  </div>
-                  <span className="text-[8px] sm:text-[9.5px] font-black uppercase tracking-wider font-sans mt-0.5 text-slate-800">
-                    {isGold ? 'Emas' : isSilver ? 'Perak' : isBronze ? 'Perunggu' : 'Podium'}
-                  </span>
-                </div>
-              )}
             </div>
           </div>
 
           {/* MAIN BODY: Center Page Focused, Dense, Close to Header and Footer */}
-          <div className="w-full max-w-2xl mx-auto flex flex-col items-center justify-center text-center px-4 shrink-0">
+          <div className="w-full max-w-2xl sm:max-w-3xl mx-auto flex flex-col items-center justify-center text-center px-4 shrink-0">
             {/* Kalimat Pengantar */}
-            <p className="text-xs sm:text-sm font-serif italic text-slate-700 tracking-wide mb-1 leading-none font-medium">
+            <p className="text-sm sm:text-base md:text-lg font-serif italic text-slate-800 tracking-wide mb-1 leading-snug font-medium">
               {certSubtitle}
             </p>
 
             {/* Nama Atlet - Besar, Gagah, Berwibawa */}
-            <div className="w-full max-w-xl px-2 my-1">
+            <div className="w-full max-w-2xl px-2 my-1">
               <h2 
                 className={`${nameSizeClass} font-black tracking-wide uppercase px-2 truncate leading-tight drop-shadow-xs`}
                 style={{ 
@@ -698,50 +765,50 @@ export default function PrintCertificateModal({
 
             {/* Asal Klub / Kontingen - Menempel Rapat & Rapi */}
             {recipient.club && recipient.club !== 'Individu / Bebas' && (
-              <p className="text-[11px] sm:text-xs font-bold text-slate-600 uppercase tracking-widest font-sans mb-1.5 leading-none">
+              <p className="text-xs sm:text-sm md:text-base font-bold text-slate-700 uppercase tracking-widest font-sans mb-1.5 leading-none">
                 {`Klub : ${recipient.club}`}
               </p>
             )}
 
             {/* Teks Sebagai */}
-            <p className="text-[11px] sm:text-xs font-serif italic text-slate-600 mb-0.5 leading-none">
+            <p className="text-xs sm:text-sm md:text-base font-serif italic text-slate-700 mb-0.5 leading-none font-medium">
               Sebagai :
             </p>
 
             {/* Predikat - Murni Tipografi Tanpa Pill, Bersih & Gagah (Contoh: PESERTA / JUARA 1) */}
-            <p className="text-xl sm:text-2xl md:text-3xl font-black tracking-[0.16em] text-slate-950 uppercase font-sans mb-1.5 leading-none">
+            <p className="text-2xl sm:text-3xl md:text-4xl font-black tracking-[0.16em] text-slate-950 uppercase font-sans mb-2 leading-none">
               {displayPredicate}
             </p>
 
-            {/* Kalimat Narasi Turnamen - Padat, Rapat, Mengalir & Menyatu */}
-            <p className="max-w-xl text-[11px] sm:text-xs md:text-[13px] text-slate-700 font-serif leading-snug px-2 text-center italic">
+            {/* Kalimat Narasi Turnamen (Deskripsi & Keterangan) - Ukuran font diperbesar agar jelas & mantap */}
+            <p className={`max-w-2xl sm:max-w-3xl ${bodySizeClass} text-slate-800 font-serif px-2 text-center italic font-medium`}>
               {renderedBody}
             </p>
           </div>
 
-          {/* FOOTER: Tanggal/Kota di atas tanda tangan kanan, 2 Penandatangan, Stempel, dan QR Verifikasi */}
+          {/* FOOTER: Tanggal/Kota di atas tanda tangan kanan, 2 Penandatangan, Stempel, dan Barcode/QR Verifikasi */}
           <div className="w-full shrink-0 flex items-end justify-between gap-6 pt-1 font-sans">
             
-            {/* Kiri: QR Verification & Keaslian Dokumen */}
+            {/* Kiri: Barcode / QR Verification (Ukuran Diperbesar) & Keaslian Dokumen */}
             <div className="flex items-center gap-3">
               {showQrVerification && (
-                <div className="p-1.5 bg-white rounded-lg border border-slate-300 shadow-xs shrink-0">
+                <div className="p-2 bg-white rounded-xl border border-slate-300 shadow-sm shrink-0">
                   <QRCodeSVG 
                     value={`https://arcus-archery.web.app/verify?cert=${encodeURIComponent(recipient.certificateNumber)}&archer=${encodeURIComponent(recipient.archerName)}`}
-                    size={46}
+                    size={qrPixelSize}
                     level="M"
                   />
                 </div>
               )}
               <div className="text-left font-sans">
-                <p className="text-[8px] sm:text-[9px] text-slate-500 font-bold uppercase tracking-wider">
+                <p className="text-[9.5px] sm:text-xs text-slate-600 font-bold uppercase tracking-wider">
                   Verifikasi Sertifikat Resmi:
                 </p>
-                <p className="text-[9px] sm:text-[10px] font-mono font-black text-slate-800 uppercase">
+                <p className="text-xs sm:text-sm md:text-base font-mono font-black text-slate-900 uppercase">
                   {recipient.certificateNumber}
                 </p>
-                <p className="text-[7.5px] text-slate-400">
-                  Scan QR untuk cek keaslian data atlet & skor
+                <p className="text-[9px] sm:text-[10px] text-slate-500 font-medium max-w-[170px] sm:max-w-[210px]">
+                  Scan QR untuk cek keaslian data atlet, peringkat &amp; skor
                 </p>
               </div>
             </div>
@@ -1513,6 +1580,168 @@ export default function PrintCertificateModal({
                             className="flex-1 bg-slate-950 border border-white/10 rounded-lg px-2 py-1 text-xs font-mono text-white"
                           />
                         </div>
+                      </div>
+                    </div>
+
+                    {/* 3B. PENGATURAN UKURAN LOGO, BARCODE & FONT DESKRIPSI */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      {/* Logo Size */}
+                      <div className="space-y-1.5 p-3 rounded-xl bg-slate-950/60 border border-white/5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-300">
+                            Ukuran Logo (Atas):
+                          </span>
+                          <span className="text-[10px] text-amber-400 font-mono font-bold">1 Baris Tengah</span>
+                        </div>
+                        <div className="flex gap-1.5">
+                          {[
+                            { id: 'md', label: 'Sedang' },
+                            { id: 'lg', label: 'Besar' },
+                            { id: 'xl', label: 'Ekstra' },
+                            { id: '2xl', label: 'Jumbo' }
+                          ].map(s => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => setLogoSize(s.id as any)}
+                              className={`flex-1 py-1.5 rounded-lg text-[11px] font-black uppercase transition-all ${
+                                logoSize === s.id 
+                                  ? 'bg-amber-400 text-slate-950 shadow-xs' 
+                                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                              }`}
+                            >
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-[8.5px] text-slate-400">
+                          Logo diposisikan di baris paling atas dan berada di tengah-tengah.
+                        </p>
+                      </div>
+
+                      {/* Barcode / QR Code Size */}
+                      <div className="space-y-1.5 p-3 rounded-xl bg-slate-950/60 border border-white/5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-300">
+                            Ukuran Barcode / QR:
+                          </span>
+                          <span className="text-[10px] text-amber-400 font-mono font-bold">{qrCodeSize === 'lg' ? 'Besar (84px)' : qrCodeSize === 'xl' ? 'Jumbo (104px)' : 'Sedang (68px)'}</span>
+                        </div>
+                        <div className="flex gap-1.5">
+                          {[
+                            { id: 'md', label: 'Sedang' },
+                            { id: 'lg', label: 'Besar' },
+                            { id: 'xl', label: 'Ekstra' }
+                          ].map(s => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              onClick={() => setQrCodeSize(s.id as any)}
+                              className={`flex-1 py-1.5 rounded-lg text-[11px] font-black uppercase transition-all ${
+                                qrCodeSize === s.id 
+                                  ? 'bg-amber-400 text-slate-950 shadow-xs' 
+                                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                              }`}
+                            >
+                              {s.label}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-[8.5px] text-slate-400">
+                          Barcode verifikasi di sudut kiri bawah diperbesar agar mudah dipindai.
+                        </p>
+                      </div>
+
+                      {/* Description & Narrative Font Size */}
+                      <div className="space-y-1.5 p-3 rounded-xl bg-slate-950/60 border border-white/5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-300">
+                            Font Deskripsi &amp; Narasi:
+                          </span>
+                          <span className="text-[10px] text-amber-400 font-mono font-bold">{bodyFontSize.toUpperCase()}</span>
+                        </div>
+                        <div className="flex gap-1.5">
+                          {(['sm', 'md', 'lg', 'xl'] as const).map(size => (
+                            <button
+                              key={size}
+                              type="button"
+                              onClick={() => setBodyFontSize(size)}
+                              className={`flex-1 py-1.5 rounded-lg text-[11px] font-black uppercase transition-all ${
+                                bodyFontSize === size 
+                                  ? 'bg-amber-400 text-slate-950 shadow-xs' 
+                                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                              }`}
+                            >
+                              {size}
+                            </button>
+                          ))}
+                        </div>
+                        <p className="text-[8.5px] text-slate-400">
+                          Memperbesar teks kalimat keterangan kejuaraan agar terbaca jelas.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* 3C. TOGGLE VISIBILITAS ELEMEN SERTIFIKAT */}
+                    <div className="p-3.5 rounded-xl bg-slate-950/50 border border-white/5">
+                      <span className="text-xs font-bold text-white block mb-2">
+                        👁️ Tampilkan / Sembunyikan Logo &amp; Elemen:
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+                        <label className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
+                          <input 
+                            type="checkbox"
+                            checked={showTournamentLogo}
+                            onChange={e => setShowTournamentLogo(e.target.checked)}
+                            className="w-3.5 h-3.5 rounded text-amber-400"
+                          />
+                          <span>Logo Turnamen (Atas)</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
+                          <input 
+                            type="checkbox"
+                            checked={showClubLogo}
+                            onChange={e => setShowClubLogo(e.target.checked)}
+                            className="w-3.5 h-3.5 rounded text-amber-400"
+                          />
+                          <span>Logo Klub (Atas)</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
+                          <input 
+                            type="checkbox"
+                            checked={showSecondaryLogo}
+                            onChange={e => setShowSecondaryLogo(e.target.checked)}
+                            className="w-3.5 h-3.5 rounded text-amber-400"
+                          />
+                          <span>Logo Organisasi / Perpani</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
+                          <input 
+                            type="checkbox"
+                            checked={showMedalBadge}
+                            onChange={e => setShowMedalBadge(e.target.checked)}
+                            className="w-3.5 h-3.5 rounded text-amber-400"
+                          />
+                          <span>Badge Medali Juara</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
+                          <input 
+                            type="checkbox"
+                            checked={showQrVerification}
+                            onChange={e => setShowQrVerification(e.target.checked)}
+                            className="w-3.5 h-3.5 rounded text-amber-400"
+                          />
+                          <span>Barcode QR Verifikasi</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer text-slate-300 hover:text-white">
+                          <input 
+                            type="checkbox"
+                            checked={showDateLocation}
+                            onChange={e => setShowDateLocation(e.target.checked)}
+                            className="w-3.5 h-3.5 rounded text-amber-400"
+                          />
+                          <span>Kota &amp; Tanggal Acara</span>
+                        </label>
                       </div>
                     </div>
 

@@ -22,6 +22,7 @@ import {
 import { Barcode } from './Barcode';
 import { QRCodeSVG } from 'qrcode.react';
 import ParticipantTicketModal, { TicketParticipant } from './ParticipantTicketModal';
+import { getNextTargetSlot } from '../lib/targetAllocation';
 
 interface Props {
   event: ArcheryEvent;
@@ -467,6 +468,25 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
       const platformFee = isKids ? globalSettings.feeKids : globalSettings.feeAdult;
       const totalPaid = regFee;
 
+      // Auto Target Allocation (jika aktif)
+      const autoTargetConf = event.settings?.autoTargetConfig;
+      const shouldAssignTarget = autoTargetConf?.enabled && (
+        autoTargetConf.assignTrigger !== 'APPROVED_ONLY' || formData.paymentType === 'GATEWAY'
+      );
+
+      let targetData: { targetNo?: number; position?: string; wave?: number; sessionName?: string } = {};
+      if (shouldAssignTarget && formData.regType === 'ARCHER' && formData.category) {
+        const slot = getNextTargetSlot(formData.category, event);
+        if (slot) {
+          targetData = {
+            targetNo: slot.targetNo,
+            position: slot.position,
+            wave: slot.wave,
+            sessionName: slot.sessionName
+          };
+        }
+      }
+
       registrations.push({
         id: 'reg_' + Math.random().toString(36).substr(2, 9),
         registrationNo,
@@ -483,7 +503,8 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
         platformFee,
         status: RegistrationStatus.PENDING,
         paymentType: formData.paymentType,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        ...targetData
       });
     } else {
       // Collective logic
@@ -491,6 +512,12 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
         toast.error("Tambahkan minimal satu anggota");
         return;
       }
+
+      const autoTargetConf = event.settings?.autoTargetConfig;
+      const shouldAssignTarget = autoTargetConf?.enabled && (
+        autoTargetConf.assignTrigger !== 'APPROVED_ONLY' || formData.paymentType === 'GATEWAY'
+      );
+      const runningTargetList: any[] = [...(event.archers || []), ...(event.registrations || [])];
 
       collectiveMembers.forEach((member, idx) => {
         const orderNum = baseCount + 1 + idx;
@@ -513,6 +540,24 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
         const platformFee = isKids ? globalSettings.feeKids : globalSettings.feeAdult;
         const totalPaid = regFee;
 
+        let memberTarget: { targetNo?: number; position?: string; wave?: number; sessionName?: string } = {};
+        if (shouldAssignTarget && !isOfficial) {
+          const slot = getNextTargetSlot(member.category, event, runningTargetList);
+          if (slot) {
+            memberTarget = {
+              targetNo: slot.targetNo,
+              position: slot.position,
+              wave: slot.wave,
+              sessionName: slot.sessionName
+            };
+            runningTargetList.push({
+              id: `sim_target_${idx}`,
+              category: member.category,
+              ...memberTarget
+            });
+          }
+        }
+
         registrations.push({
           id: 'reg_' + Math.random().toString(36).substr(2, 9),
           registrationNo,
@@ -529,7 +574,8 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
           platformFee,
           status: RegistrationStatus.PENDING,
           paymentType: formData.paymentType,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          ...memberTarget
         });
       });
     }
@@ -828,7 +874,15 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                               )}
                             </td>
                             <td className="p-3 text-slate-700 font-extrabold uppercase text-[9px] tracking-wide">
-                              {item.category === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (CATEGORY_LABELS[item.category as CategoryType] || item.category)}
+                              <div>{item.category === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (CATEGORY_LABELS[item.category as CategoryType] || item.category)}</div>
+                              {(item as any).targetNo ? (
+                                <div className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 text-[8px] font-black border border-purple-200">
+                                  <span>🎯 Bantalan {(item as any).targetNo}{(item as any).position || ''}</span>
+                                  {((item as any).sessionName || (item as any).wave) && (
+                                    <span className="text-purple-700 font-bold">({(item as any).sessionName || `Sesi ${(item as any).wave}`})</span>
+                                  )}
+                                </div>
+                              ) : null}
                             </td>
                             <td className="p-3 text-right font-extrabold text-slate-900">Rp {item.totalPaid.toLocaleString()}</td>
                           </tr>
@@ -905,7 +959,11 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                             registrationNo: recentRegistrations[0]?.registrationNo || `REG-${Date.now().toString().slice(-6)}`,
                             name: formData.name || 'Pendaftar',
                             category: formData.regType === 'OFFICIAL' ? 'OFFICIAL' : formData.category,
-                            club: formData.club || '-'
+                            club: formData.club || '-',
+                            targetNo: recentRegistrations[0]?.targetNo,
+                            position: recentRegistrations[0]?.position,
+                            wave: recentRegistrations[0]?.wave,
+                            sessionName: recentRegistrations[0]?.sessionName
                           }]
                         : collectiveMembers.map((m, idx) => ({
                             id: `reg_${Date.now()}_${idx}`,
@@ -930,6 +988,13 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                             {item.registrationNo || barcodeVal}
                           </span>
                         </div>
+
+                        {item.targetNo ? (
+                          <div className="w-full bg-purple-100/90 border border-purple-200 rounded-lg py-1 px-2.5 flex items-center justify-between text-[8.5px] font-black text-purple-900 uppercase">
+                            <span>🎯 Target: {item.targetNo}{item.position || ''}</span>
+                            <span>{item.sessionName || (item.wave && item.wave > 1 ? `Sesi ${item.wave}` : 'Sesi Utama')}</span>
+                          </div>
+                        ) : null}
 
                         {/* Barcode & QR Display */}
                         <div className="flex items-center justify-center gap-3 w-full py-1">
@@ -1013,6 +1078,41 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
               <div className="space-y-3">
                 <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest leading-none">Pendaftaran Anda Berhasil</p>
                 
+                {/* Banner Nomor Bantalan Resmi */}
+                {recentRegistrations.some(r => r.targetNo) && (
+                  <div className="p-4 bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-300 rounded-2xl text-left space-y-2.5 shadow-sm animate-in zoom-in-95">
+                    <div className="flex items-center justify-between border-b border-purple-200/80 pb-1.5">
+                      <div className="flex items-center gap-1.5 text-purple-950">
+                        <Target className="w-4 h-4 text-purple-600" />
+                        <span className="text-[10px] font-black uppercase tracking-wider font-oswald">Bantalan Resmi Lapangan</span>
+                      </div>
+                      <span className="text-[8px] font-black bg-purple-600 text-white px-2 py-0.5 rounded uppercase">
+                        Auto-Assigned
+                      </span>
+                    </div>
+                    <div className="space-y-2 divide-y divide-purple-100">
+                      {recentRegistrations.filter(r => r.targetNo).map((r, idx) => (
+                        <div key={idx} className="pt-2 first:pt-0 flex items-center justify-between">
+                          <div className="truncate pr-2">
+                            <p className="text-xs font-black text-slate-900 truncate">{r.name}</p>
+                            <p className="text-[9px] font-bold text-purple-700 uppercase">{CATEGORY_LABELS[r.category as CategoryType] || r.category}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="text-base font-black font-oswald text-purple-800 bg-white px-2.5 py-1 rounded-xl border border-purple-300 shadow-sm inline-block">
+                              🎯 {r.targetNo}{r.position || ''}
+                            </span>
+                            {(r.sessionName || (r.wave && r.wave > 1)) && (
+                              <span className="text-[8px] font-bold text-slate-600 block mt-0.5">
+                                {r.sessionName || `Sesi ${r.wave}`}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* TOMBOL SIMPAN / UNDUH TIKET BARCODE HP */}
                 <button 
                   onClick={() => setShowTicketModal(true)} 

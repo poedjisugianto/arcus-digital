@@ -505,7 +505,15 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
                       </div>
                     </td>
                     <td className="px-2 md:px-6 py-2 md:py-3">
-                      <p className="text-xs sm:text-sm md:text-base font-black font-oswald uppercase italic text-slate-900 leading-tight tracking-tight">{row.name}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-xs sm:text-sm md:text-base font-black font-oswald uppercase italic text-slate-900 leading-tight tracking-tight">{row.name}</p>
+                        {row.targetNo && row.targetNo > 0 && (
+                          <span className="text-[9px] font-black font-mono text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded shrink-0">
+                            🎯 {row.targetNo}{row.position || ''}
+                            {(row as any).sessionName ? ` • ${(row as any).sessionName}` : (row.wave && row.wave > 1 ? ` • Sesi ${row.wave}` : '')}
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[10px] md:hidden font-semibold text-slate-500 uppercase mt-0.5">{row.club}</p>
                     </td>
                     <td className="px-4 md:px-6 py-2 md:py-3 hidden md:table-cell">

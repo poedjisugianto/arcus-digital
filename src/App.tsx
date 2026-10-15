@@ -87,6 +87,7 @@ import SelfServiceIdCardPortal from './components/SelfServiceIdCardPortal';
 
 import { auth, db } from './firebase';
 import { sanitizeForFirestore, mergeTournamentSettings, findCategoryConfig } from './lib/firestoreUtils';
+import { getNextTargetSlot } from './lib/targetAllocation';
 const googleProvider = new GoogleAuthProvider();
 
 const getAccurateParticipantCount = (archers: any[] = [], regs: any[] = [], fallbackCount?: number) => {
@@ -226,7 +227,17 @@ export default function App() {
   const [quotaExceeded, setQuotaExceeded] = useState(false);
   const [activatingEventId, setActivatingEventId] = useState<string | null>(null);
   const [activationCode, setActivationCode] = useState<string | null>(null);
-  const [shareData, setShareData] = useState<{isOpen: boolean, url: string, name: string, registerUrl?: string}>({
+  const [shareData, setShareData] = useState<{
+    isOpen: boolean;
+    url: string;
+    name: string;
+    registerUrl?: string;
+    pamphletUrl?: string;
+    location?: string;
+    eventDate?: string;
+    description?: string;
+    eventId?: string;
+  }>({
     isOpen: false,
     url: '',
     name: ''
@@ -2060,6 +2071,14 @@ export default function App() {
       );
     };
 
+    const getBaseShareUrl = () => {
+      const custom = appState.globalSettings?.productionUrl?.trim();
+      if (custom) {
+        return custom.startsWith('http') ? custom.replace(/\/+$/, '') : `https://${custom.replace(/\/+$/, '')}`;
+      }
+      return window.location.origin;
+    };
+
     switch(view) {
       case 'LANDING':
         return <LandingPage 
@@ -2092,11 +2111,17 @@ export default function App() {
           }}
           onShare={(id) => {
             const ev = appState.events.find(e => e.id === id);
+            const base = getBaseShareUrl();
             setShareData({
               isOpen: true,
-              url: window.location.origin + '?event=' + id,
+              url: base + '?event=' + id,
               name: ev?.settings.tournamentName || 'Turnamen Panahan',
-              registerUrl: window.location.origin + '?event=' + id + '&view=REGISTER_PARTICIPANT'
+              registerUrl: base + '?event=' + id + '&view=REGISTER_PARTICIPANT',
+              pamphletUrl: ev?.settings.pamphletUrl || ev?.settings.logoUrl,
+              location: ev?.settings.location,
+              eventDate: ev?.settings.eventDate,
+              description: ev?.settings.description,
+              eventId: id
             });
           }}
           onLogout={handleLogout}
@@ -2257,8 +2282,9 @@ export default function App() {
              const isScorer = (e as any).scorerAccess?.some((s: any) => s && s.email === appState.currentUser?.email);
              return !!(isOwner || isScorer);
           })}
-          onCreateEvent={async (name, isFree, description) => {
+          onCreateEvent={async (name, isFree, description, promoCode, contactPhone) => {
              const id = `evt_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+             const organizerPhoneNumber = contactPhone || appState.currentUser?.phone || '';
              const newEvent: ArcheryEvent = {
                id,
                ownerId: appState.currentUser?.id || appState.currentUser?.email || '',
@@ -2268,7 +2294,9 @@ export default function App() {
                  organizerId: appState.currentUser?.id || appState.currentUser?.email || '',
                  eventDate: new Date().toISOString(),
                  location: '',
+                 contactPhone: organizerPhoneNumber,
                  isFreeEvent: !!isFree,
+                 usedPromoCode: promoCode || '',
                  description: description || '',
                  archersPerTarget: 2,
                  totalTargets: 1,
@@ -2286,7 +2314,22 @@ export default function App() {
              };
              
              // Immediate state update
-             setAppState(prev => ({ ...prev, events: [newEvent, ...prev.events], activeEventId: id }));
+             setAppState(prev => {
+               let updatedGS = prev.globalSettings;
+               if (promoCode && prev.globalSettings?.promoCodes) {
+                 const upperCode = promoCode.toUpperCase().trim();
+                 const updatedPromos = prev.globalSettings.promoCodes.map(p => 
+                   p.code.toUpperCase() === upperCode ? { ...p, usedCount: (p.usedCount || 0) + 1 } : p
+                 );
+                 updatedGS = { ...prev.globalSettings, promoCodes: updatedPromos };
+               }
+               return { 
+                 ...prev, 
+                 globalSettings: updatedGS,
+                 events: [newEvent, ...prev.events], 
+                 activeEventId: id 
+               };
+             });
              setView('EVENT_ADMIN');
              
              // Aggressive sync to cloud
@@ -2348,11 +2391,18 @@ export default function App() {
           onDeleteEvent={onDeleteEvent}
           onActivateEvent={handleActivateEvent}
           onShare={(id, name) => {
+            const ev = appState.events.find(e => e.id === id);
+            const base = getBaseShareUrl();
             setShareData({
               isOpen: true,
-              url: window.location.origin + '?event=' + id,
-              name: name || 'Turnamen Panahan',
-              registerUrl: window.location.origin + '?event=' + id + '&view=REGISTER_PARTICIPANT'
+              url: base + '?event=' + id,
+              name: name || ev?.settings.tournamentName || 'Turnamen Panahan',
+              registerUrl: base + '?event=' + id + '&view=REGISTER_PARTICIPANT',
+              pamphletUrl: ev?.settings.pamphletUrl || ev?.settings.logoUrl,
+              location: ev?.settings.location,
+              eventDate: ev?.settings.eventDate,
+              description: ev?.settings.description,
+              eventId: id
             });
           }}
           onLogout={handleLogout}
@@ -2440,11 +2490,17 @@ export default function App() {
           onGoToQuickScoring={() => setView('QUICK_SCORING_PANEL')}
           onGoToFieldScoring={() => setView('SCORER_PANEL')}
           onShare={() => {
+            const base = getBaseShareUrl();
             setShareData({
               isOpen: true,
-              url: window.location.origin + '?event=' + activeEvent.id,
+              url: base + '?event=' + activeEvent.id,
               name: activeEvent.settings?.tournamentName || 'Turnamen Panahan',
-              registerUrl: window.location.origin + '?event=' + activeEvent.id + '&view=REGISTER_PARTICIPANT'
+              registerUrl: base + '?event=' + activeEvent.id + '&view=REGISTER_PARTICIPANT',
+              pamphletUrl: activeEvent.settings?.pamphletUrl || activeEvent.settings?.logoUrl,
+              location: activeEvent.settings?.location,
+              eventDate: activeEvent.settings?.eventDate,
+              description: activeEvent.settings?.description,
+              eventId: activeEvent.id
             });
           }}
           event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
@@ -2485,15 +2541,36 @@ export default function App() {
           event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           globalSettings={appState.globalSettings}
           onApproveRegistration={(regId) => {
-            const updatedRegs = (activeEvent.registrations || []).map(r => r.id === regId ? { ...r, status: RegistrationStatus.CONFIRMED } : r);
-            const updatedArchers = (activeEvent.archers || []).map(a => a.id === regId ? { ...a, status: RegistrationStatus.CONFIRMED } : a);
+            const targetReg = (activeEvent.registrations || []).find(r => r.id === regId) || (activeEvent.archers || []).find(a => a.id === regId);
+            let targetData: { targetNo?: number; position?: string; wave?: number; sessionName?: string } = {};
+
+            if (targetReg && !targetReg.targetNo && activeEvent.settings?.autoTargetConfig?.enabled && targetReg.category && targetReg.category !== 'OFFICIAL') {
+              const slot = getNextTargetSlot(targetReg.category, activeEvent);
+              if (slot) {
+                targetData = {
+                  targetNo: slot.targetNo,
+                  position: slot.position,
+                  wave: slot.wave,
+                  sessionName: slot.sessionName
+                };
+              }
+            }
+
+            const updatedRegs = (activeEvent.registrations || []).map(r => r.id === regId ? { ...r, status: RegistrationStatus.CONFIRMED, ...targetData } : r);
+            const updatedArchers = (activeEvent.archers || []).map(a => a.id === regId ? { ...a, status: RegistrationStatus.CONFIRMED, ...targetData } : a);
             const updatedOfficials = (activeEvent.officials || []).map(o => o.id === regId ? { ...o, status: RegistrationStatus.CONFIRMED } : o);
             handleUpdateEvent(activeEvent.id, { 
               registrations: updatedRegs.map(r => sanitizeForFirestore(r)),
               archers: updatedArchers.map(a => sanitizeForFirestore(a)),
               officials: updatedOfficials.map(o => sanitizeForFirestore(o))
             });
-            pushNotification("Status Peserta Diperbarui", "Pendaftaran berhasil dikonfirmasi.", "SUCCESS");
+            pushNotification(
+              "Status Peserta Diperbarui", 
+              targetData.targetNo 
+                ? `Pendaftaran disetujui! Diberikan Target ${targetData.targetNo}${targetData.position} (${targetData.sessionName || `Sesi ${targetData.wave}`}).`
+                : "Pendaftaran berhasil dikonfirmasi.", 
+              "SUCCESS"
+            );
           }}
           onPayPlatformFee={(evtId) => {
             pushNotification("Pembayaran Fee", "Konfirmasi pembayaran platform fee telah diajukan.", "INFO");
@@ -2635,11 +2712,17 @@ export default function App() {
           onRegister={() => setView('REGISTER_PARTICIPANT')}
           onBack={() => setView('LANDING')}
           onShare={() => {
-             setShareData({
+            const base = getBaseShareUrl();
+            setShareData({
               isOpen: true,
-              url: window.location.origin + '?event=' + activeEvent.id,
+              url: base + '?event=' + activeEvent.id,
               name: activeEvent.settings.tournamentName || 'Turnamen Panahan',
-              registerUrl: window.location.origin + '?event=' + activeEvent.id + '&view=REGISTER_PARTICIPANT'
+              registerUrl: base + '?event=' + activeEvent.id + '&view=REGISTER_PARTICIPANT',
+              pamphletUrl: activeEvent.settings?.pamphletUrl || activeEvent.settings?.logoUrl,
+              location: activeEvent.settings?.location,
+              eventDate: activeEvent.settings?.eventDate,
+              description: activeEvent.settings?.description,
+              eventId: activeEvent.id
             });
           }}
           onViewParticipants={() => setView('ENTRY_LIST')}
@@ -2661,11 +2744,13 @@ export default function App() {
 
       case 'ENTRY_LIST':
         if (!activeEvent) return renderEventNotFoundOrLoading();
+        const organizerUser = appState.users.find(u => u.id === activeEvent.settings?.organizerId);
         return <EntryList 
           event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           onBack={() => setView('PUBLIC_EVENT_INFO')}
           onRefresh={() => refreshActiveEventDetails(true)}
           isSyncing={isSyncing}
+          organizerPhone={activeEvent.settings?.contactPhone || organizerUser?.phone}
         />;
 
       case 'SELF_SERVICE_ID_CARD':
@@ -2727,11 +2812,17 @@ export default function App() {
           }}
           onShare={(id) => {
             const ev = appState.events.find(e => e.id === id);
+            const base = getBaseShareUrl();
             setShareData({
               isOpen: true,
-              url: window.location.origin + '?event=' + id,
+              url: base + '?event=' + id,
               name: ev?.settings.tournamentName || 'Turnamen Panahan',
-              registerUrl: window.location.origin + '?event=' + id + '&view=REGISTER_PARTICIPANT'
+              registerUrl: base + '?event=' + id + '&view=REGISTER_PARTICIPANT',
+              pamphletUrl: ev?.settings.pamphletUrl || ev?.settings.logoUrl,
+              location: ev?.settings.location,
+              eventDate: ev?.settings.eventDate,
+              description: ev?.settings.description,
+              eventId: id
             });
           }}
           onLogout={handleLogout}
@@ -2782,6 +2873,11 @@ export default function App() {
         tournamentName={shareData.name}
         url={shareData.url}
         registerUrl={shareData.registerUrl}
+        pamphletUrl={shareData.pamphletUrl}
+        location={shareData.location}
+        eventDate={shareData.eventDate}
+        description={shareData.description}
+        eventId={shareData.eventId}
       />
 
       {notifications.length > 0 && (

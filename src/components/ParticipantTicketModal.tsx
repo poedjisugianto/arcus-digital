@@ -25,6 +25,7 @@ export interface TicketParticipant {
   wave?: number;
   photoUrl?: string;
   ktaNumber?: string;
+  sessionName?: string;
 }
 
 interface Props {
@@ -100,7 +101,7 @@ export const ParticipantTicketModal: React.FC<Props> = ({
       `🏢 *Klub:* ${current.club || '-'}\n` +
       `🏹 *Kategori:* ${categoryLabel}\n` +
       `🔢 *No. Registrasi / Barcode:* ${current.registrationNo || current.id}\n` +
-      (current.targetNo ? `🎯 *Bantalan:* Target ${current.targetNo}${current.position || ''}\n` : '') +
+      (current.targetNo ? `🎯 *Bantalan:* Target ${current.targetNo}${current.position || ''}${current.sessionName ? ` (${current.sessionName})` : (current.wave && current.wave > 1 ? ` (Sesi ${current.wave})` : '')}\n` : '') +
       `\n⚠️ *PENTING:* Tunjukkan barcode ini di meja registrasi saat tiba di lokasi untuk absen / daftar ulang otomatis via scan barcode.`
     );
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
@@ -210,6 +211,11 @@ export const ParticipantTicketModal: React.FC<Props> = ({
               <span className="text-base sm:text-lg font-black font-oswald text-red-400">
                 {current.targetNo}{current.position || ''}
               </span>
+              {(current.sessionName || (current.wave && current.wave > 1)) && (
+                <span className="text-[7.5px] font-bold text-amber-300 block uppercase tracking-tight mt-0.5">
+                  {current.sessionName || `Sesi ${current.wave}`}
+                </span>
+              )}
             </div>
           )}
         </div>

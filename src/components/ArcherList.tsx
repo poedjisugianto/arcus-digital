@@ -105,7 +105,7 @@ const ArcherList: React.FC<Props> = ({
   const [initialScanQuery, setInitialScanQuery] = useState("");
   const [printAllCategories, setPrintAllCategories] = useState(false);
   const [showPrintOptions, setShowPrintOptions] = useState(false);
-  const [scoringSheetSize, setScoringSheetSize] = useState<'A4' | 'A6'>('A4');
+  const [scoringSheetSize, setScoringSheetSize] = useState<'A4' | 'A5' | 'A6'>('A4');
   const [showScoringSheetOptions, setShowScoringSheetOptions] = useState(false);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [newArcher, setNewArcher] = useState({
@@ -375,7 +375,7 @@ const ArcherList: React.FC<Props> = ({
         catName,
         a.targetNo || "-",
         a.position || "-",
-        a.wave || "-",
+        a.sessionName || (a.wave ? `Sesi ${a.wave}` : "-"),
         a.pin || "-",
         a.email || "-",
         a.phone || "-",
@@ -606,23 +606,44 @@ const ArcherList: React.FC<Props> = ({
                   ></div>
                   <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-100 py-3 px-4 z-50 animate-in fade-in slide-in-from-top-2 space-y-3 font-sans">
                     <div className="space-y-1">
-                      <span className="text-[8px] font-black uppercase text-slate-700 tracking-wider">Ukuran & Format Cetak</span>
-                      <div className="grid grid-cols-2 gap-1.5">
+                      <span className="text-[8px] font-black uppercase text-slate-700 tracking-wider">Pilih Ukuran / Format Kertas</span>
+                      <div className="grid grid-cols-3 gap-1.5">
                         <button
                           type="button"
                           onClick={() => setScoringSheetSize('A4')}
-                          className={`text-[9px] font-black uppercase py-1.5 rounded-lg border transition-all ${scoringSheetSize === 'A4' ? 'bg-purple-600 text-white border-purple-600' : 'bg-slate-50 text-slate-600 border-slate-100 hover:bg-slate-100'}`}
+                          className={`text-[8.5px] font-black uppercase py-2 px-1 rounded-lg border transition-all flex flex-col items-center gap-0.5 ${scoringSheetSize === 'A4' ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                          title="1 Scoresheet per lembar A4 penuh (Fit pas 1 halaman)"
                         >
-                          📄 A4 Besar
+                          <span className="text-xs">📄</span>
+                          <span>A4 Pas</span>
+                          <span className="text-[6.5px] opacity-80 font-normal">1/halaman</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setScoringSheetSize('A5')}
+                          className={`text-[8.5px] font-black uppercase py-2 px-1 rounded-lg border transition-all flex flex-col items-center gap-0.5 ${scoringSheetSize === 'A5' ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                          title="2 Scoresheet per lembar A4 (Format hemat kertas)"
+                        >
+                          <span className="text-xs">📑</span>
+                          <span>A5 Hemat</span>
+                          <span className="text-[6.5px] opacity-80 font-normal">2/halaman</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => setScoringSheetSize('A6')}
-                          className={`text-[9px] font-black uppercase py-1.5 rounded-lg border transition-all ${scoringSheetSize === 'A6' ? 'bg-purple-600 text-white border-purple-600' : 'bg-slate-50 text-slate-600 border-slate-100 hover:bg-slate-100'}`}
+                          className={`text-[8.5px] font-black uppercase py-2 px-1 rounded-lg border transition-all flex flex-col items-center gap-0.5 ${scoringSheetSize === 'A6' ? 'bg-purple-600 text-white border-purple-600 shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                          title="4 Scoresheet per lembar A4 (Format saku mini)"
                         >
-                          📑 A6 Grid A4
+                          <span className="text-xs">📐</span>
+                          <span>A6 Mini</span>
+                          <span className="text-[6.5px] opacity-80 font-normal">4/halaman</span>
                         </button>
                       </div>
+                      <p className="text-[7.5px] text-slate-700 leading-tight pt-0.5">
+                        {scoringSheetSize === 'A4' && "✓ 1 atlet per lembar A4 penuh (telah dipadatkan agar tidak terpotong)."}
+                        {scoringSheetSize === 'A5' && "✓ 2 atlet per lembar A4 (hemat 50% kertas, dipotong tengah)."}
+                        {scoringSheetSize === 'A6' && "✓ 4 atlet per lembar A4 (grid 2x2 kartu saku bantalan)."}
+                      </p>
                     </div>
                     
                     <div className="border-t border-slate-100 pt-2 flex flex-col gap-1">
@@ -1264,16 +1285,16 @@ const ArcherList: React.FC<Props> = ({
                   });
 
                   return (
-                    <div key={key} className="w-[210mm] h-[297mm] p-6 grid grid-cols-2 grid-rows-2 gap-4 bg-white page-break-after-always box-border overflow-hidden relative">
+                    <div key={key} className="w-[210mm] h-[297mm] p-4 grid grid-cols-2 grid-rows-2 gap-3 bg-white page-break-after-always box-border overflow-hidden relative">
                       {grid.map((a, idx) => {
                         if (a) {
                           return (
-                            <div key={`${a.id || 'sheet'}-${idx}`} className="border border-slate-300 rounded-2xl p-1 overflow-hidden relative max-h-[141mm]">
+                            <div key={`${a.id || 'sheet'}-${idx}`} className="border border-slate-300 rounded-xl p-1 overflow-hidden relative max-h-[141mm]">
                               <ScoringSheet
                                 archer={a}
                                 settings={settings}
                                 eventId={eventId}
-                                isA6={true}
+                                size="A6"
                               />
                             </div>
                           );
@@ -1283,7 +1304,7 @@ const ArcherList: React.FC<Props> = ({
                           const targetNo = firstArcher?.targetNo || '?';
                           const wave = firstArcher?.wave || '?';
                           return (
-                            <div key={`empty-${idx}`} className="border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center p-8 bg-slate-50">
+                            <div key={`empty-${idx}`} className="border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center p-6 bg-slate-50">
                               <p className="text-[12px] font-black text-slate-700 font-sans uppercase tracking-widest">Bantalan {targetNo}{posLabel}</p>
                               <p className="text-[10px] font-bold text-slate-600 font-sans uppercase mt-0.5">Sesi {wave} - Kosong</p>
                             </div>
@@ -1294,25 +1315,66 @@ const ArcherList: React.FC<Props> = ({
                   );
                 });
               })()
+            ) : scoringSheetSize === 'A5' ? (
+              (() => {
+                // Group archers in pairs of 2 per A4 sheet
+                const pairs: Archer[][] = [];
+                for (let i = 0; i < filtered.length; i += 2) {
+                  pairs.push(filtered.slice(i, i + 2));
+                }
+
+                return pairs.map((pair, pIdx) => (
+                  <div key={`pair-${pIdx}`} className="w-[210mm] h-[297mm] max-h-[297mm] p-3 grid grid-rows-2 gap-3 bg-white page-break-after-always box-border overflow-hidden relative">
+                    <div className="border border-slate-300 rounded-xl p-1 overflow-hidden relative max-h-[142mm]">
+                      <ScoringSheet
+                        archer={pair[0]}
+                        settings={settings}
+                        eventId={eventId}
+                        size="A5"
+                      />
+                    </div>
+                    {pair[1] ? (
+                      <div className="border border-slate-300 rounded-xl p-1 overflow-hidden relative max-h-[142mm]">
+                        <ScoringSheet
+                          archer={pair[1]}
+                          settings={settings}
+                          eventId={eventId}
+                          size="A5"
+                        />
+                      </div>
+                    ) : (
+                      <div className="border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center p-6 bg-slate-50 text-slate-400 text-xs font-bold uppercase">
+                        (Satu Sisi Kosong)
+                      </div>
+                    )}
+                  </div>
+                ));
+              })()
             ) : (
               filtered.map((a: Archer, aIdx: number) => (
-                <div key={`${a.id || 'sheet'}-${aIdx}`} className="page-break-after-always">
+                <div key={`${a.id || 'sheet'}-${aIdx}`} className="w-[210mm] h-[297mm] max-h-[297mm] p-2 bg-white page-break-after-always box-border overflow-hidden">
                   <ScoringSheet
                     archer={a}
                     settings={settings}
                     eventId={eventId}
-                    isA6={false}
+                    size="A4"
                   />
                 </div>
               ))
             )
           ) : (
-            <div className={scoringSheetSize === 'A6' ? "w-[105mm] h-[148.5mm] border border-slate-300 rounded-xl p-1 overflow-hidden bg-white" : ""}>
+            <div className={
+              scoringSheetSize === 'A6' 
+                ? "w-[105mm] h-[148.5mm] border border-slate-300 rounded-xl p-1 overflow-hidden bg-white" 
+                : scoringSheetSize === 'A5'
+                ? "w-[210mm] h-[148.5mm] max-h-[148.5mm] border border-slate-300 rounded-xl p-1 overflow-hidden bg-white"
+                : "w-[210mm] h-[297mm] max-h-[297mm] p-2 bg-white box-border overflow-hidden"
+            }>
               <ScoringSheet
                 archer={archers.find((a) => a.id === printArcherId)!}
                 settings={settings}
                 eventId={eventId}
-                isA6={scoringSheetSize === 'A6'}
+                size={scoringSheetSize}
               />
             </div>
           )}
@@ -1357,14 +1419,18 @@ const ArcherList: React.FC<Props> = ({
               }
               className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-[10px] font-black uppercase outline-none focus:border-arcus-red"
             >
-              <option value="ALL">Semua Sesi</option>
-              {Array.from(new Set(archers.map((a) => a.wave)))
-                .sort((a: any, b: any) => (a as number) - (b as number))
-                .map((w) => (
-                  <option key={w as number} value={w as number}>
-                    Sesi {w as number}
-                  </option>
-                ))}
+              <option value="ALL">Semua Sesi / Gelombang</option>
+              {Array.from(new Set(archers.map((a) => a.wave || 1)))
+                .sort((a, b) => a - b)
+                .map((w) => {
+                  const sample = archers.find(a => (a.wave || 1) === w);
+                  const label = sample?.sessionName || `Sesi ${w}`;
+                  return (
+                    <option key={w} value={w}>
+                      {label}
+                    </option>
+                  );
+                })}
             </select>
             <select
               value={filterClub}
@@ -1403,11 +1469,10 @@ const ArcherList: React.FC<Props> = ({
                     <div className="flex items-center gap-2">
                       <span className="font-black text-arcus-red text-lg">
                         {a.targetNo > 0 ? `${a.targetNo}${a.position}` : "TBA"}
-                        {a.wave > 1 ? `-${a.wave}` : ""}
                       </span>
-                      {a.wave > 1 && (
-                        <span className="text-[8px] font-black bg-blue-50 text-blue-600 px-2 py-0.5 rounded uppercase border border-blue-100">
-                          Sesi {a.wave}
+                      {(a.sessionName || a.wave > 1) && (
+                        <span className="text-[8px] font-black bg-purple-50 text-purple-700 px-2 py-0.5 rounded uppercase border border-purple-200">
+                          {a.sessionName || `Sesi ${a.wave}`}
                         </span>
                       )}
                     </div>

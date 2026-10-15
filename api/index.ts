@@ -1939,7 +1939,95 @@ app.post("/api/optimize-event/:id", async (req, res) => {
   }
 });
 
-// Final cleanup: No background preheating
+// Open Graph Image Endpoint for WhatsApp / Social Media Link Previews
+app.get("/api/og-image", async (req, res) => {
+  try {
+    const eventId = req.query.event as string;
+    let targetImageUrl = req.query.url as string;
+
+    if (eventId) {
+      const eventData = await fetchEventForMeta(eventId);
+      if (eventData) {
+        const base = eventData.data || eventData;
+        const settings = base.settings || eventData.settings || {};
+        targetImageUrl = settings.pamphletUrl || settings.logoUrl || targetImageUrl;
+      }
+    }
+
+    if (targetImageUrl) {
+      // 1. Handle base64 data URLs
+      if (targetImageUrl.startsWith('data:image/')) {
+        const matches = targetImageUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        if (matches) {
+          res.setHeader('Content-Type', matches[1]);
+          res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
+          return res.send(Buffer.from(matches[2], 'base64'));
+        }
+      }
+
+      // 2. Resolve Google Drive URLs to direct content links
+      let fetchUrl = targetImageUrl.trim();
+      const fileDMatch = fetchUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+      const idMatch = fetchUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      const dPathMatch = fetchUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      const fileId = fileDMatch?.[1] || idMatch?.[1] || ((fetchUrl.includes('drive.google.com') || fetchUrl.includes('docs.google.com')) ? dPathMatch?.[1] : null);
+
+      if (fileId) {
+        fetchUrl = `https://lh3.googleusercontent.com/d/${fileId}`;
+      }
+
+      try {
+        const imageRes = await axios.get(fetchUrl, {
+          responseType: 'arraybuffer',
+          timeout: 6000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+          }
+        });
+        const contentType = imageRes.headers['content-type'] || 'image/jpeg';
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=86400');
+        return res.send(Buffer.from(imageRes.data));
+      } catch (streamErr: any) {
+        console.warn(`[OG-IMAGE] Proxy fetch failed from ${fetchUrl}:`, streamErr.message);
+      }
+    }
+
+    // Fallback to default tournament banner
+    const fallbackPath = path.resolve(process.cwd(), "public/og-banner.jpg");
+    if (fs.existsSync(fallbackPath)) {
+      res.setHeader('Content-Type', 'image/jpeg');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.sendFile(fallbackPath);
+    }
+
+    return res.status(404).send("Image not found");
+  } catch (err: any) {
+    console.error("[OG-IMAGE ERROR]:", err.message);
+    const fallbackPath = path.resolve(process.cwd(), "public/og-banner.jpg");
+    if (fs.existsSync(fallbackPath)) {
+      res.setHeader('Content-Type', 'image/jpeg');
+      return res.sendFile(fallbackPath);
+    }
+    return res.status(500).send("Error generating OG image");
+  }
+});
+
+export async function fetchEventForMeta(eventId: string): Promise<any> {
+  if (!eventId) return null;
+  const currentDb = getAdminDB();
+  if (currentDb) {
+    try {
+      const doc = await currentDb.collection('events').doc(eventId).get();
+      if (doc.exists) return doc.data();
+    } catch (e: any) {
+      console.warn(`[FETCH-META] Admin SDK error for ${eventId}:`, e.message);
+    }
+  }
+  return await restGetDoc('events', eventId);
+}
+
 // Global JSON error handler to prevent HTML responses
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error("[GLOBAL-ERROR]", err);

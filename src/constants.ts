@@ -61,5 +61,16 @@ export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   paymentGatewayIsProduction: false,
   platformFeePercentage: 0,
   superAdminEmail: 'poedji.sugianto@gmail.com',
-  notifyOnTournamentCreated: true
+  notifyOnTournamentCreated: true,
+  promoCodes: [
+    {
+      id: 'promo-default-internal',
+      code: 'INTERNAL2024',
+      discountType: 'FREE_EVENT',
+      description: 'Kode promo bawaan event internal (Bebas Biaya Platform)',
+      isActive: true,
+      usedCount: 0,
+      createdAt: 1704067200000
+    }
+  ]
 };

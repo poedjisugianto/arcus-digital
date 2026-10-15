@@ -5,9 +5,10 @@ import {
   ShieldCheck, CheckCircle2, 
   AlertCircle, Save, ArrowLeft, Trash2, 
   Search, Eye, ShieldAlert, Activity, Landmark, Check, Mail, Send, RefreshCw,
-  Zap, AlertTriangle, Headphones, Wrench, Lock, Power
+  Zap, AlertTriangle, Headphones, Wrench, Lock, Power,
+  Ticket, Plus, Edit2, Copy, Sparkles, Percent, Tag
 } from 'lucide-react';
-import { AppState, GlobalSettings, ArcheryEvent, User, AppNotification, CategoryType } from '../types';
+import { AppState, GlobalSettings, ArcheryEvent, User, AppNotification, CategoryType, PromoCode } from '../types';
 import { CATEGORY_LABELS } from '../constants';
 import { isSupportAccessActive, getRemainingSupportTime } from '../lib/supportAccess';
 
@@ -25,12 +26,26 @@ interface Props {
 }
 
 const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSystemData, onUpdateEvent, onDeleteEvent, onDeleteUser, onUpdateUser, onSendNotif, onManageEvent, onBack }) => {
-  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'EVENTS' | 'USERS' | 'SETTINGS'>('OVERVIEW');
+  const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'EVENTS' | 'USERS' | 'PROMOS' | 'SETTINGS'>('OVERVIEW');
   const [searchTerm, setSearchTerm] = useState('');
   const [localSettings, setLocalSettings] = useState<GlobalSettings>(state.globalSettings);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedFlag, setShowSavedFlag] = useState(false);
+
+  // Promo Code Management State
+  const [isPromoModalOpen, setIsPromoModalOpen] = useState(false);
+  const [editingPromo, setEditingPromo] = useState<PromoCode | null>(null);
+  const [promoFormCode, setPromoFormCode] = useState('');
+  const [promoFormType, setPromoFormType] = useState<'FREE_EVENT' | 'PERCENTAGE' | 'FIXED_AMOUNT'>('FREE_EVENT');
+  const [promoFormValue, setPromoFormValue] = useState<number>(0);
+  const [promoFormDesc, setPromoFormDesc] = useState('');
+  const [promoFormMaxUses, setPromoFormMaxUses] = useState<number | ''>('');
+  const [promoFormExpiry, setPromoFormExpiry] = useState('');
+  const [promoFormActive, setPromoFormActive] = useState(true);
+  const [promoFormError, setPromoFormError] = useState('');
+  const [copiedPromoCode, setCopiedPromoCode] = useState<string | null>(null);
+  const [confirmDeletePromo, setConfirmDeletePromo] = useState<PromoCode | null>(null);
 
   // Sync localSettings only if not currently edited by the user
   useEffect(() => {
@@ -233,6 +248,112 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
     }
   };
 
+  const handleOpenPromoModal = (promo?: PromoCode) => {
+    if (promo) {
+      setEditingPromo(promo);
+      setPromoFormCode(promo.code);
+      setPromoFormType(promo.discountType || 'FREE_EVENT');
+      setPromoFormValue(promo.discountValue || 0);
+      setPromoFormDesc(promo.description || '');
+      setPromoFormMaxUses(promo.maxUses !== undefined ? promo.maxUses : '');
+      setPromoFormExpiry(promo.expiryDate || '');
+      setPromoFormActive(promo.isActive !== false);
+    } else {
+      setEditingPromo(null);
+      setPromoFormCode('');
+      setPromoFormType('FREE_EVENT');
+      setPromoFormValue(0);
+      setPromoFormDesc('');
+      setPromoFormMaxUses('');
+      setPromoFormExpiry('');
+      setPromoFormActive(true);
+    }
+    setPromoFormError('');
+    setIsPromoModalOpen(true);
+  };
+
+  const handleCopyPromoCode = (code: string) => {
+    try {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(code);
+      }
+      setCopiedPromoCode(code);
+      setTimeout(() => setCopiedPromoCode(null), 2500);
+    } catch (e) {
+      console.warn("Failed to copy code", e);
+    }
+  };
+
+  const handleSavePromo = async () => {
+    const cleanCode = promoFormCode.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+    if (!cleanCode) {
+      setPromoFormError('Kode promo wajib diisi (gunakan huruf kapital, angka, strip, atau underscore).');
+      return;
+    }
+
+    const currentList = localSettings.promoCodes || [];
+    const isDuplicate = currentList.some(p => p.code === cleanCode && p.id !== editingPromo?.id);
+    if (isDuplicate) {
+      setPromoFormError(`Kode promo "${cleanCode}" sudah terdaftar.`);
+      return;
+    }
+
+    let updatedList: PromoCode[];
+    if (editingPromo) {
+      updatedList = currentList.map(p => {
+        if (p.id === editingPromo.id) {
+          return {
+            ...p,
+            code: cleanCode,
+            discountType: promoFormType,
+            discountValue: promoFormType === 'FREE_EVENT' ? 0 : Number(promoFormValue) || 0,
+            description: promoFormDesc.trim(),
+            maxUses: promoFormMaxUses === '' ? undefined : Math.max(1, Number(promoFormMaxUses)),
+            expiryDate: promoFormExpiry ? promoFormExpiry : undefined,
+            isActive: promoFormActive
+          };
+        }
+        return p;
+      });
+    } else {
+      const newPromo: PromoCode = {
+        id: `promo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        code: cleanCode,
+        discountType: promoFormType,
+        discountValue: promoFormType === 'FREE_EVENT' ? 0 : Number(promoFormValue) || 0,
+        description: promoFormDesc.trim(),
+        maxUses: promoFormMaxUses === '' ? undefined : Math.max(1, Number(promoFormMaxUses)),
+        expiryDate: promoFormExpiry ? promoFormExpiry : undefined,
+        isActive: promoFormActive,
+        usedCount: 0,
+        createdAt: Date.now()
+      };
+      updatedList = [newPromo, ...currentList];
+    }
+
+    const newSettings = { ...localSettings, promoCodes: updatedList };
+    setLocalSettings(newSettings);
+    setIsPromoModalOpen(false);
+    await onUpdateSettings(newSettings);
+  };
+
+  const handleTogglePromoActive = async (id: string) => {
+    const currentList = localSettings.promoCodes || [];
+    const updatedList = currentList.map(p => p.id === id ? { ...p, isActive: !p.isActive } : p);
+    const newSettings = { ...localSettings, promoCodes: updatedList };
+    setLocalSettings(newSettings);
+    await onUpdateSettings(newSettings);
+  };
+
+  const handleDeletePromo = async (id: string) => {
+    const currentList = localSettings.promoCodes || [];
+    const updatedList = currentList.filter(p => p.id !== id);
+    const newSettings = { ...localSettings, promoCodes: updatedList };
+    setLocalSettings(newSettings);
+    setConfirmDeletePromo(null);
+    await onUpdateSettings(newSettings);
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500 relative">
       {/* Global Saved Flag */}
@@ -254,11 +375,20 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
             <p className="text-[10px] font-black text-arcus-red uppercase tracking-widest">Manajemen Infrastruktur Sistem</p>
           </div>
         </div>
-        <div className="flex gap-2 bg-slate-100 p-1.5 rounded-2xl border">
-          <button onClick={() => setActiveTab('OVERVIEW')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === 'OVERVIEW' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700'}`}>Stats</button>
-          <button onClick={() => setActiveTab('EVENTS')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === 'EVENTS' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700'}`}>Events</button>
-          <button onClick={() => setActiveTab('USERS')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === 'USERS' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700'}`}>Users</button>
-          <button onClick={() => setActiveTab('SETTINGS')} className={`px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === 'SETTINGS' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700'}`}>Settings</button>
+        <div className="flex gap-2 bg-slate-100 p-1.5 rounded-2xl border flex-wrap">
+          <button onClick={() => setActiveTab('OVERVIEW')} className={`px-4 sm:px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === 'OVERVIEW' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700'}`}>Stats</button>
+          <button onClick={() => setActiveTab('EVENTS')} className={`px-4 sm:px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === 'EVENTS' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700'}`}>Events</button>
+          <button onClick={() => setActiveTab('USERS')} className={`px-4 sm:px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === 'USERS' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700'}`}>Users</button>
+          <button onClick={() => setActiveTab('PROMOS')} className={`px-4 sm:px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-1.5 ${activeTab === 'PROMOS' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700'}`}>
+            <Ticket className="w-3.5 h-3.5 text-arcus-red" />
+            <span>Kode Promo</span>
+            {(localSettings.promoCodes || []).length > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-red-100 text-red-700 font-bold">
+                {(localSettings.promoCodes || []).length}
+              </span>
+            )}
+          </button>
+          <button onClick={() => setActiveTab('SETTINGS')} className={`px-4 sm:px-5 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${activeTab === 'SETTINGS' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-700'}`}>Settings</button>
         </div>
       </div>
 
@@ -507,6 +637,231 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'PROMOS' && (
+        <div className="space-y-8 animate-in fade-in duration-200">
+          {/* Header Banner */}
+          <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-6 sm:p-8 rounded-[2.5rem] shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-arcus-red/20 text-arcus-red flex items-center justify-center border border-red-500/20 shadow-md">
+                  <Ticket className="w-5 h-5 text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-black font-oswald uppercase italic tracking-wide">
+                    Manajemen Kode Promo &amp; Voucher
+                  </h3>
+                  <p className="text-[10px] font-bold text-red-400 uppercase tracking-widest">
+                    Platform Fee &amp; Tournament Benefits
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+                Buat kode promo resmi untuk panitia turnamen. Saat panitia memasukkan kode promo ini di formulir pembuatan event, biaya platform dapat digratiskan atau didiskon sesuai aturan yang Anda tentukan.
+              </p>
+            </div>
+            <button
+              onClick={() => handleOpenPromoModal()}
+              className="px-5 py-3.5 bg-arcus-red hover:bg-red-600 text-white rounded-2xl font-black uppercase text-xs tracking-wider flex items-center gap-2 shadow-xl shadow-red-500/30 active:scale-95 transition-all shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>+ Buat Kode Promo Baru</span>
+            </button>
+          </div>
+
+          {/* Stat Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div className="bg-white p-6 rounded-3xl border shadow-xs flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-red-50 text-arcus-red flex items-center justify-center shrink-0">
+                <Ticket className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Total Kode Promo</p>
+                <p className="text-2xl font-black font-oswald text-slate-900">{(localSettings.promoCodes || []).length}</p>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-3xl border shadow-xs flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Promo Aktif</p>
+                <p className="text-2xl font-black font-oswald text-emerald-600">
+                  {(localSettings.promoCodes || []).filter(p => p.isActive).length}
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-3xl border shadow-xs flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                <Zap className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Total Pemakaian</p>
+                <p className="text-2xl font-black font-oswald text-slate-900">
+                  {(localSettings.promoCodes || []).reduce((acc, p) => acc + (p.usedCount || 0), 0)} Turnamen
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Table / List */}
+          <div className="bg-white rounded-[2.5rem] border shadow-xs overflow-hidden">
+            <div className="p-6 sm:p-8 border-b flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h4 className="font-black text-base uppercase text-slate-900 font-oswald italic">Daftar Kode Promo</h4>
+                <p className="text-xs text-slate-500 font-medium">Salin kode dan bagikan kepada panitia turnamen resmi atau rekanan.</p>
+              </div>
+              <button
+                onClick={() => handleOpenPromoModal()}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black uppercase tracking-wider inline-flex items-center gap-1.5 transition-all shadow-xs"
+              >
+                <Plus className="w-3.5 h-3.5 text-arcus-red" />
+                <span>Tambah Kode</span>
+              </button>
+            </div>
+
+            {(localSettings.promoCodes || []).length === 0 ? (
+              <div className="p-16 text-center space-y-4">
+                <div className="w-16 h-16 rounded-3xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                  <Ticket className="w-8 h-8" />
+                </div>
+                <div className="space-y-1">
+                  <p className="font-bold text-slate-800">Belum ada kode promo terdaftar</p>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    Klik tombol "+ Buat Kode Promo Baru" untuk menambahkan kode promo pertama seperti INTERNAL2025 atau voucher khusus klub.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b">
+                      <th className="py-4 px-6">Kode Promo</th>
+                      <th className="py-4 px-6">Benefit / Tipe</th>
+                      <th className="py-4 px-6">Deskripsi / Peruntukan</th>
+                      <th className="py-4 px-6 text-center">Penggunaan</th>
+                      <th className="py-4 px-6 text-center">Masa Berlaku</th>
+                      <th className="py-4 px-6 text-center">Status</th>
+                      <th className="py-4 px-6 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs font-medium text-slate-700">
+                    {(localSettings.promoCodes || []).map((promo) => {
+                      const isExpired = promo.expiryDate && new Date(promo.expiryDate).getTime() < Date.now();
+                      const isLimitReached = Boolean(promo.maxUses && promo.maxUses > 0 && promo.usedCount >= promo.maxUses);
+
+                      return (
+                        <tr key={promo.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-4 px-6">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-black text-sm bg-slate-100 text-slate-900 px-3 py-1.5 rounded-xl border border-slate-200 tracking-wider">
+                                {promo.code}
+                              </span>
+                              <button
+                                onClick={() => handleCopyPromoCode(promo.code)}
+                                title="Salin Kode Promo"
+                                className={`p-2 rounded-xl border transition-all ${
+                                  copiedPromoCode === promo.code
+                                    ? 'bg-emerald-50 border-emerald-300 text-emerald-600 shadow-xs'
+                                    : 'bg-white border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300'
+                                }`}
+                              >
+                                {copiedPromoCode === promo.code ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
+                          </td>
+
+                          <td className="py-4 px-6">
+                            {promo.discountType === 'FREE_EVENT' ? (
+                              <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1.5">
+                                <Sparkles className="w-3 h-3 text-emerald-600" />
+                                Bebas Biaya (100% Free)
+                              </span>
+                            ) : promo.discountType === 'PERCENTAGE' ? (
+                              <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200 inline-flex items-center gap-1.5">
+                                <Percent className="w-3 h-3 text-blue-600" />
+                                Diskon {promo.discountValue}%
+                              </span>
+                            ) : (
+                              <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-50 text-purple-700 border border-purple-200 inline-flex items-center gap-1.5">
+                                <Tag className="w-3 h-3 text-purple-600" />
+                                Potongan Rp {(promo.discountValue || 0).toLocaleString('id-ID')}
+                              </span>
+                            )}
+                          </td>
+
+                          <td className="py-4 px-6 text-slate-600 max-w-xs truncate">
+                            {promo.description || <span className="text-slate-400 italic">Tanpa catatan</span>}
+                          </td>
+
+                          <td className="py-4 px-6 text-center">
+                            <span className="font-bold font-oswald text-slate-900 text-sm">{promo.usedCount || 0}x</span>
+                            <span className="text-[10px] text-slate-400 ml-1">
+                              {promo.maxUses ? `/ maks ${promo.maxUses}` : '(tanpa batas)'}
+                            </span>
+                            {isLimitReached && (
+                              <span className="block text-[9px] font-black text-amber-600 uppercase mt-0.5">Kuota Habis</span>
+                            )}
+                          </td>
+
+                          <td className="py-4 px-6 text-center">
+                            {promo.expiryDate ? (
+                              <div>
+                                <span className="font-medium text-slate-800">{promo.expiryDate}</span>
+                                {isExpired && (
+                                  <span className="block text-[9px] font-black text-red-600 uppercase mt-0.5">Kadaluwarsa</span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 italic">Selamanya</span>
+                            )}
+                          </td>
+
+                          <td className="py-4 px-6 text-center">
+                            <button
+                              onClick={() => handleTogglePromoActive(promo.id)}
+                              className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider transition-all inline-flex items-center gap-1.5 ${
+                                promo.isActive && !isExpired && !isLimitReached
+                                  ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
+                                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                              }`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${promo.isActive && !isExpired && !isLimitReached ? 'bg-emerald-600 animate-pulse' : 'bg-slate-400'}`}></span>
+                              {promo.isActive && !isExpired && !isLimitReached ? 'Aktif' : 'Nonaktif'}
+                            </button>
+                          </td>
+
+                          <td className="py-4 px-6 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => handleOpenPromoModal(promo)}
+                                className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700 transition-all"
+                                title="Edit Kode Promo"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => setConfirmDeletePromo(promo)}
+                                className="p-2 bg-red-50 hover:bg-red-100 rounded-xl text-red-600 transition-all"
+                                title="Hapus Kode Promo"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1064,6 +1419,234 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                   setConfirmDeleteUser(null);
                 }} 
                 className="py-4 bg-red-600 text-white rounded-2xl font-black uppercase text-[10px] shadow-xl shadow-red-600/20"
+              >
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Promo Code Create / Edit Modal */}
+      {isPromoModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl p-6 sm:p-8 space-y-6 animate-in zoom-in-95 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-arcus-red/10 text-arcus-red flex items-center justify-center">
+                  <Ticket className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black font-oswald uppercase italic tracking-wide text-slate-900">
+                    {editingPromo ? 'Edit Kode Promo' : 'Buat Kode Promo Baru'}
+                  </h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    {editingPromo ? `ID: ${editingPromo.id}` : 'Atur benefit & kuota pemakaian voucher'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {promoFormError && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-bold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{promoFormError}</span>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              {/* Kode Promo */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-700 tracking-wider">
+                  Kode Promo (Kupon) <span className="text-red-500">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  value={promoFormCode}
+                  onChange={e => setPromoFormCode(e.target.value.toUpperCase())}
+                  placeholder="Contoh: INTERNAL2025, FESPATI50, BINAAN"
+                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black font-mono tracking-wider uppercase outline-none focus:border-arcus-red transition-all"
+                />
+                <p className="text-[10px] text-slate-500 italic">Kode unik yang akan diketikkan panitia saat membuat turnamen.</p>
+              </div>
+
+              {/* Tipe Benefit */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-700 tracking-wider">
+                  Tipe Benefit / Diskon Platform Fee
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPromoFormType('FREE_EVENT')}
+                    className={`p-3 rounded-2xl border text-center transition-all ${
+                      promoFormType === 'FREE_EVENT'
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-900 ring-2 ring-emerald-400/30 font-black'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300 font-bold'
+                    }`}
+                  >
+                    <Sparkles className="w-4 h-4 mx-auto mb-1 text-emerald-600" />
+                    <span className="text-[10px] uppercase block leading-tight">100% Free (Internal)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPromoFormType('PERCENTAGE')}
+                    className={`p-3 rounded-2xl border text-center transition-all ${
+                      promoFormType === 'PERCENTAGE'
+                        ? 'bg-blue-50 border-blue-500 text-blue-900 ring-2 ring-blue-400/30 font-black'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300 font-bold'
+                    }`}
+                  >
+                    <Percent className="w-4 h-4 mx-auto mb-1 text-blue-600" />
+                    <span className="text-[10px] uppercase block leading-tight">Diskon Persen</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPromoFormType('FIXED_AMOUNT')}
+                    className={`p-3 rounded-2xl border text-center transition-all ${
+                      promoFormType === 'FIXED_AMOUNT'
+                        ? 'bg-purple-50 border-purple-500 text-purple-900 ring-2 ring-purple-400/30 font-black'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-300 font-bold'
+                    }`}
+                  >
+                    <Tag className="w-4 h-4 mx-auto mb-1 text-purple-600" />
+                    <span className="text-[10px] uppercase block leading-tight">Potongan Rupiah</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Nilai Diskon jika bukan Free */}
+              {promoFormType !== 'FREE_EVENT' && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-700 tracking-wider">
+                    {promoFormType === 'PERCENTAGE' ? 'Persentase Diskon (%)' : 'Besaran Potongan (Rp)'}
+                  </label>
+                  <div className="relative">
+                    {promoFormType === 'FIXED_AMOUNT' && (
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">Rp</span>
+                    )}
+                    <input 
+                      type="number" 
+                      min="0"
+                      max={promoFormType === 'PERCENTAGE' ? 100 : undefined}
+                      value={promoFormValue}
+                      onChange={e => setPromoFormValue(Number(e.target.value))}
+                      placeholder={promoFormType === 'PERCENTAGE' ? '50' : '5000'}
+                      className={`w-full p-3.5 ${promoFormType === 'FIXED_AMOUNT' ? 'pl-10' : ''} bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:border-arcus-red transition-all`}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Deskripsi */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-700 tracking-wider">
+                  Deskripsi / Peruntukan Voucher
+                </label>
+                <input 
+                  type="text" 
+                  value={promoFormDesc}
+                  onChange={e => setPromoFormDesc(e.target.value)}
+                  placeholder="Contoh: Khusus Kejuaraan Daerah Pengcab Surakarta"
+                  className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-medium outline-none focus:border-arcus-red transition-all"
+                />
+              </div>
+
+              {/* Kuota & Tanggal Kedaluwarsa */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-700 tracking-wider">
+                    Batas Kuota Pemakaian
+                  </label>
+                  <input 
+                    type="number" 
+                    min="1"
+                    value={promoFormMaxUses}
+                    onChange={e => setPromoFormMaxUses(e.target.value === '' ? '' : Number(e.target.value))}
+                    placeholder="Kosong = Tanpa Batas"
+                    className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-medium outline-none focus:border-arcus-red transition-all"
+                  />
+                  <p className="text-[9px] text-slate-400">Jumlah turnamen yang boleh pakai.</p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-700 tracking-wider">
+                    Masa Berlaku Sampai
+                  </label>
+                  <input 
+                    type="date" 
+                    value={promoFormExpiry}
+                    onChange={e => setPromoFormExpiry(e.target.value)}
+                    className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-medium outline-none focus:border-arcus-red transition-all"
+                  />
+                  <p className="text-[9px] text-slate-400">Kosong = Berlaku selamanya.</p>
+                </div>
+              </div>
+
+              {/* Status Switch */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-900 block">Status Kode Promo</span>
+                  <span className="text-[10px] text-slate-500">Jika nonaktif, panitia tidak bisa menggunakan kode ini.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPromoFormActive(!promoFormActive)}
+                  className={`w-12 h-6 rounded-full transition-all relative ${promoFormActive ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-xs ${promoFormActive ? 'left-7' : 'left-1'}`} />
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 pt-2">
+              <button 
+                type="button"
+                onClick={() => setIsPromoModalOpen(false)} 
+                className="py-3.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-2xl font-black uppercase text-xs transition-all"
+              >
+                Batal
+              </button>
+              <button 
+                type="button"
+                onClick={handleSavePromo} 
+                className="py-3.5 bg-arcus-red hover:bg-red-600 text-white rounded-2xl font-black uppercase text-xs tracking-wider shadow-lg shadow-red-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+              >
+                <Save className="w-4 h-4" />
+                <span>Simpan Kode Promo</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Promo Confirmation Modal */}
+      {confirmDeletePromo && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl p-8 text-center space-y-6 animate-in zoom-in-95">
+            <div className="w-16 h-16 rounded-2xl bg-red-50 border border-red-100 flex items-center justify-center mx-auto text-red-500 shadow-sm">
+              <Trash2 className="w-8 h-8" />
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xl font-black font-oswald uppercase italic tracking-tight text-slate-900">
+                Hapus Kode Promo?
+              </h3>
+              <p className="text-slate-600 text-xs leading-relaxed">
+                Yakin ingin menghapus kode promo <strong className="text-slate-900 font-mono bg-slate-100 px-2 py-0.5 rounded">"{confirmDeletePromo.code}"</strong>? Kode ini tidak akan dapat digunakan lagi oleh panitia.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button 
+                onClick={() => setConfirmDeletePromo(null)} 
+                className="py-3 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl font-black uppercase text-xs transition-all"
+              >
+                Batal
+              </button>
+              <button 
+                onClick={() => handleDeletePromo(confirmDeletePromo.id)} 
+                className="py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black uppercase text-xs shadow-md shadow-red-600/20 active:scale-95 transition-all"
               >
                 Ya, Hapus
               </button>

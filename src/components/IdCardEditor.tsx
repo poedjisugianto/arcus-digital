@@ -777,7 +777,7 @@ const IdCardEditor: React.FC<Props> = ({ archers, officials: officialsProp = [],
               <div className="text-center border-l border-white/10">
                 <span className="text-[8px] font-black uppercase tracking-widest text-slate-600 block">Sesi / Gelombang</span>
                 <span className="text-xl font-black text-white">
-                  {person.wave || '1'}
+                  {(person as any).sessionName || (person.wave ? `Sesi ${person.wave}` : 'Sesi 1')}
                 </span>
               </div>
             </div>
@@ -1138,7 +1138,7 @@ const IdCardEditor: React.FC<Props> = ({ archers, officials: officialsProp = [],
                <div className={`${isStealth ? 'bg-slate-900' : (isChampion || isProX) ? 'bg-white/5' : 'bg-white/50'} ${isB1 ? 'p-2' : isB2 ? 'p-3' : 'p-4'} flex flex-col items-center relative overflow-hidden`}>
                   {(isGlory || isChampion || isProX) && <div className="absolute top-0 left-0 w-full h-0.5" style={{ background: (isChampion || isProX) ? '#eab308' : cardAccent }} />}
                   <span className={`text-[7px] font-black uppercase tracking-widest mb-0.5 ${(isChampion || isProX) ? 'text-yellow-500' : 'text-slate-700'}`}>Session</span>
-                  <span className={`${isB1 ? 'text-base' : isB2 ? 'text-xl' : 'text-2xl'} font-black ${fontColor ? '' : textPrimary}`} style={{ color: fontColor || undefined }}>{person.wave}</span>
+                  <span className={`${isB1 ? 'text-base' : isB2 ? 'text-xl' : 'text-2xl'} font-black ${fontColor ? '' : textPrimary}`} style={{ color: fontColor || undefined }}>{(person as any).sessionName || (person.wave ? `Sesi ${person.wave}` : 'Sesi 1')}</span>
                </div>
             </div>
           )}

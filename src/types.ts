@@ -54,6 +54,19 @@ export interface User {
   photoURL?: string;
 }
 
+export interface PromoCode {
+  id: string;
+  code: string; // e.g. "INTERNAL2025", uppercase
+  discountType: 'FREE_EVENT' | 'PERCENTAGE' | 'FIXED_AMOUNT'; // FREE_EVENT = bebas biaya platform 100%
+  discountValue?: number; // e.g. 50 (%) or Rp 5.000
+  description?: string; // e.g. "Promo Khusus Klub Fespati Daerah"
+  isActive: boolean;
+  maxUses?: number; // 0 or undefined for unlimited
+  usedCount: number;
+  expiryDate?: string; // ISO date string (YYYY-MM-DD)
+  createdAt: number;
+}
+
 export interface GlobalSettings {
   feeAdult: number;
   feeKids: number;
@@ -73,6 +86,7 @@ export interface GlobalSettings {
   productionUrl?: string;
   superAdminEmail?: string;
   notifyOnTournamentCreated?: boolean;
+  promoCodes?: PromoCode[];
 }
 
 export interface AppNotification {
@@ -150,6 +164,10 @@ export interface ParticipantRegistration {
   _syncPending?: boolean;
   checkedIn?: boolean;
   checkInTimestamp?: number;
+  targetNo?: number;
+  position?: string;
+  wave?: number;
+  sessionName?: string;
 }
 
 export interface Archer extends ParticipantRegistration {
@@ -165,6 +183,7 @@ export interface Archer extends ParticipantRegistration {
   updatedAt?: number;
   checkedIn?: boolean;
   checkInTimestamp?: number;
+  sessionName?: string;
 }
 
 export interface Match {
@@ -272,6 +291,9 @@ export interface CertificateConfig {
   nameOffsetY?: number; // Penyesuaian posisi vertikal nama (pixel offset +/- untuk pas di blanko custom)
   nameFontSize?: 'sm' | 'md' | 'lg' | 'xl'; // Ukuran nama pemanah
   titleFontSize?: 'sm' | 'md' | 'lg' | 'xl'; // Ukuran judul sertifikat
+  bodyFontSize?: 'sm' | 'md' | 'lg' | 'xl'; // Ukuran font narasi deskripsi dan keterangan
+  logoSize?: 'sm' | 'md' | 'lg' | 'xl' | '2xl'; // Ukuran logo di bagian atas
+  qrCodeSize?: 'sm' | 'md' | 'lg' | 'xl'; // Ukuran barcode/QR verifikasi
   fontFamily?: 'PLAYFAIR' | 'CINZEL' | 'GARAMOND' | 'OSWALD' | 'MONTSERRAT'; // Jenis font sertifikat
   sectionSpacing?: 'COMPACT' | 'BALANCED' | 'SPREAD'; // Jarak antar bagian (Header - Nama - TTD)
   sectionGap?: number; // Nilai jarak dalam pixel antara bagian atas, tengah, dan bawah
@@ -293,6 +315,26 @@ export interface TechnicalSupportAccess {
   grantedByEmail?: string;
 }
 
+export type AutoTargetModel = 'MODEL_1_DEDICATED_SESSION' | 'MODEL_2_SPLIT_BLOCKS';
+export type TargetFillOrder = 'PARALLEL' | 'SEQUENTIAL';
+export type TargetAssignTrigger = 'ALL_REGISTRATIONS' | 'APPROVED_ONLY';
+
+export interface CategoryTargetBlock {
+  startTarget: number;
+  endTarget: number;
+  sessionName?: string;
+}
+
+export interface AutoTargetConfig {
+  enabled: boolean;
+  model: AutoTargetModel; // MODEL 1 (Beda Sesi/Jam) vs MODEL 2 (Bagi Blok Bantalan)
+  archersPerTarget?: number; // 2 (A-B), 3 (A-C), 4 (A-D)
+  fillOrder?: TargetFillOrder; // PARALLEL (merata 1A, 2A.. lalu 1B) vs SEQUENTIAL (1A, 1B, 1C..)
+  assignTrigger?: TargetAssignTrigger; // ALL_REGISTRATIONS (semua saat daftar) vs APPROVED_ONLY (hanya lunas)
+  categoryBlocks?: Partial<Record<CategoryType, CategoryTargetBlock>>; // Range bantalan per kategori untuk Model 2
+  waveLabels?: Record<number, string>; // Label sesi per wave (misal 1: "Sesi 1 (Pagi)", 2: "Sesi 2 (Siang)")
+}
+
 export interface TournamentSettings {
   tournamentName: string;
   organizerId: string;
@@ -312,6 +354,7 @@ export interface TournamentSettings {
   eventDate?: string;
   executionTime?: string;
   isFreeEvent?: boolean;
+  usedPromoCode?: string; // Kode promo yang dipakai saat pembuatan turnamen
   isActivated?: boolean;
   isConfirmed?: boolean;
   activationCode?: string;
@@ -321,6 +364,7 @@ export interface TournamentSettings {
   paymentMethods?: any[];
   pamphletUrl?: string;
   thbUrl?: string;
+  contactPhone?: string; // Nomor WhatsApp Panitia Penyelenggara / Hotline Lomba
   enableGateway?: boolean;
   officialFee?: number;
   categoryConfigs?: Partial<Record<CategoryType, CategoryConfig>>;
@@ -331,6 +375,7 @@ export interface TournamentSettings {
   rundown?: RundownItem[];
   technicalSupport?: TechnicalSupportAccess;
   certificateConfig?: CertificateConfig;
+  autoTargetConfig?: AutoTargetConfig;
 }
 
 export interface DisbursementRequest {

@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { ArcheryEvent, GlobalSettings, CategoryType, AppNotification, TargetType, UserRole } from '../types';
+import { ArcheryEvent, GlobalSettings, CategoryType, AppNotification, TargetType, UserRole, PromoCode } from '../types';
 import { 
   Plus, Layout, Settings, Monitor, Trash2, Clock, 
   ShieldCheck, UserCheck, CheckCircle, FileText, X, 
@@ -9,7 +9,7 @@ import {
   QrCode, Loader2, Smartphone, Share2, Shield, ChevronRight, ShieldAlert,
   Bell, BellRing, Mail, Inbox, Send, MessageSquare, History, RefreshCw,
   TrendingUp, BarChart2, Database, Search, Users, Filter, Calendar, MapPin,
-  ExternalLink, ChevronDown, Sparkles, Headphones, Wrench, Lock
+  ExternalLink, ChevronDown, Sparkles, Headphones, Wrench, Lock, Ticket, MessageCircle, Phone
 } from 'lucide-react';
 import { toast } from 'sonner';
 import ArcusLogo from './ArcusLogo';
@@ -28,8 +28,8 @@ interface Props {
   onMarkNotifRead: () => void;
   globalSettings: GlobalSettings;
   events: ArcheryEvent[];
-  onCreateEvent: (name: string, isFree?: boolean, description?: string) => void;
-  onCreatePractice: (name: string, isFree?: boolean) => void;
+  onCreateEvent: (name: string, isFree?: boolean, description?: string, promoCode?: string, contactPhone?: string) => void;
+  onCreatePractice: (name: string, isFree?: boolean, promoCode?: string) => void;
   onCreateSelfPractice: () => void;
   onManageEvent: (id: string) => void;
   onViewLive: (id: string) => void;
@@ -66,8 +66,76 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
   const [agreed, setAgreed] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [contactPhone, setContactPhone] = useState(currentUser?.phone || '');
   const [promoCode, setPromoCode] = useState('');
+  const [promoFeedback, setPromoFeedback] = useState<{ valid: boolean; message: string; isError?: boolean } | null>(null);
+  const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
   const [isFree, setIsFree] = useState(false);
+
+  const handleCheckPromoCode = (inputVal: string) => {
+    const val = inputVal.toUpperCase().trim();
+    setPromoCode(val);
+
+    if (!val) {
+      setPromoFeedback(null);
+      setAppliedPromo(null);
+      if (!isSuperAdmin) setIsFree(false);
+      return;
+    }
+
+    const promoList = globalSettings?.promoCodes || [];
+    const found = promoList.find(p => p.code.toUpperCase() === val);
+
+    // Fallback support for default hardcoded INTERNAL2024
+    if (val === 'INTERNAL2024' && !found) {
+      setIsFree(true);
+      setAppliedPromo(null);
+      setPromoFeedback({ valid: true, message: 'Kode Promo Aktif: Bebas Biaya Layanan Platform (Free Event)' });
+      return;
+    }
+
+    if (!found) {
+      if (!isSuperAdmin) setIsFree(false);
+      setAppliedPromo(null);
+      setPromoFeedback({ valid: false, message: 'Kode promo tidak ditemukan.', isError: true });
+      return;
+    }
+
+    if (!found.isActive) {
+      if (!isSuperAdmin) setIsFree(false);
+      setAppliedPromo(null);
+      setPromoFeedback({ valid: false, message: 'Kode promo ini sedang dinonaktifkan oleh Admin.', isError: true });
+      return;
+    }
+
+    if (found.expiryDate && new Date(found.expiryDate).getTime() < Date.now()) {
+      if (!isSuperAdmin) setIsFree(false);
+      setAppliedPromo(null);
+      setPromoFeedback({ valid: false, message: 'Masa berlaku kode promo ini sudah berakhir.', isError: true });
+      return;
+    }
+
+    if (found.maxUses && found.maxUses > 0 && (found.usedCount || 0) >= found.maxUses) {
+      if (!isSuperAdmin) setIsFree(false);
+      setAppliedPromo(null);
+      setPromoFeedback({ valid: false, message: 'Batas kuota pemakaian kode promo ini sudah habis.', isError: true });
+      return;
+    }
+
+    // Success!
+    setAppliedPromo(found);
+    setIsFree(true);
+    let desc = 'Bebas Biaya Platform 100%';
+    if (found.discountType === 'PERCENTAGE') {
+      desc = `Diskon Biaya Platform ${found.discountValue}%`;
+    } else if (found.discountType === 'FIXED_AMOUNT') {
+      desc = `Potongan Biaya Rp ${(found.discountValue || 0).toLocaleString('id-ID')}`;
+    }
+    if (found.description) {
+      desc += ` (${found.description})`;
+    }
+    setPromoFeedback({ valid: true, message: `Kode Promo Valid: ${desc}` });
+  };
   const [practiceEnds, setPracticeEnds] = useState(10);
   const [practiceArrows, setPracticeArrows] = useState(6);
   const [showInbox, setShowInbox] = useState(false);
@@ -208,27 +276,35 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
     setAgreed(false);
     setName('');
     setDescription('');
+    setContactPhone(currentUser?.phone || '');
     setPromoCode('');
+    setPromoFeedback(null);
+    setAppliedPromo(null);
     setIsFree(false);
   };
 
   const handleFinalize = () => {
     if (!name.trim()) return;
-    onCreateEvent(name, isFree, description);
+    onCreateEvent(name, isFree, description, promoCode, contactPhone);
     setStep('LIST');
     setName('');
     setDescription('');
+    setContactPhone(currentUser?.phone || '');
     setPromoCode('');
+    setPromoFeedback(null);
+    setAppliedPromo(null);
     setIsFree(false);
     setAgreed(false);
   };
 
   const handleFinalizePractice = () => {
     if (!name.trim()) return;
-    onCreatePractice(name, isFree);
+    onCreatePractice(name, isFree, promoCode);
     setStep('LIST');
     setName('');
     setPromoCode('');
+    setPromoFeedback(null);
+    setAppliedPromo(null);
     setIsFree(false);
   };
 
@@ -511,6 +587,17 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
             >
               <Plus className="w-5 h-5" /> TURNAMEN BARU
             </button>
+            <a 
+              href={`https://wa.me/${(globalSettings.contactSupport || '087834193339').replace(/\D/g, '').replace(/^0/, '62')}?text=${encodeURIComponent(`Halo Superadmin ARCUS, saya ${userName || 'Penyelenggara'}. Saya membutuhkan bantuan operasional platform / sistem tournament.`)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="px-4 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-black uppercase text-[9px] tracking-widest flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 border border-emerald-400/20 cursor-pointer"
+              title="Hubungi Super Admin ARCUS via WhatsApp"
+            >
+              <MessageCircle className="w-4 h-4 text-emerald-200" />
+              <span className="hidden sm:inline">HUBUNGI SUPER ADMIN</span>
+              <span className="sm:hidden">SUPER ADMIN</span>
+            </a>
           </div>
         </div>
         
@@ -1033,6 +1120,38 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
               })
             )}
             </div>
+
+            {/* Help & Super Admin Support Banner for Organizers */}
+            <div className="bg-gradient-to-r from-slate-900 via-slate-850 to-slate-900 rounded-3xl p-6 sm:p-8 text-white border border-slate-700/60 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden mt-8">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/10 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
+              <div className="flex items-center gap-5 relative z-10">
+                <div className="w-14 h-14 bg-emerald-500/20 border border-emerald-400/30 rounded-2xl flex items-center justify-center text-emerald-400 shrink-0">
+                  <Headphones className="w-7 h-7" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-0.5 bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 rounded text-[8px] font-black uppercase tracking-widest">
+                      Layanan Khusus Penyelenggara
+                    </span>
+                  </div>
+                  <h4 className="text-lg font-black font-oswald uppercase italic tracking-wide mt-1">
+                    Pusat Bantuan &amp; Konsultasi Super Admin ARCUS
+                  </h4>
+                  <p className="text-xs text-slate-300 leading-relaxed mt-0.5">
+                    Khusus panitia &amp; penyelenggara: Hubungi tim Super Admin ARCUS untuk aktivasi turnamen, panduan sistem, atau bantuan kendala operasional.
+                  </p>
+                </div>
+              </div>
+              <a 
+                href={`https://wa.me/${(globalSettings.contactSupport || '087834193339').replace(/\D/g, '').replace(/^0/, '62')}?text=${encodeURIComponent(`Halo Superadmin ARCUS, saya ${userName || 'Penyelenggara'}. Saya membutuhkan bantuan terkait teknis platform / sistem turnamen.`)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="px-6 py-4 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2.5 transition-all shadow-lg shadow-emerald-500/20 active:scale-95 whitespace-nowrap relative z-10 shrink-0 cursor-pointer"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>Hubungi Super Admin ARCUS</span>
+              </a>
+            </div>
           </div>
         </div>
       )}
@@ -1126,8 +1245,25 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                       placeholder="Tulis deskripsi singkat tentang turnamen ini..." 
                       value={description}
                       onChange={e => setDescription(e.target.value)}
-                      className="w-full p-6 bg-slate-50 border-2 border-slate-100 rounded-3xl text-sm font-bold outline-none focus:border-arcus-red transition-all h-32 resize-none"
+                      className="w-full p-6 bg-slate-50 border-2 border-slate-100 rounded-3xl text-sm font-bold outline-none focus:border-arcus-red transition-all h-28 resize-none"
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest px-4 flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Nomor WhatsApp Panitia / Hotline Lomba</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      placeholder="Contoh: 081234567890 (peserta akan langsung diarahkan ke WA ini)" 
+                      value={contactPhone}
+                      onChange={e => setContactPhone(e.target.value)}
+                      className="w-full p-5 bg-slate-50 border-2 border-slate-100 rounded-3xl text-sm font-black font-mono outline-none focus:border-emerald-500 transition-all text-slate-900"
+                    />
+                    <p className="text-[9px] text-slate-700 font-medium px-4 italic">
+                      * Tombol "Hubungi Panitia" di Start List peserta akan langsung dialihkan ke nomor WhatsApp panitia ini.
+                    </p>
                   </div>
 
                   <div className="space-y-4 pt-4 border-t border-slate-100">
@@ -1146,38 +1282,64 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                       )}
                     </div>
 
-                    {!isFree && (
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest px-4">Kode Promo (Opsional)</label>
-                        <div className="relative">
-                          <input 
-                            type="text" 
-                            placeholder="Masukkan kode..." 
-                            value={promoCode}
-                            onChange={e => {
-                              const val = e.target.value.toUpperCase();
-                              setPromoCode(val);
-                              if (val === 'INTERNAL2024') {
-                                setIsFree(true);
-                              } else if (!isSuperAdmin) {
-                                setIsFree(false);
-                              }
-                            }}
-                            className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold uppercase outline-none focus:border-emerald-500 transition-all"
-                          />
-                          {isFree && promoCode === 'INTERNAL2024' && (
-                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-500 flex items-center gap-1">
-                              <CheckCircle2 className="w-4 h-4" />
-                              <span className="text-[10px] font-black uppercase">Aktif</span>
-                            </div>
-                          )}
-                        </div>
+                    {/* Promo Code Input & Verification */}
+                    <div className="space-y-2 pt-2">
+                      <div className="flex items-center justify-between px-4">
+                        <label className="text-[10px] font-black text-slate-700 uppercase tracking-widest flex items-center gap-1.5">
+                          <Ticket className="w-3.5 h-3.5 text-arcus-red" />
+                          <span>Kode Promo (Opsional)</span>
+                        </label>
+                        {promoCode && (
+                          <button
+                            type="button"
+                            onClick={() => handleCheckPromoCode('')}
+                            className="text-[9px] font-bold text-red-600 hover:underline"
+                          >
+                            Hapus Kode
+                          </button>
+                        )}
                       </div>
-                    )}
 
-                    {isFree && (
+                      <div className="relative">
+                        <input 
+                          type="text" 
+                          placeholder="Masukkan kode voucher (Contoh: INTERNAL2024)..." 
+                          value={promoCode}
+                          onChange={e => handleCheckPromoCode(e.target.value)}
+                          className={`w-full p-4 pr-24 bg-slate-50 border-2 rounded-2xl text-sm font-black font-mono tracking-wider uppercase outline-none transition-all ${
+                            promoFeedback?.valid 
+                              ? 'border-emerald-500 bg-emerald-50/20 text-emerald-950' 
+                              : promoFeedback?.isError 
+                              ? 'border-red-300 bg-red-50/20 text-red-900' 
+                              : 'border-slate-100 focus:border-emerald-500 text-slate-900'
+                          }`}
+                        />
+                        {promoFeedback?.valid && (
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-600 flex items-center gap-1.5 bg-emerald-100/90 px-2.5 py-1 rounded-xl shadow-xs">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span className="text-[10px] font-black uppercase tracking-wider">Aktif</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {promoFeedback?.valid && (
+                        <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex items-start gap-2 text-emerald-800 text-xs font-bold">
+                          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          <span className="leading-snug">{promoFeedback.message}</span>
+                        </div>
+                      )}
+
+                      {promoFeedback?.isError && (
+                        <div className="p-3 bg-red-50 rounded-xl border border-red-200 flex items-start gap-2 text-red-700 text-xs font-bold">
+                          <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                          <span className="leading-snug">{promoFeedback.message}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {isFree && !promoFeedback?.valid && (
                       <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex items-center gap-3">
-                        <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                        <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
                         <p className="text-[10px] text-emerald-700 font-bold uppercase leading-relaxed">
                           Event ini ditandai sebagai internal. Biaya platform ditiadakan.
                         </p>
@@ -1258,17 +1420,15 @@ const MemberDashboard: React.FC<Props> = ({ userName, userId, userRole, currentU
                           type="text" 
                           placeholder="Masukkan kode..." 
                           value={promoCode}
-                          onChange={e => {
-                            const val = e.target.value.toUpperCase();
-                            setPromoCode(val);
-                            if (val === 'INTERNAL2024') {
-                              setIsFree(true);
-                            } else if (!isSuperAdmin) {
-                              setIsFree(false);
-                            }
-                          }}
-                          className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold uppercase outline-none focus:border-emerald-500 transition-all"
+                          onChange={e => handleCheckPromoCode(e.target.value)}
+                          className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold uppercase outline-none focus:border-emerald-500 transition-all font-mono"
                         />
+                        {promoFeedback?.valid && (
+                          <p className="text-[10px] text-emerald-700 font-bold px-4">✓ {promoFeedback.message}</p>
+                        )}
+                        {promoFeedback?.isError && (
+                          <p className="text-[10px] text-red-600 font-bold px-4">✗ {promoFeedback.message}</p>
+                        )}
                       </div>
                     )}
                   </div>

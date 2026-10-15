@@ -407,6 +407,23 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
                     Grup WA Peserta
                   </a>
                 )}
+                {event.settings?.contactPhone && (() => {
+                  let clean = (event.settings.contactPhone || '').replace(/\D/g, '');
+                  if (clean.startsWith('0')) clean = '62' + clean.slice(1);
+                  else if (!clean.startsWith('62')) clean = '62' + clean;
+                  const text = encodeURIComponent(`Halo Panitia ${event.settings?.tournamentName || 'Turnamen'}, saya ingin bertanya perihal informasi lomba ini.`);
+                  return (
+                    <a 
+                      href={`https://wa.me/${clean}?text=${text}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-[2rem] font-black font-oswald uppercase italic text-lg hover:bg-emerald-100 transition-all flex items-center justify-center gap-3 shadow-xs"
+                    >
+                      <Smartphone className="w-5 h-5 text-emerald-600" />
+                      Hubungi Panitia (WA)
+                    </a>
+                  );
+                })()}
               </div>
             </div>
 

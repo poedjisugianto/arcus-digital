@@ -1,21 +1,45 @@
 import React, { useState, useMemo } from 'react';
-import { Search, ArrowLeft, Users, Trophy, Target, ChevronRight, Filter, CheckCircle2, Info, RefreshCw, QrCode } from 'lucide-react';
+import { Search, ArrowLeft, Users, Trophy, Target, ChevronRight, Filter, CheckCircle2, Info, RefreshCw, QrCode, MessageCircle } from 'lucide-react';
 import { ArcheryEvent, CategoryType, Archer } from '../types';
 import { CATEGORY_LABELS } from '../constants';
 import ArcusLogo from './ArcusLogo';
 import ParticipantTicketModal from './ParticipantTicketModal';
+import { toast } from 'sonner';
 
 interface Props {
   event: ArcheryEvent;
   onBack: () => void;
   onRefresh?: () => void;
   isSyncing?: boolean;
+  organizerPhone?: string;
 }
 
-export default function EntryList({ event, onBack, onRefresh, isSyncing }: Props) {
+export default function EntryList({ event, onBack, onRefresh, isSyncing, organizerPhone }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<CategoryType | 'ALL'>('ALL');
   const [viewMode, setViewMode] = useState<'ARCHERS' | 'OFFICIALS'>('ARCHERS');
+  const committeePhone = (event.settings?.contactPhone || organizerPhone || '').trim();
+
+  const handleContactCommittee = () => {
+    if (!committeePhone) {
+      if (event.settings?.waGroupLink) {
+        window.open(event.settings.waGroupLink, '_blank');
+        return;
+      }
+      toast.info('Nomor WhatsApp panitia penyelenggara belum dicantumkan untuk turnamen ini. Silakan hubungi official kontingen Anda.');
+      return;
+    }
+
+    let clean = committeePhone.replace(/\D/g, '');
+    if (clean.startsWith('0')) {
+      clean = '62' + clean.slice(1);
+    } else if (!clean.startsWith('62')) {
+      clean = '62' + clean;
+    }
+    const message = encodeURIComponent(`Halo Panitia ${event.settings?.tournamentName || 'Turnamen'}, saya peserta/official ingin bertanya perihal informasi peserta & start list lomba.`);
+    window.open(`https://wa.me/${clean}?text=${message}`, '_blank');
+  };
+
   const [selectedTicketParticipant, setSelectedTicketParticipant] = useState<Archer | null>(null);
 
   const categories = useMemo(() => {
@@ -230,9 +254,16 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing }: Props
                     )}
                     {viewMode === 'ARCHERS' && (
                       <td className="px-4 md:px-10 py-3 md:py-6 text-center">
-                        <span className="text-lg md:text-2xl font-black font-oswald text-arcus-red italic">
-                          {(item as any).targetNo > 0 ? `${(item as any).targetNo}${(item as any).position}` : '-'}
-                        </span>
+                        <div className="flex flex-col items-center justify-center">
+                          <span className="text-lg md:text-2xl font-black font-oswald text-arcus-red italic leading-none">
+                            {(item as any).targetNo > 0 ? `${(item as any).targetNo}${(item as any).position}` : '-'}
+                          </span>
+                          {((item as any).sessionName || ((item as any).wave && (item as any).wave > 1)) && (
+                            <span className="text-[7.5px] font-black text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded uppercase mt-1 tracking-tight">
+                              {(item as any).sessionName || `Sesi ${(item as any).wave}`}
+                            </span>
+                          )}
+                        </div>
                       </td>
                     )}
                     <td className="px-4 md:px-10 py-3 md:py-6 text-right">
@@ -280,14 +311,14 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing }: Props
               </p>
             </div>
           </div>
-          <a 
-            href="https://wa.me/6287834193339"
-            target="_blank"
-            rel="noreferrer"
-            className={`px-8 py-4 bg-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all relative z-10 flex items-center justify-center ${viewMode === 'ARCHERS' ? 'text-slate-900 hover:bg-arcus-red hover:text-white' : 'text-blue-900 hover:bg-blue-500 hover:text-white'}`}
+          <button 
+            type="button"
+            onClick={handleContactCommittee}
+            className={`px-8 py-4 bg-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all relative z-10 flex items-center justify-center gap-2 shadow-sm ${viewMode === 'ARCHERS' ? 'text-slate-900 hover:bg-arcus-red hover:text-white' : 'text-blue-900 hover:bg-blue-500 hover:text-white'}`}
           >
-            Hubungi Panitia
-          </a>
+            <MessageCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>Hubungi Panitia Penyelenggara</span>
+          </button>
         </div>
       </div>
 
@@ -313,6 +344,7 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing }: Props
             targetNo: selectedTicketParticipant.targetNo,
             position: selectedTicketParticipant.position,
             wave: selectedTicketParticipant.wave,
+            sessionName: (selectedTicketParticipant as any).sessionName,
             ktaNumber: (selectedTicketParticipant as any).ktaNumber
           }]}
         />

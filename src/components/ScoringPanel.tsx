@@ -531,7 +531,14 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
               className={`flex-1 md:flex-none p-4 rounded-lg text-left border transition-all duration-200 ${selectedArcherId === a.id ? 'bg-arcus-sun border-yellow-500 text-black shadow-md' : 'bg-white border-slate-200 text-slate-900'}`}
             >
               <div className="flex items-center justify-between">
-                <p className="text-[10px] font-black uppercase tracking-widest">{a.targetNo}{a.position}</p>
+                <p className="text-[10px] font-black uppercase tracking-widest">
+                  {a.targetNo}{a.position}
+                  {(a.sessionName || a.wave > 1) && (
+                    <span className="ml-1 text-[8px] font-semibold text-slate-500">
+                      • {a.sessionName || `Sesi ${a.wave}`}
+                    </span>
+                  )}
+                </p>
                 <div className="flex items-center gap-2">
                    <div className="flex gap-0.5 overflow-hidden max-w-[60px]">
                       {Array.from({ length: (state.settings?.categoryConfigs || {})[a.category as CategoryType]?.ends || 6 }).map((_, i) => (
@@ -562,6 +569,11 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
                 <div className="flex items-center gap-3">
                   <span className="text-xs sm:text-sm font-black px-2.5 py-1 bg-slate-900 text-white rounded-xl shadow-xs">
                     {selectedArcher.targetNo}{selectedArcher.position}
+                    {(selectedArcher.sessionName || (selectedArcher.wave && selectedArcher.wave > 1)) && (
+                      <span className="ml-1.5 text-[9px] font-bold text-amber-300">
+                        • {selectedArcher.sessionName || `Sesi ${selectedArcher.wave}`}
+                      </span>
+                    )}
                   </span>
                   <div>
                     <h3 className="text-lg sm:text-xl font-black uppercase font-oswald tracking-tight text-slate-900 leading-tight">
