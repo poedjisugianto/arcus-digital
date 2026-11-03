@@ -107,32 +107,65 @@ const getAccurateParticipantCount = (archers: any[] = [], regs: any[] = [], fall
 };
 
 // Helper to parse route from URL search params & session storage
+// Helper to parse route from URL search params & session storage
 const parseRouteFromUrl = (): { view: string; eventId: string | null; club: string; search: string } => {
   try {
-    const params = new URLSearchParams(window.location.search);
-    const viewParam = params.get('view');
-    const eventParam = params.get('event') || params.get('eventId');
-    const clubParam = params.get('club') || '';
-    const searchParam = params.get('search') || '';
+    let searchStr = window.location.search;
+    if (!searchStr && window.location.hash && window.location.hash.includes('?')) {
+      searchStr = window.location.hash.substring(window.location.hash.indexOf('?'));
+    }
 
-    if (viewParam) {
+    const params = new URLSearchParams(searchStr);
+    let viewParam = (params.get('view') || '').trim();
+    const eventParam = (params.get('event') || params.get('eventId') || params.get('id') || '').trim();
+    const clubParam = (params.get('club') || '').trim();
+    const searchParam = (params.get('search') || '').trim();
+
+    // Check for registration intents in various common parameter forms
+    const isRegister = 
+      params.get('register') === 'true' || 
+      params.get('register') === '1' ||
+      params.get('daftar') === 'true' || 
+      params.get('daftar') === '1' ||
+      ['REGISTER', 'REGISTRATION', 'REGISTER_PARTICIPANT', 'ONLINE_REGISTRATION', 'DAFTAR'].includes(viewParam.toUpperCase());
+
+    const isLive = 
+      params.get('live') === 'true' || 
+      ['LIVE', 'LIVE_SCORE', 'LIVE_SCOREBOARD'].includes(viewParam.toUpperCase());
+
+    const isEntry = 
+      params.get('entry') === 'true' || 
+      params.get('peserta') === 'true' ||
+      ['ENTRY', 'ENTRY_LIST', 'PESERTA', 'PARTICIPANTS'].includes(viewParam.toUpperCase());
+
+    const isAdmin = 
+      ['ADMIN', 'EVENT_ADMIN', 'PANEL'].includes(viewParam.toUpperCase());
+
+    let normalizedView = 'LANDING';
+    if (isRegister) {
+      normalizedView = 'REGISTER_PARTICIPANT';
+    } else if (isLive) {
+      normalizedView = 'LIVE_SCOREBOARD';
+    } else if (isEntry) {
+      normalizedView = 'ENTRY_LIST';
+    } else if (isAdmin) {
+      normalizedView = 'EVENT_ADMIN';
+    } else if (viewParam) {
+      normalizedView = viewParam.toUpperCase();
+    } else if (eventParam) {
+      normalizedView = 'PUBLIC_EVENT_INFO';
+    }
+
+    if (eventParam || viewParam || isRegister || isLive || isEntry) {
       return {
-        view: viewParam,
+        view: normalizedView,
         eventId: eventParam || null,
         club: clubParam,
         search: searchParam
       };
     }
-    if (eventParam) {
-      return {
-        view: 'PUBLIC_EVENT_INFO',
-        eventId: eventParam,
-        club: clubParam,
-        search: searchParam
-      };
-    }
 
-    // Fallback to sessionStorage in case query string was empty on refresh
+    // Fallback to sessionStorage in case query string was empty on normal reload
     const saved = sessionStorage.getItem('arcus_active_route');
     if (saved) {
       const parsed = JSON.parse(saved);
@@ -154,13 +187,16 @@ const parseRouteFromUrl = (): { view: string; eventId: string | null; club: stri
 // Helper to construct URL from current route
 const buildRouteUrl = (v: string, eventId?: string | null, club?: string, search?: string) => {
   const params = new URLSearchParams();
-  if (v === 'LANDING') {
+  if (v === 'LANDING' && !eventId) {
     return window.location.pathname || '/';
   }
+  
   if (v === 'PUBLIC_EVENT_INFO' && eventId) {
     params.set('event', eventId);
   } else {
-    params.set('view', v);
+    if (v && v !== 'LANDING') {
+      params.set('view', v);
+    }
     if (eventId) {
       params.set('event', eventId);
     }
@@ -244,6 +280,7 @@ export default function App() {
   });
   
   const [isCheckingLink, setIsCheckingLink] = useState(true);
+  const [isLoadingTargetEvent, setIsLoadingTargetEvent] = useState<boolean>(Boolean(initialRoute.eventId));
   const isSyncingFromCloud = useRef(false);
   const isCurrentlySyncing = useRef(false);
   const [deletedEventIds, setDeletedEventIds] = useState<Set<string>>(new Set());
@@ -390,16 +427,25 @@ export default function App() {
   // 1. Initial Data Load (Local + Cloud)
   useEffect(() => {
     const loadInitialData = async () => {
+      const targetUrlEventId = initialRoute.eventId;
+      let skipCloudFetch = false;
+      let localHasTargetEvent = false;
+
       // 1. Load Local Storage
       const localData = localStorage.getItem(STORAGE_KEY);
-      let skipCloudFetch = false;
 
       if (localData) {
         try {
           const parsed = JSON.parse(localData);
+          localHasTargetEvent = targetUrlEventId 
+            ? (parsed.events || []).some((e: any) => e.id === targetUrlEventId)
+            : false;
+
           setAppState(prev => ({ 
             ...prev, 
             ...parsed, 
+            // CRITICAL: URL target event ID always takes priority and must NEVER be overwritten by parsed.activeEventId
+            activeEventId: targetUrlEventId || prev.activeEventId || parsed.activeEventId || null,
             isDataLoaded: true // Show cached data immediately
           }));
 
@@ -407,7 +453,8 @@ export default function App() {
           if (cacheTimestamp) {
             const age = Date.now() - parseInt(cacheTimestamp);
             const CACHE_MAX_AGE = 60 * 1000; // 60 seconds of complete relaxation
-            if (age < CACHE_MAX_AGE) {
+            // Only skip cloud fetch if data is fresh AND (no target event was requested OR target event is already in local events)
+            if (age < CACHE_MAX_AGE && (!targetUrlEventId || localHasTargetEvent)) {
               skipCloudFetch = true;
               console.log(`[LOCAL-CACHE] Data masih segar (${Math.round(age / 1000)} detik). Menghindari fetch cloud.`);
             }
@@ -417,7 +464,60 @@ export default function App() {
         }
       }
 
-      // 2. Load Cloud Data (Direct Fetch)
+      // 2. Direct Target Event Fetch: If a specific event is in the URL, fetch it immediately to ensure it is 100% available
+      if (targetUrlEventId) {
+        try {
+          console.log(`[TARGET-EVENT] Direct loading target event: ${targetUrlEventId}`);
+          const res = await fetch(`/api/event-details/${targetUrlEventId}`);
+          if (res.ok) {
+            const body = await res.json();
+            if (body.success && body.data) {
+              const evData = body.data;
+              const rawSubmissions = (evData.registrations || []).map((s: any) => {
+                const base = s.archerData || s.officialData || s.participantData || s.data || s;
+                const regType = s.regType || base.regType || (s.category === 'OFFICIAL' ? 'OFFICIAL' : 'ARCHER');
+                return { ...base, ...s, regType };
+              });
+              const cloudArchers = rawSubmissions.filter((s: any) => s.regType !== 'OFFICIAL');
+              const cloudOfficials = rawSubmissions.filter((s: any) => s.regType === 'OFFICIAL');
+
+              const fullEvent: ArcheryEvent = {
+                ...evData,
+                id: targetUrlEventId,
+                settings: { ...(evData.settings || {}) },
+                registrations: rawSubmissions,
+                archers: cloudArchers,
+                officials: cloudOfficials,
+                registrationCount: getAccurateParticipantCount(cloudArchers, rawSubmissions, evData.registrationCount),
+                scores: evData.scores || [],
+                scoreLogs: evData.scoreLogs || [],
+                isDetailedLoaded: true
+              };
+
+              setAppState(prev => {
+                const exists = prev.events.some(e => e.id === targetUrlEventId);
+                const updated = exists 
+                  ? prev.events.map(e => e.id === targetUrlEventId ? { ...e, ...fullEvent } : e)
+                  : [fullEvent, ...prev.events];
+                return {
+                  ...prev,
+                  activeEventId: targetUrlEventId,
+                  events: updated,
+                  isDataLoaded: true
+                };
+              });
+            }
+          }
+        } catch (targetErr) {
+          console.warn("[TARGET-EVENT] Direct fetch of target event note:", targetErr);
+        } finally {
+          setIsLoadingTargetEvent(false);
+        }
+      } else {
+        setIsLoadingTargetEvent(false);
+      }
+
+      // 3. Load Cloud Data (Direct Fetch)
       if (isOnline && db && !skipCloudFetch) {
         try {
           await fetchCloudData();
@@ -430,7 +530,11 @@ export default function App() {
         }
       }
       
-      setAppState(prev => ({ ...prev, isDataLoaded: true }));
+      setAppState(prev => ({ 
+        ...prev, 
+        activeEventId: targetUrlEventId || prev.activeEventId,
+        isDataLoaded: true 
+      }));
       setIsCheckingLink(false);
 
       // Force hide splash screen after a small delay to allow initial render
@@ -2048,7 +2152,7 @@ export default function App() {
     }
 
     const renderEventNotFoundOrLoading = () => {
-      if (!appState.isDataLoaded || isCheckingLink) {
+      if (!appState.isDataLoaded || isCheckingLink || isLoadingTargetEvent) {
         return (
           <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-8 text-center">
             <div className="w-10 h-10 border-4 border-arcus-red border-t-transparent rounded-full animate-spin mb-4" />
@@ -2062,7 +2166,10 @@ export default function App() {
           <h2 className="text-lg font-bold text-slate-800 mb-1">Turnamen Tidak Ditemukan</h2>
           <p className="text-slate-500 mb-5 text-xs max-w-sm">Turnamen yang Anda tuju belum tersedia atau tautan salah.</p>
           <button 
-            onClick={() => setView('LANDING')} 
+            onClick={() => {
+              setView('LANDING');
+              setAppState(prev => ({ ...prev, activeEventId: null }));
+            }} 
             className="px-5 py-2 bg-arcus-red text-white rounded-xl font-bold text-xs uppercase tracking-wider hover:bg-red-700 transition-all shadow-md"
           >
             Kembali ke Beranda
@@ -2072,11 +2179,18 @@ export default function App() {
     };
 
     const getBaseShareUrl = () => {
+      // Prioritize current browser origin when running on production or vercel
+      if (typeof window !== 'undefined' && window.location.origin) {
+        const origin = window.location.origin;
+        if (!origin.includes('localhost') && !origin.includes('127.0.0.1')) {
+          return origin.replace(/\/+$/, '');
+        }
+      }
       const custom = appState.globalSettings?.productionUrl?.trim();
       if (custom) {
-        return custom.startsWith('http') ? custom.replace(/\/+$/, '') : `https://${custom.replace(/\/+$/, '')}`;
+        return (custom.startsWith('http') ? custom : `https://${custom}`).replace(/\/+$/, '');
       }
-      return window.location.origin;
+      return (typeof window !== 'undefined' ? window.location.origin : '').replace(/\/+$/, '');
     };
 
     switch(view) {
@@ -2114,9 +2228,9 @@ export default function App() {
             const base = getBaseShareUrl();
             setShareData({
               isOpen: true,
-              url: base + '?event=' + id,
+              url: `${base}/?event=${id}`,
               name: ev?.settings.tournamentName || 'Turnamen Panahan',
-              registerUrl: base + '?event=' + id + '&view=REGISTER_PARTICIPANT',
+              registerUrl: `${base}/?event=${id}&view=REGISTER_PARTICIPANT`,
               pamphletUrl: ev?.settings.pamphletUrl || ev?.settings.logoUrl,
               location: ev?.settings.location,
               eventDate: ev?.settings.eventDate,
@@ -2395,9 +2509,9 @@ export default function App() {
             const base = getBaseShareUrl();
             setShareData({
               isOpen: true,
-              url: base + '?event=' + id,
+              url: `${base}/?event=${id}`,
               name: name || ev?.settings.tournamentName || 'Turnamen Panahan',
-              registerUrl: base + '?event=' + id + '&view=REGISTER_PARTICIPANT',
+              registerUrl: `${base}/?event=${id}&view=REGISTER_PARTICIPANT`,
               pamphletUrl: ev?.settings.pamphletUrl || ev?.settings.logoUrl,
               location: ev?.settings.location,
               eventDate: ev?.settings.eventDate,
@@ -2493,9 +2607,9 @@ export default function App() {
             const base = getBaseShareUrl();
             setShareData({
               isOpen: true,
-              url: base + '?event=' + activeEvent.id,
+              url: `${base}/?event=${activeEvent.id}`,
               name: activeEvent.settings?.tournamentName || 'Turnamen Panahan',
-              registerUrl: base + '?event=' + activeEvent.id + '&view=REGISTER_PARTICIPANT',
+              registerUrl: `${base}/?event=${activeEvent.id}&view=REGISTER_PARTICIPANT`,
               pamphletUrl: activeEvent.settings?.pamphletUrl || activeEvent.settings?.logoUrl,
               location: activeEvent.settings?.location,
               eventDate: activeEvent.settings?.eventDate,
@@ -2715,9 +2829,9 @@ export default function App() {
             const base = getBaseShareUrl();
             setShareData({
               isOpen: true,
-              url: base + '?event=' + activeEvent.id,
+              url: `${base}/?event=${activeEvent.id}`,
               name: activeEvent.settings.tournamentName || 'Turnamen Panahan',
-              registerUrl: base + '?event=' + activeEvent.id + '&view=REGISTER_PARTICIPANT',
+              registerUrl: `${base}/?event=${activeEvent.id}&view=REGISTER_PARTICIPANT`,
               pamphletUrl: activeEvent.settings?.pamphletUrl || activeEvent.settings?.logoUrl,
               location: activeEvent.settings?.location,
               eventDate: activeEvent.settings?.eventDate,
@@ -2815,9 +2929,9 @@ export default function App() {
             const base = getBaseShareUrl();
             setShareData({
               isOpen: true,
-              url: base + '?event=' + id,
+              url: `${base}/?event=${id}`,
               name: ev?.settings.tournamentName || 'Turnamen Panahan',
-              registerUrl: base + '?event=' + id + '&view=REGISTER_PARTICIPANT',
+              registerUrl: `${base}/?event=${id}&view=REGISTER_PARTICIPANT`,
               pamphletUrl: ev?.settings.pamphletUrl || ev?.settings.logoUrl,
               location: ev?.settings.location,
               eventDate: ev?.settings.eventDate,
