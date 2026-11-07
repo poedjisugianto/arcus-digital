@@ -2501,7 +2501,6 @@ const AdminPanel: React.FC<Props> = ({
                                     <input
                                       type="number"
                                       min="1"
-                                      max="10"
                                       value={localSettings.categoryConfigs?.[cat]?.eliminationEnds || 2}
                                       onChange={e => updateCategoryConfig(cat, 'eliminationEnds', parseInt(e.target.value) || 2)}
                                       className="w-full rounded-lg border border-purple-200 bg-white p-2 text-center font-black text-xs text-slate-900 outline-none focus:border-purple-600 shadow-xs"
@@ -2515,7 +2514,6 @@ const AdminPanel: React.FC<Props> = ({
                                     <input
                                       type="number"
                                       min="1"
-                                      max="12"
                                       value={localSettings.categoryConfigs?.[cat]?.eliminationArrows || 6}
                                       onChange={e => updateCategoryConfig(cat, 'eliminationArrows', parseInt(e.target.value) || 6)}
                                       className="w-full rounded-lg border border-purple-200 bg-white p-2 text-center font-black text-xs text-slate-900 outline-none focus:border-purple-600 shadow-xs"
@@ -2608,7 +2606,6 @@ const AdminPanel: React.FC<Props> = ({
                                   <input 
                                     type="number"
                                     min="1"
-                                    max="10"
                                     value={localSettings.categoryConfigs?.[cat]?.matchEnds || 5}
                                     onChange={e => updateCategoryConfig(cat, 'matchEnds', parseInt(e.target.value) || 5)}
                                     className="w-full rounded-xl border-purple-200 bg-white p-3 border font-black text-xs text-slate-900 focus:border-purple-600 transition-all text-center shadow-sm"
@@ -2622,7 +2619,6 @@ const AdminPanel: React.FC<Props> = ({
                                   <input 
                                     type="number"
                                     min="1"
-                                    max="6"
                                     value={localSettings.categoryConfigs?.[cat]?.matchArrowsPerEnd || 3}
                                     onChange={e => updateCategoryConfig(cat, 'matchArrowsPerEnd', parseInt(e.target.value) || 3)}
                                     className="w-full rounded-xl border-purple-200 bg-white p-3 border font-black text-xs text-slate-900 focus:border-purple-600 transition-all text-center shadow-sm"
