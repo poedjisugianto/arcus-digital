@@ -15,11 +15,11 @@ const DEFAULT_POSITIONS: ('A' | 'B' | 'C' | 'D')[] = ['A', 'B', 'C', 'D'];
  * berdasarkan kuota peserta atau dibagi rata
  */
 export function generateDefaultCategoryBlocks(
-  categories: CategoryType[],
+  categories: (CategoryType | string)[],
   totalTargets: number,
   categoryConfigs?: Record<string, { quota?: number }>
-): Partial<Record<CategoryType, CategoryTargetBlock>> {
-  const result: Partial<Record<CategoryType, CategoryTargetBlock>> = {};
+): Partial<Record<CategoryType | string, CategoryTargetBlock>> {
+  const result: Partial<Record<CategoryType | string, CategoryTargetBlock>> = {};
   if (!categories || categories.length === 0 || totalTargets <= 0) return result;
 
   // Filter kategori valid (kecuali OFFICIAL)

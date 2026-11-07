@@ -6,7 +6,7 @@ import {
   QrCode, Barcode as BarcodeIcon
 } from 'lucide-react';
 import { ArcheryEvent, CategoryType, Archer, TargetType, CategoryConfig } from '../types';
-import { CATEGORY_LABELS, TARGET_LABELS } from '../constants';
+import { CATEGORY_LABELS, TARGET_LABELS, getCategoryDisplayName } from '../constants';
 import { resolveGoogleDriveUrl } from '../lib/photoService';
 import { findCategoryConfig } from '../lib/firestoreUtils';
 import ArcusLogo from './ArcusLogo';
@@ -248,7 +248,7 @@ export const PrintScoreSheetsModal: React.FC<Props> = ({
         archerId: a.id,
         archerName: a.name,
         club: a.club || '-',
-        category: CATEGORY_LABELS[a.category as CategoryType] || a.category,
+        category: getCategoryDisplayName(a.category, event.settings?.categoryConfigs),
         rawCategory: a.category,
         distance: catConfig?.distance || '',
         targetNo: a.targetNo || '',
@@ -627,7 +627,7 @@ export const PrintScoreSheetsModal: React.FC<Props> = ({
                 <option value="ALL">Semua Kategori ({event.archers?.length || 0})</option>
                 {categories.map(cat => (
                   <option key={cat} value={cat}>
-                    {CATEGORY_LABELS[cat] || cat}
+                    {getCategoryDisplayName(cat, event.settings?.categoryConfigs)}
                   </option>
                 ))}
               </select>

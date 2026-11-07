@@ -10,7 +10,7 @@ import {
   Heart, Youtube, Video, Crosshair, Scale, Sliders, Award, Printer, GitBranch, Share2, Receipt, RefreshCw, Sparkles, Phone
 } from 'lucide-react';
 import { TournamentSettings, CategoryType, TargetType, PaymentMethod, ScorerAccess, CategoryConfig, Sponsorship, Archer, ParticipantRegistration, GlobalSettings, RundownItem, ArcheryEvent, AutoTargetConfig, AutoTargetModel, TargetFillOrder, TargetAssignTrigger, CategoryTargetBlock } from '../types';
-import { CATEGORY_LABELS, TARGET_LABELS } from '../constants';
+import { CATEGORY_LABELS, TARGET_LABELS, getCategoryDisplayName } from '../constants';
 import { tryRecoverJSON, mergeTournamentSettings, findCategoryConfig } from '../lib/firestoreUtils';
 import { resolveGoogleDriveUrl, compressPhoto } from '../lib/photoService';
 import ArcherList from './ArcherList';
@@ -162,6 +162,24 @@ const AdminPanel: React.FC<Props> = ({
   const [showModeConfirm, setShowModeConfirm] = useState<{ isOpen: boolean; next: boolean; msg: string }>({ isOpen: false, next: false, msg: '' });
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const [showTimerModal, setShowTimerModal] = useState(false);
+  const [showAddCustomCategoryModal, setShowAddCustomCategoryModal] = useState(false);
+  const [customCatForm, setCustomCatForm] = useState<{
+    name: string;
+    distance: string;
+    targetType: TargetType;
+    arrows: number;
+    ends: number;
+    registrationFee: number;
+    quota: string;
+  }>({
+    name: '',
+    distance: '20m',
+    targetType: TargetType.STANDARD,
+    arrows: 36,
+    ends: 6,
+    registrationFee: 0,
+    quota: ''
+  });
   
   // Safely merge incoming settings when not dirty without wiping out existing categoryConfigs
   useEffect(() => {
@@ -204,7 +222,7 @@ const AdminPanel: React.FC<Props> = ({
     updateSettings({ rundown: updated });
   };
 
-  const updateCategoryConfig = (cat: CategoryType, field: keyof CategoryConfig, value: any) => {
+  const updateCategoryConfig = (cat: CategoryType | string, field: keyof CategoryConfig, value: any) => {
     setLocalSettings(prev => {
       const existingConfig = prev.categoryConfigs?.[cat] || {
         registrationFee: 0,
@@ -240,7 +258,7 @@ const AdminPanel: React.FC<Props> = ({
     setIsDirty(true);
   };
 
-  const addCategory = (cat: CategoryType) => {
+  const addCategory = (cat: CategoryType | string) => {
     if (localSettings.categoryConfigs?.[cat]) return;
     const defaults = getDefaultHighestScores(TargetType.STANDARD);
     setLocalSettings(prev => ({
@@ -263,13 +281,57 @@ const AdminPanel: React.FC<Props> = ({
     setIsDirty(true);
   };
 
-  const removeCategory = (cat: CategoryType) => {
+  const removeCategory = (cat: CategoryType | string) => {
     setLocalSettings(prev => {
       const newConfigs = { ...(prev.categoryConfigs || {}) };
       delete newConfigs[cat];
       return { ...prev, categoryConfigs: newConfigs };
     });
     setIsDirty(true);
+  };
+
+  const handleSaveCustomCategory = () => {
+    const trimmedName = customCatForm.name.trim();
+    if (!trimmedName) {
+      toast.error('Nama kategori kustom tidak boleh kosong.');
+      return;
+    }
+    const slug = trimmedName.toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 16);
+    const catKey = `CUSTOM_${slug}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const defaults = getDefaultHighestScores(customCatForm.targetType);
+
+    setLocalSettings(prev => ({
+      ...prev,
+      categoryConfigs: {
+        ...(prev.categoryConfigs || {}),
+        [catKey]: {
+          customName: trimmedName,
+          isCustom: true,
+          registrationFee: Number(customCatForm.registrationFee) || 0,
+          distance: customCatForm.distance.trim() || '20m',
+          arrows: Number(customCatForm.arrows) || 36,
+          ends: Number(customCatForm.ends) || 6,
+          targetType: customCatForm.targetType,
+          quota: customCatForm.quota ? Number(customCatForm.quota) : undefined,
+          highestScore1: defaults.high1,
+          highestScore2: defaults.high2,
+          h2hStartSize: 0,
+          eliminationStages: []
+        }
+      }
+    }));
+    setIsDirty(true);
+    setShowAddCustomCategoryModal(false);
+    setCustomCatForm({
+      name: '',
+      distance: '20m',
+      targetType: TargetType.STANDARD,
+      arrows: 36,
+      ends: 6,
+      registrationFee: 0,
+      quota: ''
+    });
+    toast.success(`Kategori kustom "${trimmedName}" berhasil ditambahkan!`);
   };
 
   const addPaymentMethod = () => {
@@ -2146,7 +2208,16 @@ const AdminPanel: React.FC<Props> = ({
                     </div>
                     <h3 className="text-2xl font-black font-oswald uppercase text-slate-800 italic">Aturan Skor Kategori</h3>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddCustomCategoryModal(true)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-4 py-3 text-xs font-black uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center gap-1.5"
+                  >
+                    <Sparkles className="w-4 h-4 text-indigo-200" />
+                    <span>+ Kategori Kustom</span>
+                  </button>
+
                   <div className="relative group">
                     <select 
                       onChange={(e) => {
@@ -2157,7 +2228,7 @@ const AdminPanel: React.FC<Props> = ({
                       }}
                       className="bg-arcus-red text-white border-2 border-arcus-red rounded-xl px-6 py-3 text-xs font-black uppercase tracking-widest cursor-pointer hover:bg-red-700 hover:border-red-700 transition-all shadow-lg active:scale-95 appearance-none"
                     >
-                      <option value="" className="bg-white text-slate-900 font-black">+ TAMBAH KATEGORI</option>
+                      <option value="" className="bg-white text-slate-900 font-black">+ TAMBAH STANDAR (U9 s/d DEWASA)</option>
                       {(Object.keys(CategoryType) as CategoryType[])
                         .filter(cat => !localSettings.categoryConfigs?.[cat])
                         .map(cat => (
@@ -2172,25 +2243,46 @@ const AdminPanel: React.FC<Props> = ({
             
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 bg-white border-y border-slate-100 p-6 md:p-10">
               {Object.keys(localSettings.categoryConfigs || {}).length > 0 ? (
-                (Object.keys(localSettings.categoryConfigs || {}) as CategoryType[]).map(cat => (
-                  <div key={cat} className="p-6 md:p-8 bg-slate-50 border-l-4 border-arcus-red space-y-6 relative group transition-all hover:bg-white shadow-sm">
+                Object.entries(localSettings.categoryConfigs || {}).map(([cat, catConfig]) => {
+                  const isCustom = catConfig?.isCustom || !Object.values(CategoryType).includes(cat as CategoryType);
+                  return (
+                  <div key={cat} className={`p-6 md:p-8 bg-slate-50 border-l-4 ${isCustom ? 'border-indigo-600 ring-1 ring-indigo-100' : 'border-arcus-red'} space-y-6 relative group transition-all hover:bg-white shadow-sm`}>
                     <button 
                       type="button"
                       onClick={() => removeCategory(cat)}
                       className="absolute top-4 right-4 p-2 text-slate-300 hover:text-red-500 transition-all"
+                      title="Hapus Kategori"
                     >
                       <X className="w-5 h-5" />
                     </button>
                     <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-200 pb-4 gap-4">
-                      <p className="font-bold text-slate-800 text-xl uppercase font-oswald italic">{CATEGORY_LABELS[cat] || cat}</p>
+                      {isCustom ? (
+                        <div className="flex-1 pr-4 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[8.5px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+                              Kategori Kustom
+                            </span>
+                          </div>
+                          <input 
+                            type="text"
+                            value={catConfig?.customName || cat}
+                            onChange={e => updateCategoryConfig(cat, 'customName', e.target.value)}
+                            className="w-full text-lg sm:text-xl font-black font-oswald uppercase italic text-slate-900 border-b border-dashed border-indigo-300 focus:border-indigo-600 bg-transparent outline-none py-1"
+                            placeholder="Nama Kategori Kustom"
+                          />
+                        </div>
+                      ) : (
+                        <p className="font-bold text-slate-800 text-xl uppercase font-oswald italic">{CATEGORY_LABELS[cat] || cat}</p>
+                      )}
                       {!isPractice && (
-                        <div className="relative">
+                        <div className="relative shrink-0">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-arcus-red opacity-50">Rp</span>
                           <input 
                             type="number" 
-                            value={localSettings.categoryConfigs?.[cat]?.registrationFee || 0} 
+                            value={catConfig?.registrationFee || 0} 
                             onChange={e => updateCategoryConfig(cat, 'registrationFee', parseInt(e.target.value) || 0)} 
-                            className="w-full rounded-lg border-slate-200 p-2.5 pl-8 border font-black text-right shadow-sm focus:border-arcus-red transition-all" 
+                            className="w-full sm:w-36 rounded-lg border-slate-200 p-2.5 pl-8 border font-black text-right shadow-sm focus:border-arcus-red transition-all" 
+                            placeholder="Biaya"
                           />
                         </div>
                       )}
@@ -2395,6 +2487,44 @@ const AdminPanel: React.FC<Props> = ({
                               })}
                             </div>
                             <p className="text-[9px] font-bold text-slate-700 italic">Pilih tahapan penyaringan skor kualifikasi bertahap sebelum masuk aduan.</p>
+
+                            {(localSettings.categoryConfigs?.[cat]?.eliminationStages || []).length > 0 && (
+                              <div className="p-3 bg-purple-50/60 rounded-xl border border-purple-100 space-y-2 mt-2">
+                                <p className="text-[8.5px] font-black uppercase text-purple-900 tracking-wider">
+                                  Format Babak Penyaringan Skor (Eliminasi):
+                                </p>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <label className="block space-y-1">
+                                    <span className="text-[8px] font-bold text-slate-700 uppercase">
+                                      Rambahan:
+                                    </span>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      max="10"
+                                      value={localSettings.categoryConfigs?.[cat]?.eliminationEnds || 2}
+                                      onChange={e => updateCategoryConfig(cat, 'eliminationEnds', parseInt(e.target.value) || 2)}
+                                      className="w-full rounded-lg border border-purple-200 bg-white p-2 text-center font-black text-xs text-slate-900 outline-none focus:border-purple-600 shadow-xs"
+                                      placeholder="2 Rambahan"
+                                    />
+                                  </label>
+                                  <label className="block space-y-1">
+                                    <span className="text-[8px] font-bold text-slate-700 uppercase">
+                                      Panah / Rambahan:
+                                    </span>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      max="12"
+                                      value={localSettings.categoryConfigs?.[cat]?.eliminationArrows || 6}
+                                      onChange={e => updateCategoryConfig(cat, 'eliminationArrows', parseInt(e.target.value) || 6)}
+                                      className="w-full rounded-lg border border-purple-200 bg-white p-2 text-center font-black text-xs text-slate-900 outline-none focus:border-purple-600 shadow-xs"
+                                      placeholder="6 Panah"
+                                    />
+                                  </label>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
 
@@ -2551,7 +2681,8 @@ const AdminPanel: React.FC<Props> = ({
                       </div>
                     )}
                   </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="col-span-full p-12 text-center bg-slate-50 border border-dashed border-slate-200">
                   <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Belum Ada Kategori.</p>
@@ -3503,6 +3634,159 @@ const AdminPanel: React.FC<Props> = ({
             onSave(updatedSettings);
           }}
         />
+      )}
+
+      {/* Tambah Kategori Kustom Modal */}
+      {showAddCustomCategoryModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-6 my-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-indigo-50 text-indigo-600">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black font-oswald uppercase italic text-slate-900">
+                    Tambah Kategori Kustom
+                  </h3>
+                  <p className="text-[10px] text-slate-500 font-semibold">
+                    Buat kategori khusus sesuai kebutuhan turnamen Anda
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddCustomCategoryModal(false)}
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition-all"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs font-bold text-slate-700">
+              {/* Nama Kategori */}
+              <div>
+                <label className="block text-[10px] font-black uppercase text-slate-900 tracking-wider mb-1">
+                  Nama Kategori <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Barebow Umum, Compound Open, Horsebow Pa..."
+                  value={customCatForm.name}
+                  onChange={e => setCustomCatForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:border-indigo-600 focus:bg-white outline-none transition-all"
+                />
+              </div>
+
+              {/* Jarak & Target Face */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-900 tracking-wider mb-1">
+                    Jarak Tembak
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Contoh: 20m, 30m, 50m..."
+                    value={customCatForm.distance}
+                    onChange={e => setCustomCatForm(prev => ({ ...prev, distance: e.target.value }))}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:border-indigo-600 focus:bg-white outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-900 tracking-wider mb-1">
+                    Target Face
+                  </label>
+                  <select
+                    value={customCatForm.targetType}
+                    onChange={e => setCustomCatForm(prev => ({ ...prev, targetType: e.target.value as TargetType }))}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:border-indigo-600 focus:bg-white outline-none transition-all"
+                  >
+                    {(Object.values(TargetType) as TargetType[]).map(t => (
+                      <option key={t} value={t}>{TARGET_LABELS[t] || t}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Panah & Rambahan */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-900 tracking-wider mb-1">
+                    Total Panah
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="36"
+                    value={customCatForm.arrows}
+                    onChange={e => setCustomCatForm(prev => ({ ...prev, arrows: parseInt(e.target.value) || 0 }))}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:border-indigo-600 focus:bg-white outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-900 tracking-wider mb-1">
+                    Jumlah Rambahan (Ends)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="6"
+                    value={customCatForm.ends}
+                    onChange={e => setCustomCatForm(prev => ({ ...prev, ends: parseInt(e.target.value) || 0 }))}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:border-indigo-600 focus:bg-white outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Biaya & Kuota */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-900 tracking-wider mb-1">
+                    Biaya Registrasi (Rp)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="0"
+                    value={customCatForm.registrationFee}
+                    onChange={e => setCustomCatForm(prev => ({ ...prev, registrationFee: parseInt(e.target.value) || 0 }))}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:border-indigo-600 focus:bg-white outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-900 tracking-wider mb-1">
+                    Batas Kuota <span className="text-slate-400 font-normal lowercase">(kosong = unlimit)</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="Unlimited"
+                    value={customCatForm.quota}
+                    onChange={e => setCustomCatForm(prev => ({ ...prev, quota: e.target.value }))}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:border-indigo-600 focus:bg-white outline-none transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowAddCustomCategoryModal(false)}
+                className="flex-1 py-3 text-slate-600 font-black text-xs uppercase rounded-xl hover:bg-slate-100 transition-all border border-slate-200"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveCustomCategory}
+                className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-indigo-600/25 active:scale-95"
+              >
+                Simpan Kategori
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

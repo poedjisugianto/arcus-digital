@@ -37,12 +37,28 @@ export const CATEGORY_LABELS: Record<string, string> = {
   'ADULT_PUTRI': 'Dewasa Putri',
   'U18_PUTRA': 'U18 Putra',
   'U18_PUTRI': 'U18 Putri',
+  'U15_PUTRA': 'U15 Putra',
+  'U15_PUTRI': 'U15 Putri',
   'U12_PUTRA': 'U12 Putra',
   'U12_PUTRI': 'U12 Putri',
   'U9_PUTRA': 'U9 Putra',
   'U9_PUTRI': 'U9 Putri',
   'OFFICIAL': 'Official (Manager/Pelatih)'
 };
+
+/**
+ * Returns formatted category display name, prioritizing custom category name if set
+ */
+export function getCategoryDisplayName(
+  cat?: string,
+  categoryConfigs?: Record<string, { customName?: string }> | null
+): string {
+  if (!cat) return '';
+  if (categoryConfigs && categoryConfigs[cat]?.customName) {
+    return categoryConfigs[cat].customName!;
+  }
+  return CATEGORY_LABELS[cat] || cat;
+}
 
 export const DEFAULT_GLOBAL_SETTINGS: GlobalSettings = {
   feeAdult: 0, 

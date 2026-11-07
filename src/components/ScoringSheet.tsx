@@ -1,6 +1,7 @@
 import React from 'react';
 import { Archer, CategoryType, TournamentSettings, TargetType } from '../types';
-import { CATEGORY_LABELS } from '../constants';
+import { CATEGORY_LABELS, getCategoryDisplayName } from '../constants';
+import { findCategoryConfig } from '../lib/firestoreUtils';
 import { QRCodeSVG } from 'qrcode.react';
 
 export type ScoringSheetSize = 'A4' | 'A5' | 'A6';
@@ -23,7 +24,7 @@ const ScoringSheet: React.FC<Props> = ({
   // Determine effective sheet size: 'A4' (1 per page), 'A5' (2 per page), or 'A6' (4 per page)
   const effectiveSize: ScoringSheetSize = size || (isA6 ? 'A6' : 'A4');
 
-  const config = (settings.categoryConfigs || {})[archer.category as CategoryType] || { 
+  const config = findCategoryConfig(archer.category, settings.categoryConfigs) || { 
     arrows: 3, 
     ends: 6, 
     distance: '?', 
@@ -76,7 +77,7 @@ const ScoringSheet: React.FC<Props> = ({
               </div>
               <div className="flex items-center gap-1">
                 <span className="text-[7px] font-black uppercase text-slate-700 shrink-0 w-7">Kelas</span>
-                <span className="text-[8.5px] font-black uppercase border-b border-black flex-1 truncate pb-0.5 leading-none">{CATEGORY_LABELS[archer.category]} ({config.distance})</span>
+                <span className="text-[8.5px] font-black uppercase border-b border-black flex-1 truncate pb-0.5 leading-none">{getCategoryDisplayName(archer.category, settings.categoryConfigs)} ({config.distance})</span>
               </div>
             </div>
           </div>
@@ -187,7 +188,7 @@ const ScoringSheet: React.FC<Props> = ({
               </div>
               <div className="flex items-center gap-1 min-w-0">
                 <span className="text-[7.5px] font-black uppercase text-slate-700 shrink-0 w-8">Kelas</span>
-                <span className="text-[9px] font-black uppercase border-b border-black flex-1 truncate pb-0.5">{CATEGORY_LABELS[archer.category]}</span>
+                <span className="text-[9px] font-black uppercase border-b border-black flex-1 truncate pb-0.5">{getCategoryDisplayName(archer.category, settings.categoryConfigs)}</span>
               </div>
               <div className="flex items-center gap-1 min-w-0">
                 <span className="text-[7.5px] font-black uppercase text-slate-700 shrink-0 w-9">Jarak</span>
@@ -271,13 +272,13 @@ const ScoringSheet: React.FC<Props> = ({
   // -------------------------------------------------------------
   // Proportional row height based on number of ends to guarantee 100% single page fit
   const rowHeightClass = config.ends > 9 
-    ? "h-6 text-[10px]" 
+    ? "h-5.5 text-[9.5px]" 
     : config.ends > 6 
-    ? "h-7 sm:h-8 text-xs" 
-    : "h-8 sm:h-9 text-xs sm:text-sm";
+    ? "h-6 sm:h-6.5 text-[10.5px]" 
+    : "h-7 sm:h-7.5 text-xs";
 
   return (
-    <div className="bg-white p-5 sm:p-6 border-2 border-black w-full max-w-[210mm] h-[288mm] max-h-[288mm] mx-auto font-sans text-black box-border flex flex-col justify-between overflow-hidden relative print:border-2 print:m-0 print:p-4 print:h-[285mm] print:max-h-[285mm]">
+    <div className="bg-white p-4 sm:p-5 border-2 border-black w-full max-w-[200mm] h-[264mm] max-h-[264mm] mx-auto font-sans text-black box-border flex flex-col justify-between overflow-hidden relative print:border-2 print:m-0 print:p-3 print:h-[260mm] print:max-h-[260mm] page-break-inside-avoid">
       {/* Decorative Book Edge */}
       <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-slate-100 border-r border-slate-300 print:hidden"></div>
 
@@ -311,7 +312,7 @@ const ScoringSheet: React.FC<Props> = ({
               </div>
               <div className="flex items-center gap-2 border-b border-black pb-0.5">
                 <span className="text-[9px] font-black uppercase text-slate-600 shrink-0 w-14">Kategori</span>
-                <span className="text-xs sm:text-sm font-black uppercase text-slate-900 truncate flex-1">{CATEGORY_LABELS[archer.category]}</span>
+                <span className="text-xs sm:text-sm font-black uppercase text-slate-900 truncate flex-1">{getCategoryDisplayName(archer.category, settings.categoryConfigs)}</span>
               </div>
               <div className="flex items-center gap-2 border-b border-black pb-0.5">
                 <span className="text-[9px] font-black uppercase text-slate-600 shrink-0 w-14">Jarak</span>
@@ -365,7 +366,7 @@ const ScoringSheet: React.FC<Props> = ({
                 <td className="border border-black bg-slate-100 font-black"></td>
               </tr>
             ))}
-            <tr className="h-8 sm:h-9 font-black bg-slate-200">
+            <tr className="h-7 sm:h-7.5 font-black bg-slate-200">
               <td colSpan={config.arrows + 1} className="border border-black text-right pr-4 text-xs sm:text-sm uppercase italic">TOTAL AKHIR</td>
               <td className="border border-black"></td>
               <td className="border border-black"></td>
@@ -377,13 +378,13 @@ const ScoringSheet: React.FC<Props> = ({
       </div>
 
       {/* Signatures */}
-      <div className="mt-4 sm:mt-5 grid grid-cols-2 gap-16 sm:gap-24">
+      <div className="mt-2 sm:mt-3 grid grid-cols-2 gap-12 sm:gap-16">
         <div className="text-center">
-          <div className="h-12 sm:h-14 border-b-2 border-black mb-1"></div>
+          <div className="h-8 sm:h-9 border-b-2 border-black mb-1"></div>
           <p className="text-[10px] sm:text-xs font-black uppercase tracking-wider italic">Tanda Tangan Pemanah</p>
         </div>
         <div className="text-center">
-          <div className="h-12 sm:h-14 border-b-2 border-black mb-1"></div>
+          <div className="h-8 sm:h-9 border-b-2 border-black mb-1"></div>
           <p className="text-[10px] sm:text-xs font-black uppercase tracking-wider italic">Scorer / Judge Lapangan</p>
         </div>
       </div>

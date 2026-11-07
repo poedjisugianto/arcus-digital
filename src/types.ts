@@ -13,6 +13,8 @@ export enum CategoryType {
   ADULT_PUTRI = 'ADULT_PUTRI',
   U18_PUTRA = 'U18_PUTRA',
   U18_PUTRI = 'U18_PUTRI',
+  U15_PUTRA = 'U15_PUTRA',
+  U15_PUTRI = 'U15_PUTRI',
   U12_PUTRA = 'U12_PUTRA',
   U12_PUTRI = 'U12_PUTRI',
   U9_PUTRA = 'U9_PUTRA',
@@ -228,6 +230,8 @@ export interface CategoryConfig {
   ends: number;
   targetType: TargetType;
   quota?: number; // Kuota maksimal peserta kategori ini
+  customName?: string; // Nama kustom untuk kategori buatan (misal: "Barebow Umum", "Master 50+")
+  isCustom?: boolean; // Tanda kategori ini adalah kategori custom
   // Kolom Poin Tertinggi Lembar Skor & Rekap Hasil (Contoh: "10" & "X", "6" & "5", "2" & "1")
   highestScore1?: string; 
   highestScore2?: string;
@@ -236,6 +240,8 @@ export interface CategoryConfig {
   // Konfigurasi aduan/Eliminasi
   h2hStartSize: 2 | 4 | 8 | 16 | 32 | 64 | 0; // 0 berarti tidak ada aduan
   eliminationStages: number[]; // Contoh: [32, 16] berarti ada penyaringan skor top 32 lalu top 16 baru masuk aduan
+  eliminationEnds?: number; // Jumlah rambahan babak penyaringan eliminasi skor (misal: 2 rambahan)
+  eliminationArrows?: number; // Jumlah panah per rambahan penyaringan eliminasi (misal: 6 panah)
   // Pengaturan Penentuan Seri / Shoot-Off & Aduan
   tieBreakMethod?: 'SHOOT_OFF' | 'COUNTBACK' | 'BOTH'; // Default penentu seri (Shoot-Off, Countback 6&5, atau Fleksibel)
   shootOffArrows?: number; // Jumlah panah shoot-off (1 panah / 3 panah)
@@ -367,7 +373,7 @@ export interface TournamentSettings {
   contactPhone?: string; // Nomor WhatsApp Panitia Penyelenggara / Hotline Lomba
   enableGateway?: boolean;
   officialFee?: number;
-  categoryConfigs?: Partial<Record<CategoryType, CategoryConfig>>;
+  categoryConfigs?: Partial<Record<CategoryType | string, CategoryConfig>>;
   waGroupLink?: string;
   requireKta?: boolean; // true = Wajib Isi Nomor KTA (Event Resmi), false / undefined = Tidak Wajib Isi Nomor KTA (Latber / Open)
   lastResetAt?: number;
@@ -395,7 +401,7 @@ export interface ArcheryEvent {
   registrations: ParticipantRegistration[];
   scores: ScoreEntry[];
   scoreLogs: ScoreLog[];
-  matches: Record<CategoryType, Match[]>;
+  matches: Record<CategoryType | string, Match[]>;
   scorerAccess?: any;
   disbursementRequests?: DisbursementRequest[];
   ownerId?: string;
@@ -420,7 +426,7 @@ export interface AppState {
   drafts?: {
     scoring?: Record<string, (number | 'X')[]>; // key: archerId_endIndex
     adminSettings?: Record<string, TournamentSettings>; // key: eventId
-    activeCategory?: Record<string, CategoryType>; // key: viewName
+    activeCategory?: Record<string, CategoryType | string>; // key: viewName
   };
 }
 

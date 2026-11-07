@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Trophy, Medal, Download, Printer, ArrowLeft, Target, Award, Info, Trash2, ChevronRight, BarChart3, FileText, FileSpreadsheet } from 'lucide-react';
 import { ArcheryEvent, CategoryType, Archer, TargetType } from '../types';
-import { CATEGORY_LABELS } from '../constants';
+import { CATEGORY_LABELS, getCategoryDisplayName } from '../constants';
 import { findCategoryConfig } from '../lib/firestoreUtils';
 import { toast } from 'sonner';
 import ArcusLogo from './ArcusLogo';
@@ -16,7 +16,13 @@ interface Props {
 }
 
 export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
-  const [activeCategory, setActiveCategory] = useState<CategoryType>(CategoryType.ADULT_PUTRA);
+  const [activeCategory, setActiveCategory] = useState<CategoryType | string>(CategoryType.ADULT_PUTRA);
+  const eventCategories = useMemo(() => {
+    if (state.settings?.categoryConfigs && Object.keys(state.settings.categoryConfigs).length > 0) {
+      return Object.keys(state.settings.categoryConfigs).filter(c => c !== CategoryType.OFFICIAL);
+    }
+    return (Object.keys(CategoryType) as CategoryType[]).filter(c => c !== CategoryType.OFFICIAL);
+  }, [state.settings?.categoryConfigs]);
   const [activeSession, setActiveSession] = useState<string>('QUAL');
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [showCertificateModal, setShowCertificateModal] = useState(false);
@@ -229,7 +235,7 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
             tieLabel = String.fromCharCode(65 + posInTie);
             displayRank = firstInTie + 1;
           }
-          return { ...item, tieLabel, displayRank, categoryLabel: CATEGORY_LABELS[cat] };
+          return { ...item, tieLabel, displayRank, categoryLabel: getCategoryDisplayName(cat, state.settings?.categoryConfigs) };
         });
 
         allRankings.push(...ranked);
@@ -480,7 +486,7 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
               <Award className="w-5 h-5 text-arcus-red" />
               Leaderboard Lengkap
             </h3>
-            <span className="text-[9px] font-bold text-slate-700 uppercase tracking-widest">{CATEGORY_LABELS[activeCategory]}</span>
+            <span className="text-[9px] font-bold text-slate-700 uppercase tracking-widest">{getCategoryDisplayName(activeCategory, state.settings?.categoryConfigs)}</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -572,7 +578,7 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
       {showPrintModal && (
         <PrintRoundReportModal
           event={state}
-          initialCategory={activeCategory}
+          initialCategory={activeCategory as CategoryType}
           initialRound={activeSession === 'QUAL' ? 'QUAL_QUALIFIED' : 'QUAL'}
           onClose={() => setShowPrintModal(false)}
         />
@@ -582,7 +588,7 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
         <PrintCertificateModal
           isOpen={showCertificateModal}
           event={state}
-          initialCategory={activeCategory}
+          initialCategory={activeCategory as CategoryType}
           onClose={() => setShowCertificateModal(false)}
         />
       )}

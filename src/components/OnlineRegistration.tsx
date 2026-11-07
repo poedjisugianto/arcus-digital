@@ -11,7 +11,7 @@ declare global {
     };
   }
 }
-import { CATEGORY_LABELS } from '../constants';
+import { CATEGORY_LABELS, getCategoryDisplayName } from '../constants';
 import { isValidDate } from '../lib/dateUtils';
 import { 
   ArrowLeft, User, Mail, ShieldCheck, CreditCard, 
@@ -368,7 +368,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
         if (quota !== undefined && quota !== null && quota > 0) {
           const count = getCategoryRegisteredCount(formData.category);
           if (count >= quota) {
-            toast.error(`Kategori ${CATEGORY_LABELS[formData.category as CategoryType] || formData.category} sudah penuh (maksimal ${quota} pemanah).`);
+            toast.error(`Kategori ${getCategoryDisplayName(formData.category, event.settings?.categoryConfigs)} sudah penuh (maksimal ${quota} pemanah).`);
             return;
           }
         }
@@ -387,7 +387,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
           const currentCount = getCategoryRegisteredCount(cat);
           const additionCount = catCounts[cat];
           if (currentCount + additionCount > quota) {
-            toast.error(`Kategori ${CATEGORY_LABELS[cat as CategoryType] || cat} melebihi kuota. Kuota sisa/tersedia: ${quota - currentCount} pemanah, Anda mencoba mendaftarkan ${additionCount} pemanah.`);
+            toast.error(`Kategori ${getCategoryDisplayName(cat, event.settings?.categoryConfigs)} melebihi kuota. Kuota sisa/tersedia: ${quota - currentCount} pemanah, Anda mencoba mendaftarkan ${additionCount} pemanah.`);
             return;
           }
         }
@@ -461,8 +461,8 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
       }
       
       const isKids = [
-        CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
-        CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
+        CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U15_PUTRA, CategoryType.U15_PUTRI,
+        CategoryType.U12_PUTRA, CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
       ].includes(formData.category as CategoryType);
 
       const platformFee = isKids ? globalSettings.feeKids : globalSettings.feeAdult;
@@ -533,8 +533,8 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
         }
         
         const isKids = [
-          CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
-          CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
+          CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U15_PUTRA, CategoryType.U15_PUTRI,
+          CategoryType.U12_PUTRA, CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
         ].includes(member.category as CategoryType);
 
         const platformFee = isKids ? globalSettings.feeKids : globalSettings.feeAdult;
@@ -831,8 +831,8 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                                 club: formData.club || '-',
                                 totalPaid: ((formData.regType === 'OFFICIAL' ? event.settings?.officialFee : event.settings?.categoryConfigs?.[formData.category as CategoryType]?.registrationFee) || 0),
                                 platformFee: [
-                                  CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
-                                  CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
+                                  CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U15_PUTRA, CategoryType.U15_PUTRI,
+                                  CategoryType.U12_PUTRA, CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
                                 ].includes(formData.category as CategoryType) ? globalSettings.feeKids : globalSettings.feeAdult,
                                 status: formData.paymentType === 'GATEWAY' ? RegistrationStatus.APPROVED : RegistrationStatus.PENDING,
                                 paymentType: formData.paymentType,
@@ -843,8 +843,8 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                                   ? (event.settings?.officialFee || 0) 
                                   : (event.settings?.categoryConfigs?.[m.category as CategoryType]?.registrationFee || 0);
                                 const isKids = [
-                                  CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U12_PUTRA,
-                                  CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
+                                  CategoryType.U18_PUTRA, CategoryType.U18_PUTRI, CategoryType.U15_PUTRA, CategoryType.U15_PUTRI,
+                                  CategoryType.U12_PUTRA, CategoryType.U12_PUTRI, CategoryType.U9_PUTRA, CategoryType.U9_PUTRI,
                                 ].includes(m.category as CategoryType);
                                 const pFee = isKids ? globalSettings.feeKids : globalSettings.feeAdult;
                                 return {
@@ -874,7 +874,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                               )}
                             </td>
                             <td className="p-3 text-slate-700 font-extrabold uppercase text-[9px] tracking-wide">
-                              <div>{item.category === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (CATEGORY_LABELS[item.category as CategoryType] || item.category)}</div>
+                              <div>{item.category === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (getCategoryDisplayName(item.category, event.settings?.categoryConfigs))}</div>
                               {(item as any).targetNo ? (
                                 <div className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-md bg-purple-100 text-purple-900 text-[8px] font-black border border-purple-200">
                                   <span>🎯 Bantalan {(item as any).targetNo}{(item as any).position || ''}</span>
@@ -976,7 +976,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
 
                   return items.map((item: any, idx) => {
                     const barcodeVal = item.id || item.registrationNo || `REG-${idx + 1}`;
-                    const catLabel = item.category === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (CATEGORY_LABELS[item.category as CategoryType] || item.category);
+                    const catLabel = item.category === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (getCategoryDisplayName(item.category, event.settings?.categoryConfigs));
                     return (
                       <div key={idx} className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 flex flex-col items-center justify-between text-center space-y-2">
                         <div className="w-full text-left border-b border-slate-200/60 pb-1.5 flex justify-between items-center">
@@ -1095,7 +1095,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                         <div key={idx} className="pt-2 first:pt-0 flex items-center justify-between">
                           <div className="truncate pr-2">
                             <p className="text-xs font-black text-slate-900 truncate">{r.name}</p>
-                            <p className="text-[9px] font-bold text-purple-700 uppercase">{CATEGORY_LABELS[r.category as CategoryType] || r.category}</p>
+                            <p className="text-[9px] font-bold text-purple-700 uppercase">{getCategoryDisplayName(r.category, event.settings?.categoryConfigs)}</p>
                           </div>
                           <div className="text-right shrink-0">
                             <span className="text-base font-black font-oswald text-purple-800 bg-white px-2.5 py-1 rounded-xl border border-purple-300 shadow-sm inline-block">
@@ -1311,7 +1311,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                               const count = getCategoryRegisteredCount(cat);
                               const quota = getCategoryQuota(cat);
                               const isFull = quota !== undefined && quota !== null && quota > 0 && count >= quota;
-                              const label = CATEGORY_LABELS[cat as CategoryType] || cat;
+                              const label = getCategoryDisplayName(cat, event.settings?.categoryConfigs);
                               const quotaStr = quota !== undefined && quota !== null && quota > 0 
                                 ? ` (Sisa Slot: ${quota - count}/${quota}${isFull ? ' - PENUH' : ''})` 
                                 : '';
@@ -1370,7 +1370,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                                 <div className="text-left">
                                   <p className="text-[10px] font-black text-slate-900 uppercase italic">{m.name}</p>
                                   <div className="flex items-center gap-2 mt-0.5">
-                                    <span className="text-[8px] font-bold text-slate-700 uppercase">{CATEGORY_LABELS[m.category as CategoryType] || m.category}</span>
+                                    <span className="text-[8px] font-bold text-slate-700 uppercase">{getCategoryDisplayName(m.category, event.settings?.categoryConfigs)}</span>
                                     {m.ktaNumber && (
                                       <span className="text-[7.5px] font-mono font-bold text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-100">
                                         KTA: {m.ktaNumber}
@@ -1398,7 +1398,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                               const count = getSimulatedCountForCategory(cat);
                               const quota = getCategoryQuota(cat);
                               const isFull = quota !== undefined && quota !== null && quota > 0 && count >= quota;
-                              const label = CATEGORY_LABELS[cat as CategoryType] || cat;
+                              const label = getCategoryDisplayName(cat, event.settings?.categoryConfigs);
                               const quotaStr = quota !== undefined && quota !== null && quota > 0 
                                 ? ` (Sisa Slot: ${quota - count}/${quota}${isFull ? ' - PENUH' : ''})` 
                                 : '';
@@ -1484,7 +1484,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                                 if (quota !== undefined && quota !== null && quota > 0) {
                                   const simulatedCount = getSimulatedCountForCategory(newMember.category);
                                   if (simulatedCount >= quota) {
-                                    toast.error(`Kategori ${CATEGORY_LABELS[newMember.category as CategoryType] || newMember.category} sudah penuh (maksimal ${quota} pemanah).`);
+                                    toast.error(`Kategori ${getCategoryDisplayName(newMember.category, event.settings?.categoryConfigs)} sudah penuh (maksimal ${quota} pemanah).`);
                                     return;
                                   }
                                 }
@@ -1527,7 +1527,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                           <p className="font-bold text-slate-800 leading-tight">{formData.name || 'Pendaftar'}</p>
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <p className="text-[8px] font-black text-slate-700 uppercase tracking-wider leading-none">
-                              {formData.regType === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (formData.category ? (CATEGORY_LABELS[formData.category as CategoryType] || formData.category) : 'BELUM PILIH KATEGORI')}
+                              {formData.regType === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (formData.category ? (getCategoryDisplayName(formData.category, event.settings?.categoryConfigs)) : 'BELUM PILIH KATEGORI')}
                             </p>
                             {formData.ktaNumber && (
                               <span className="text-[7.5px] font-mono font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
@@ -1554,7 +1554,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                               <p className="font-bold text-slate-800 leading-tight">{member.name}</p>
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <p className="text-[8px] font-black text-slate-700 uppercase tracking-wider leading-none">
-                                  {member.category === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (CATEGORY_LABELS[member.category as CategoryType] || member.category)}
+                                  {member.category === 'OFFICIAL' ? 'OFFICIAL / PANITIA' : (getCategoryDisplayName(member.category, event.settings?.categoryConfigs))}
                                 </p>
                                 {member.ktaNumber && (
                                   <span className="text-[7.5px] font-mono font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">

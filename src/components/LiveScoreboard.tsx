@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Trophy, Clock, X, Swords, Medal, LayoutList, Target, ChevronRight, ChevronDown, ListFilter, Info, Activity, Monitor, Search, Check, Maximize2, Pause, Play, ChevronLeft, Youtube, Heart, AlertTriangle, Award, Sparkles, Table as TableIcon, ArrowUp } from 'lucide-react';
 import { ArcheryEvent, CategoryType, Match, TargetType, Sponsorship } from '../types';
-import { CATEGORY_LABELS } from '../constants';
+import { CATEGORY_LABELS, getCategoryDisplayName } from '../constants';
 import ArcusLogo from './ArcusLogo';
 import { motion, AnimatePresence } from 'motion/react';
 import { resolveGoogleDriveUrl } from '../lib/photoService';
@@ -213,8 +213,15 @@ const TVVideoSponsor = ({ sponsorships }: { sponsorships?: Sponsorship[] }) => {
 };
 
 const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false }) => {
+  const settings: any = state?.settings || {};
   const [activeTab, setActiveTab] = useState<'KUALIFIKASI' | 'ELIMINASI'>('KUALIFIKASI');
-  const [filterCategory, setFilterCategory] = useState<CategoryType>(CategoryType.ADULT_PUTRA);
+  const [filterCategory, setFilterCategory] = useState<CategoryType | string>(CategoryType.ADULT_PUTRA);
+  const eventCategories = useMemo(() => {
+    if (settings.categoryConfigs && Object.keys(settings.categoryConfigs).length > 0) {
+      return Object.keys(settings.categoryConfigs).filter((c: string) => c !== CategoryType.OFFICIAL);
+    }
+    return (Object.keys(CategoryType) as CategoryType[]).filter(c => c !== CategoryType.OFFICIAL);
+  }, [settings.categoryConfigs]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSession, setActiveSession] = useState<string>('QUAL');
   const [isTVMode, setIsTVMode] = useState(startInTVMode);
@@ -243,30 +250,18 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
     setShowQualifiedOnly(false);
   }, [filterCategory, activeSession]);
 
-  const settings: any = state?.settings || {};
   const config = (settings.categoryConfigs || {})[filterCategory];
   const archersList = state?.archers || [];
-  
-  const allCategories = useMemo(() => [
-    CategoryType.ADULT_PUTRA,
-    CategoryType.ADULT_PUTRI,
-    CategoryType.U18_PUTRA,
-    CategoryType.U18_PUTRI,
-    CategoryType.U12_PUTRA,
-    CategoryType.U12_PUTRI,
-    CategoryType.U9_PUTRA,
-    CategoryType.U9_PUTRI
-  ], []);
 
   // TV Mode Auto-Rotation
   useEffect(() => {
-    if (!isTVMode || isPaused) return;
+    if (!isTVMode || isPaused || eventCategories.length === 0) return;
 
     const timer = setInterval(() => {
       setFilterCategory(prev => {
-        const currentIndex = allCategories.indexOf(prev);
-        const nextIndex = (currentIndex + 1) % allCategories.length;
-        return allCategories[nextIndex];
+        const currentIndex = eventCategories.indexOf(prev as any);
+        const nextIndex = (currentIndex + 1) % eventCategories.length;
+        return eventCategories[nextIndex] || prev;
       });
       setActiveSession('QUAL');
       
@@ -277,7 +272,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
     }, 20000); // Cycle every 20 seconds
 
     return () => clearInterval(timer);
-  }, [isTVMode, isPaused, allCategories]);
+  }, [isTVMode, isPaused, eventCategories]);
 
   // TV Mode Auto-Scrolling
   useEffect(() => {
@@ -558,7 +553,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                {isTVMode && (
                  <p className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.3em] mt-1 flex items-center gap-2">
                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                   REALTIME UPDATING • {CATEGORY_LABELS[filterCategory]}
+                   REALTIME UPDATING • {getCategoryDisplayName(filterCategory, settings.categoryConfigs)}
                  </p>
                )}
              </div>
@@ -603,7 +598,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
           {/* Sleek Category Bar */}
           <div className="bg-[#FBFBFD] border-b flex items-center gap-2 px-3 sm:px-6 py-1.5 shrink-0">
             <div className="flex gap-1.5 overflow-x-auto no-scrollbar flex-1 py-0.5">
-              {allCategories.map(cat => (
+              {eventCategories.map(cat => (
                 <button 
                   key={cat} 
                   onClick={() => {
@@ -616,7 +611,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                       : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
                   }`}
                 >
-                  {CATEGORY_LABELS[cat]}
+                  {getCategoryDisplayName(cat, settings.categoryConfigs)}
                 </button>
               ))}
             </div>

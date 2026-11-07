@@ -70,6 +70,8 @@ export function normalizeCategoryKey(cat?: string): string {
   if (lower.includes('dewasa') && (lower.includes('putri') || lower.includes('pi'))) return CategoryType.ADULT_PUTRI;
   if (lower.includes('u18') && (lower.includes('putra') || lower.includes('pa'))) return CategoryType.U18_PUTRA;
   if (lower.includes('u18') && (lower.includes('putri') || lower.includes('pi'))) return CategoryType.U18_PUTRI;
+  if (lower.includes('u15') && (lower.includes('putra') || lower.includes('pa'))) return CategoryType.U15_PUTRA;
+  if (lower.includes('u15') && (lower.includes('putri') || lower.includes('pi'))) return CategoryType.U15_PUTRI;
   if (lower.includes('u12') && (lower.includes('putra') || lower.includes('pa'))) return CategoryType.U12_PUTRA;
   if (lower.includes('u12') && (lower.includes('putri') || lower.includes('pi'))) return CategoryType.U12_PUTRI;
   if (lower.includes('u9') && (lower.includes('putra') || lower.includes('pa'))) return CategoryType.U9_PUTRA;
@@ -80,7 +82,7 @@ export function normalizeCategoryKey(cat?: string): string {
 }
 
 /**
- * Find CategoryConfig from categoryConfigs record supporting key, label, or normalized lookup
+ * Find CategoryConfig from categoryConfigs record supporting key, label, customName, or normalized lookup
  */
 export function findCategoryConfig(
   cat?: string,
@@ -95,12 +97,15 @@ export function findCategoryConfig(
   const normKey = normalizeCategoryKey(cat);
   if ((categoryConfigs as any)[normKey]) return (categoryConfigs as any)[normKey];
 
-  // 3. Case-insensitive or label match
+  // 3. Case-insensitive or label or customName match
   const lowerCat = cat.toLowerCase();
   const lowerNorm = normKey.toLowerCase();
   for (const [k, v] of Object.entries(categoryConfigs)) {
     if (!v) continue;
     if (k.toLowerCase() === lowerCat || k.toLowerCase() === lowerNorm) {
+      return v as CategoryConfig;
+    }
+    if (v.customName && (v.customName.toLowerCase() === lowerCat || v.customName.toLowerCase() === lowerNorm)) {
       return v as CategoryConfig;
     }
     const label = CATEGORY_LABELS[k] || k;

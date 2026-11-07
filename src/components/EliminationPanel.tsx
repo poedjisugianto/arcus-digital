@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { ArcheryEvent, CategoryType, Match, Archer, TargetType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
+import { findCategoryConfig } from '../lib/firestoreUtils';
 import { Trophy, GitBranch, User, Save, RefreshCw, ChevronRight, Swords, ArrowLeft, Trash2, Settings2, Zap, Medal, Plus, Minus, Check, FileText, X, AlertTriangle, Bell, Volume2, Target, BarChart3, ListOrdered, Award, Scale, Printer, Sliders, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { playShootOffAlarm, playVictorySound } from '../lib/soundAlarm';
 import PrintRoundReportModal from './PrintRoundReportModal';
@@ -8,12 +9,19 @@ import PrintEliminationSheetsModal from './PrintEliminationSheetsModal';
 
 interface Props {
   event: ArcheryEvent;
-  onUpdateMatches: (matches: Record<CategoryType, Match[]>) => void;
+  onUpdateMatches: (matches: Record<CategoryType | string, Match[]>) => void;
   onBack: () => void;
 }
 
 const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) => {
-  const [activeCategory, setActiveCategory] = useState<CategoryType>(() => {
+  const eventCategories = useMemo(() => {
+    if (event.settings?.categoryConfigs && Object.keys(event.settings.categoryConfigs).length > 0) {
+      return Object.keys(event.settings.categoryConfigs).filter(c => c !== CategoryType.OFFICIAL);
+    }
+    return (Object.keys(CategoryType) as CategoryType[]).filter(c => c !== CategoryType.OFFICIAL);
+  }, [event.settings?.categoryConfigs]);
+
+  const [activeCategory, setActiveCategory] = useState<CategoryType | string>(() => {
     const saved = localStorage.getItem(`elim_cat_${event.id}`);
     return (saved as CategoryType) || CategoryType.ADULT_PUTRA;
   });
@@ -58,7 +66,7 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
   };
 
   const [tieBreakTab, setTieBreakTab] = useState<Record<string, 'SHOOT_OFF' | 'COUNTBACK'>>({});
-  const config = (event.settings.categoryConfigs || {})[activeCategory as CategoryType];
+  const config = findCategoryConfig(activeCategory, event.settings?.categoryConfigs);
   const defaultTieBreak = config?.tieBreakMethod === 'COUNTBACK' ? 'COUNTBACK' : 'SHOOT_OFF';
   const [modalTieBreakTab, setModalTieBreakTab] = useState<'SHOOT_OFF' | 'COUNTBACK'>('SHOOT_OFF');
 
@@ -94,7 +102,14 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
     let baseSession = 'QUAL';
     if (config?.eliminationStages && config.eliminationStages.length > 0) {
       const smallestStage = Math.min(...config.eliminationStages);
-      baseSession = `ELIM_${smallestStage}`;
+      const stageSession = `ELIM_${smallestStage}`;
+      const scoresList = event.scores || [];
+      const hasStageScores = archersInCategory.some(archer =>
+        scoresList.some(s => s.archerId === archer.id && s.sessionId === stageSession && !s.isDeleted && (s.total || 0) > 0)
+      );
+      if (hasStageScores) {
+        baseSession = stageSession;
+      }
     }
 
     const scoresList = event.scores || [];
@@ -127,8 +142,8 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
   const initializeBracket = (size: number, fromQual = false) => {
     const newMatches: Match[] = [];
     let currentRoundSize = size;
-    const config = (event.settings.categoryConfigs || {})[activeCategory as CategoryType];
-    const numEnds = config?.ends || 5;
+    const catConfig = findCategoryConfig(activeCategory, event.settings?.categoryConfigs);
+    const numEnds = catConfig?.matchEnds || 5;
     
     while (currentRoundSize >= 2) {
       const numMatchesInRound = currentRoundSize / 2;
@@ -572,18 +587,18 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                   </div>
                 )}
                 <div className="flex flex-wrap justify-center gap-2">
-                  {[8, 16, 32, 64].map(s => {
+                  {[4, 8, 16, 32, 64].map(s => {
                     const isRecommended = config?.h2hStartSize === s;
                     return (
                       <button 
                         key={s} 
                         onClick={() => initializeBracket(s, true)} 
                         className={`px-4 py-3 rounded-xl font-black text-[10px] uppercase shadow-lg transition-all flex flex-col items-center ${
-                          isRecommended ? 'bg-blue-600 text-white shadow-blue-500/20 scale-110' : 'bg-purple-600 text-white shadow-purple-500/20 hover:scale-105'
+                          isRecommended ? 'bg-blue-600 text-white shadow-blue-500/20 ring-4 ring-blue-300 scale-105' : 'bg-purple-600 text-white shadow-purple-500/20 hover:scale-105'
                         }`}
                       >
                         <span>Top {s}</span>
-                        <span className="text-[7px] opacity-70 mt-0.5">{s === 8 ? 'Quarter' : s === 16 ? '1/8' : s === 32 ? '1/16' : '1/32'}</span>
+                        <span className="text-[7px] opacity-80 mt-0.5">{s === 4 ? 'Semi Final' : s === 8 ? 'Quarter' : s === 16 ? '1/8' : s === 32 ? '1/16' : '1/32'}</span>
                       </button>
                     );
                   })}
@@ -592,9 +607,9 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
               <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 space-y-4">
                 <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest">Bagan Manual Kosong</p>
                 <div className="flex flex-wrap justify-center gap-2">
-                  {[8, 16, 32, 64].map(s => (
+                  {[4, 8, 16, 32, 64].map(s => (
                     <button key={s} onClick={() => initializeBracket(s, false)} className="px-4 py-3 bg-white text-slate-600 border rounded-xl font-black text-[10px] uppercase hover:bg-slate-100 transition-all flex flex-col items-center">
-                      <span>{s} Besar</span>
+                      <span>{s === 4 ? '4 Besar (Semi)' : `${s} Besar`}</span>
                       <span className="text-[7px] text-slate-700 mt-0.5">Bagan Kosong</span>
                     </button>
                   ))}
@@ -1239,17 +1254,17 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                           <p className="text-[9px] font-bold text-slate-700 uppercase tracking-wider">{getArcherClub(m.archerAId)}</p>
                        </div>
                     </div>
-                    <div className="grid grid-cols-5 gap-3">
-                       {(m.endsA || Array(5).fill(0)).map((score, idx) => (
-                          <div key={idx} className="space-y-2">
+                    <div className="flex flex-wrap gap-2.5">
+                       {(m.endsA && m.endsA.length > 0 ? m.endsA : Array(config?.matchEnds || 5).fill(0)).map((score, idx) => (
+                          <div key={idx} className="flex-1 min-w-[65px] space-y-1.5">
                              <p className="text-[9px] font-black text-slate-700 uppercase text-center">End {idx + 1}</p>
                              <input 
                                 type="number" 
                                 value={score} 
                                 onChange={(e) => {
-                                   const newEnds = [...(m.endsA || Array(5).fill(0))];
-                                   newEnds[idx] = parseInt(e.target.value) || 0;
-                                   updateMatch(m.id, { endsA: newEnds });
+                                   const current = (m.endsA && m.endsA.length > 0 ? [...m.endsA] : Array(config?.matchEnds || 5).fill(0));
+                                   current[idx] = parseInt(e.target.value) || 0;
+                                   updateMatch(m.id, { endsA: current });
                                 }}
                                 className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl text-center font-black text-lg focus:border-purple-600 outline-none transition-all"
                              />
@@ -1269,17 +1284,17 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                           <p className="text-[9px] font-bold text-slate-700 uppercase tracking-wider">{getArcherClub(m.archerBId)}</p>
                        </div>
                     </div>
-                    <div className="grid grid-cols-5 gap-3">
-                       {(m.endsB || Array(5).fill(0)).map((score, idx) => (
-                          <div key={idx} className="space-y-2">
+                    <div className="flex flex-wrap gap-2.5">
+                       {(m.endsB && m.endsB.length > 0 ? m.endsB : Array(config?.matchEnds || 5).fill(0)).map((score, idx) => (
+                          <div key={idx} className="flex-1 min-w-[65px] space-y-1.5">
                              <p className="text-[9px] font-black text-slate-700 uppercase text-center">End {idx + 1}</p>
                              <input 
                                 type="number" 
                                 value={score} 
                                 onChange={(e) => {
-                                   const newEnds = [...(m.endsB || Array(5).fill(0))];
-                                   newEnds[idx] = parseInt(e.target.value) || 0;
-                                   updateMatch(m.id, { endsB: newEnds });
+                                   const current = (m.endsB && m.endsB.length > 0 ? [...m.endsB] : Array(config?.matchEnds || 5).fill(0));
+                                   current[idx] = parseInt(e.target.value) || 0;
+                                   updateMatch(m.id, { endsB: current });
                                 }}
                                 className="w-full p-3 bg-slate-50 border-2 border-slate-100 rounded-2xl text-center font-black text-lg focus:border-purple-600 outline-none transition-all"
                              />
@@ -1506,7 +1521,7 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
       {showPrintModal && (
         <PrintRoundReportModal
           event={event}
-          initialCategory={activeCategory}
+          initialCategory={activeCategory as CategoryType}
           initialRound="QUAL_QUALIFIED"
           onClose={() => setShowPrintModal(false)}
         />
@@ -1516,7 +1531,7 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
         <PrintEliminationSheetsModal
           isOpen={showEliminationPrintModal}
           event={event}
-          initialCategory={activeCategory}
+          initialCategory={activeCategory as CategoryType}
           initialMatchId={printMatchId}
           onClose={() => {
             setShowEliminationPrintModal(false);

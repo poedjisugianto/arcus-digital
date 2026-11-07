@@ -37,7 +37,7 @@ import {
   RegistrationStatus,
   ArcheryEvent
 } from "../types";
-import { CATEGORY_LABELS } from "../constants";
+import { CATEGORY_LABELS, getCategoryDisplayName } from "../constants";
 import { compressPhoto, uploadPhotoToStorage } from "../lib/photoService";
 import { exportToExcel, exportToCSV } from "../lib/excelHelper";
 import ScoringSheet from "./ScoringSheet";
@@ -84,8 +84,14 @@ const ArcherList: React.FC<Props> = ({
   globalSettings,
 }) => {
   const [isShuffling, setIsShuffling] = useState(false);
+  const eventCategories = useMemo(() => {
+    if (settings?.categoryConfigs && Object.keys(settings.categoryConfigs).length > 0) {
+      return Object.keys(settings.categoryConfigs).filter(cat => cat !== CategoryType.OFFICIAL);
+    }
+    return (Object.keys(CategoryType) as CategoryType[]).filter(cat => cat !== CategoryType.OFFICIAL);
+  }, [settings?.categoryConfigs]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeCategory, setActiveCategory] = useState<CategoryType | "ALL">(
+  const [activeCategory, setActiveCategory] = useState<CategoryType | string | "ALL">(
     "ALL",
   );
   const [showAddForm, setShowAddForm] = useState(false);
@@ -159,11 +165,13 @@ const ArcherList: React.FC<Props> = ({
     const isKids = [
       CategoryType.U18_PUTRA,
       CategoryType.U18_PUTRI,
+      CategoryType.U15_PUTRA,
+      CategoryType.U15_PUTRI,
       CategoryType.U12_PUTRA,
       CategoryType.U12_PUTRI,
       CategoryType.U9_PUTRA,
       CategoryType.U9_PUTRI,
-    ].includes(newArcher.category);
+    ].includes(newArcher.category as CategoryType);
     const platformFee = isKids
       ? globalSettings.feeKids
       : globalSettings.feeAdult;
@@ -231,7 +239,7 @@ const ArcherList: React.FC<Props> = ({
     const effectiveArchersPerTarget = Number(archersPerTarget) || 4;
     const effectiveTotalTargets = Number(totalTargets) || 20;
 
-    const categoryLabel = (activeCategory as any) === "ALL" ? "SEMUA KATEGORI" : CATEGORY_LABELS[activeCategory];
+    const categoryLabel = (activeCategory as any) === "ALL" ? "SEMUA KATEGORI" : getCategoryDisplayName(activeCategory, settings?.categoryConfigs);
     if (
       !confirm(
         `Sistem akan mengacak posisi pemanah untuk ${categoryLabel} dan menyusun nomor bantalan secara otomatis (Kapasitas: ${effectiveTotalTargets} Bantalan x ${effectiveArchersPerTarget} Pemanah). Lanjutkan?`,
@@ -331,7 +339,7 @@ const ArcherList: React.FC<Props> = ({
       : "-";
     const categoryLabel = (activeCategory as any) === "ALL" 
       ? "SEMUA KATEGORI" 
-      : (CATEGORY_LABELS[activeCategory as CategoryType] || activeCategory);
+      : (getCategoryDisplayName(activeCategory, settings?.categoryConfigs));
     const exportTime = new Date().toLocaleString("id-ID", {
       day: "2-digit",
       month: "long",
@@ -366,7 +374,7 @@ const ArcherList: React.FC<Props> = ({
     ];
 
     const rows = dataToExport.map((a, index) => {
-      const catName = CATEGORY_LABELS[a.category as CategoryType] || a.category || "-";
+      const catName = getCategoryDisplayName(a.category, settings?.categoryConfigs) || "-";
       return [
         index + 1,
         a.name || "",
@@ -893,11 +901,9 @@ const ArcherList: React.FC<Props> = ({
                     }
                     className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none focus:ring-4 ring-red-500/10 transition-all text-slate-900"
                   >
-                    {(Object.keys(CategoryType) as CategoryType[])
-                      .filter((cat) => cat !== CategoryType.OFFICIAL)
-                      .map((cat) => (
+                    {eventCategories.map((cat) => (
                         <option key={cat} value={cat}>
-                          {CATEGORY_LABELS[cat]}
+                          {getCategoryDisplayName(cat, settings?.categoryConfigs)}
                         </option>
                       ))}
                   </select>
@@ -1027,7 +1033,7 @@ const ArcherList: React.FC<Props> = ({
       {isPrintingList && createPortal(
         <div className="print-area-portal bg-white p-4 min-h-screen">
           {printAllCategories ? (
-            (Object.keys(CategoryType) as CategoryType[]).map((cat, idx) => {
+            eventCategories.map((cat, idx) => {
               const catArchers = archers
                 .filter((a) => a.category === cat)
                 .sort((a, b) => {
@@ -1055,7 +1061,7 @@ const ArcherList: React.FC<Props> = ({
                       Daftar Peserta & Penempatan Bantalan
                     </h2>
                     <p className="text-lg font-bold uppercase mt-2 bg-slate-100 inline-block px-4 py-1 rounded">
-                      Kategori: {CATEGORY_LABELS[cat]}
+                      Kategori: {getCategoryDisplayName(cat, settings?.categoryConfigs)}
                     </p>
                   </div>
 
@@ -1148,7 +1154,7 @@ const ArcherList: React.FC<Props> = ({
                   Daftar Peserta & Penempatan Bantalan
                 </h2>
                 <p className="text-lg font-bold uppercase mt-2 bg-slate-100 inline-block px-4 py-1 rounded">
-                  Kategori: {CATEGORY_LABELS[activeCategory]}
+                  Kategori: {getCategoryDisplayName(activeCategory, settings?.categoryConfigs)}
                 </p>
               </div>
 
@@ -1551,7 +1557,7 @@ const ArcherList: React.FC<Props> = ({
                   </td>
                   <td className="p-4 text-slate-800 font-medium">{a.club}</td>
                   <td className="p-4 text-slate-700 uppercase font-black tracking-tighter">
-                    {CATEGORY_LABELS[a.category as CategoryType] || (a.category || "").replace("ADULT_", "")}
+                    {getCategoryDisplayName(a.category, settings?.categoryConfigs)}
                   </td>
                   <td className="p-4 px-2">
                     <select
@@ -1677,7 +1683,7 @@ const ArcherList: React.FC<Props> = ({
             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 text-xs text-slate-600 space-y-1.5">
               <p className="font-black text-slate-900 text-sm">{archerToDelete.name}</p>
               <p className="text-slate-600 font-medium">Klub: <span className="font-bold text-slate-800">{archerToDelete.club}</span></p>
-              <p className="text-slate-600 font-medium">Kategori: <span className="font-bold text-slate-800">{CATEGORY_LABELS[archerToDelete.category as CategoryType] || archerToDelete.category}</span></p>
+              <p className="text-slate-600 font-medium">Kategori: <span className="font-bold text-slate-800">{getCategoryDisplayName(archerToDelete.category, settings?.categoryConfigs)}</span></p>
               <div className="pt-2 border-t border-slate-200/60 text-[11px] text-red-600 font-bold flex items-center gap-1.5">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                 <span>Seluruh riwayat nilai skoring dan registrasi peserta ini akan ikut terhapus.</span>

@@ -10,6 +10,7 @@ import {
 import { toast } from 'sonner';
 import { ArcheryEvent, ScoreEntry, ScoreLog, Archer, CategoryType, TargetType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
+import { findCategoryConfig } from '../lib/firestoreUtils';
 import QRScanner from './QRScanner';
 
 interface Props {
@@ -71,11 +72,25 @@ const OperatorCenter: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
 
   const config = useMemo(() => {
     if (!selectedArcher) return null;
-    return (event.settings.categoryConfigs || {})[selectedArcher.category as CategoryType] || null;
-  }, [event.settings.categoryConfigs, selectedArcher]);
+    return findCategoryConfig(selectedArcher.category, event.settings?.categoryConfigs) || null;
+  }, [event.settings?.categoryConfigs, selectedArcher]);
 
-  const totalEnds = config?.ends || (Number(event.settings?.totalEnds) > 0 ? Number(event.settings.totalEnds) : 6);
-  const arrowsCount = config?.arrows || (Number(event.settings?.arrowsPerEnd) > 0 ? Number(event.settings.arrowsPerEnd) : 6);
+  const isElimSession = activeSession.startsWith('ELIM_');
+  const totalEnds = isElimSession && config?.eliminationEnds
+    ? config.eliminationEnds
+    : (config?.ends || (Number(event.settings?.totalEnds) > 0 ? Number(event.settings.totalEnds) : 6));
+
+  const arrowsCount = isElimSession && config?.eliminationArrows
+    ? config.eliminationArrows
+    : (config?.arrows 
+      ? (config.arrows > 12 && config.ends ? Math.floor(config.arrows / config.ends) : config.arrows)
+      : (Number(event.settings?.arrowsPerEnd) > 0 ? Number(event.settings.arrowsPerEnd) : 6));
+
+  useEffect(() => {
+    if (targetEnd >= totalEnds) {
+      setTargetEnd(0);
+    }
+  }, [totalEnds, targetEnd]);
 
   const availableSessions = useMemo(() => {
     if (!selectedArcher || !config) return ['QUAL'];
