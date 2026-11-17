@@ -12,12 +12,13 @@ declare global {
   }
 }
 import { CATEGORY_LABELS, getCategoryDisplayName } from '../constants';
-import { isValidDate } from '../lib/dateUtils';
+import { isValidDate, isEventRegistrationClosed, isEventFinished, safeFormatDateTime } from '../lib/dateUtils';
 import { 
   ArrowLeft, User, Mail, ShieldCheck, CreditCard, 
   Upload, Check, AlertCircle, Zap, Sparkles, 
   Target, Trophy, Users, Activity, Info, FileText, Landmark, Smartphone,
-  Camera, Loader2, ExternalLink, ShieldAlert, QrCode, RefreshCw, Printer, AlertTriangle
+  Camera, Loader2, ExternalLink, ShieldAlert, QrCode, RefreshCw, Printer, AlertTriangle,
+  CheckCircle2, Clock
 } from 'lucide-react';
 import { Barcode } from './Barcode';
 import { QRCodeSVG } from 'qrcode.react';
@@ -48,9 +49,8 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
   } | null>(null);
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
   
-  const isRegistrationClosed = (event.settings?.registrationDeadline && isValidDate(event.settings?.registrationDeadline)) 
-    ? new Date() > new Date(event.settings?.registrationDeadline) 
-    : false;
+  const isRegistrationClosed = isEventRegistrationClosed(event);
+  const isFinished = isEventFinished(event);
 
   const isKtaRequired = Boolean(event.settings?.requireKta);
 
@@ -1181,14 +1181,61 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
           </div>
         )}
 
-        {step !== 3 && (
-          <div className="space-y-6">
-            {isRegistrationClosed && (
-              <div className="bg-rose-50 border border-rose-200 p-4 rounded-xl flex items-center gap-3 shadow-sm">
-                <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0" />
-                <p className="text-[10px] font-black text-rose-900 uppercase">Maaf, pendaftaran lomba telah ditutup secara otomatis karena melewati batas waktu pendaftaran yang telah ditentukan oleh panitia.</p>
+        {step !== 3 && isRegistrationClosed ? (
+          <div className="bg-white p-8 md:p-12 rounded-[2.5rem] shadow-xl text-center space-y-6 border border-slate-100 my-4 animate-in fade-in duration-300">
+            <div className={`w-20 h-20 rounded-3xl mx-auto flex items-center justify-center shadow-lg ${
+              isFinished 
+                ? 'bg-slate-900 text-amber-400 ring-4 ring-amber-400/20' 
+                : 'bg-rose-50 text-rose-600 border border-rose-200'
+            }`}>
+              {isFinished ? <Trophy className="w-10 h-10" /> : <ShieldAlert className="w-10 h-10" />}
+            </div>
+            
+            <div className="space-y-3 max-w-lg mx-auto">
+              <span className={`inline-block px-3.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                isFinished ? 'bg-slate-900 text-amber-400' : 'bg-rose-100 text-rose-700'
+              }`}>
+                {isFinished ? 'Event Telah Selesai' : 'Pendaftaran Online Ditutup'}
+              </span>
+              <h3 className="text-2xl md:text-3xl font-black font-oswald uppercase italic text-slate-900 leading-tight">
+                {isFinished ? 'Pelaksanaan Event Telah Berakhir' : 'Batas Waktu Pendaftaran Berakhir'}
+              </h3>
+              <p className="text-xs md:text-sm text-slate-600 font-medium leading-relaxed">
+                {isFinished 
+                  ? `Turnamen "${event.settings?.tournamentName || 'Arcus'}" telah selesai dilaksanakan sesuai jadwal (${event.settings?.eventDate || 'Selesai'}). Sistem pendaftaran online kini telah ditutup.`
+                  : `Pendaftaran online untuk turnamen ini telah ditutup secara otomatis oleh sistem karena melewati batas akhir pendaftaran pada ${event.settings?.registrationDeadline ? safeFormatDateTime(event.settings.registrationDeadline) : 'jadwal yang ditentukan panitia'}.`
+                }
+              </p>
+            </div>
+
+            {event.settings?.contactPhone && (
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-600 max-w-md mx-auto space-y-1">
+                <p className="font-bold text-slate-800">Butuh bantuan atau informasi resmi?</p>
+                <p>Silakan hubungi panitia melalui hotline WhatsApp di nomor: <b>{event.settings.contactPhone}</b></p>
               </div>
             )}
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-md mx-auto pt-2">
+              <button
+                type="button"
+                onClick={onViewParticipants}
+                className="flex-1 py-4 px-6 bg-slate-900 text-white rounded-2xl font-black font-oswald uppercase italic tracking-wider hover:bg-arcus-red transition-all shadow-md flex items-center justify-center gap-2 active:scale-95 text-sm"
+              >
+                <Users className="w-4 h-4 text-amber-400" />
+                Lihat Peserta Terdaftar
+              </button>
+              <button
+                type="button"
+                onClick={onBack}
+                className="flex-1 py-4 px-6 bg-slate-100 text-slate-700 rounded-2xl font-black font-oswald uppercase italic tracking-wider hover:bg-slate-200 transition-all flex items-center justify-center gap-2 active:scale-95 text-sm"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Kembali ke Beranda
+              </button>
+            </div>
+          </div>
+        ) : step !== 3 && (
+          <div className="space-y-6">
             <div className="flex items-center justify-center gap-6 mb-6">
               {[1, 2].map(i => (
                 <div key={i} className="flex flex-col items-center gap-1.5">

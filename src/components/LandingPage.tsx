@@ -15,11 +15,13 @@ import {
   RefreshCw,
   AlertTriangle,
   Navigation,
-  Search
+  Search,
+  CheckCircle2
 } from 'lucide-react';
 import { ArcheryEvent, User, CategoryType } from '../types';
 import { resolveGoogleDriveUrl } from '../lib/photoService';
 import { getGoogleMapsUrl } from '../lib/mapsHelper';
+import { isEventRegistrationClosed, isEventFinished, safeFormatDateTime } from '../lib/dateUtils';
 import ArcusLogo from './ArcusLogo';
 import TournamentCalendar from './TournamentCalendar';
 
@@ -112,7 +114,7 @@ export default function LandingPage({
           : 0;
         const createdAt = raw.createdAt || baseData.createdAt || settings.createdAt || idTimestamp || 0;
 
-        return {
+        const candidateEvent = {
           ...raw,
           ...baseData,
           ...settings,
@@ -126,6 +128,15 @@ export default function LandingPage({
             eventDate,
             status: statusStr
           }
+        };
+
+        const isFinished = isEventFinished(candidateEvent);
+        const isRegistrationClosed = isEventRegistrationClosed(candidateEvent);
+
+        return {
+          ...candidateEvent,
+          isFinished,
+          isRegistrationClosed
         };
       })
       .filter(ev => ev.id && ev.status !== 'DELETED' && ev.settings?.isActivated === true)
@@ -471,12 +482,16 @@ export default function LandingPage({
                         </div>
                         <div className="flex flex-col items-end">
                           <span className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                            event.isFinished ? 'bg-slate-900 text-amber-400 shadow-md' :
+                            event.isRegistrationClosed ? 'bg-rose-600 text-white shadow-md shadow-rose-200' :
                             event.status === 'ACTIVE' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 
                             event.status === 'UPCOMING' ? 'bg-blue-600 text-white shadow-lg shadow-blue-200' :
                             event.status === 'ONGOING' ? 'bg-arcus-red text-white shadow-lg shadow-red-200 animate-pulse' :
                             'bg-slate-900 text-white'
                           }`}>
-                            {event.status === 'ACTIVE' ? 'OPEN' : 
+                            {event.isFinished ? 'EVENT SELESAI' :
+                             event.isRegistrationClosed ? 'REGISTRATION CLOSED' :
+                             event.status === 'ACTIVE' ? 'OPEN' : 
                              event.status === 'UPCOMING' ? 'COMING SOON' :
                              event.status === 'ONGOING' ? 'LIVE NOW' :
                              event.status}
@@ -498,15 +513,33 @@ export default function LandingPage({
                       <div className="space-y-4 mb-10 pb-6 border-b border-slate-50">
                         {/* Registration Status */}
                         <div className="flex items-center gap-4 text-slate-600">
-                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${event.isRegistrationClosed ? 'bg-red-50 text-red-400' : 'bg-emerald-50 text-emerald-500'}`}>
-                              <Zap className="w-4 h-4" />
+                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                             event.isFinished ? 'bg-slate-100 text-slate-800' :
+                             event.isRegistrationClosed ? 'bg-rose-50 text-rose-600' : 
+                             'bg-emerald-50 text-emerald-500'
+                           }`}>
+                              {event.isFinished ? <CheckCircle2 className="w-4 h-4 text-emerald-600" /> : <Zap className="w-4 h-4" />}
                            </div>
                            <div className="flex flex-col">
-                              <span className={`text-[10px] font-black uppercase tracking-widest ${event.isRegistrationClosed ? 'text-red-500' : 'text-emerald-500'}`}>
-                                 {event.isRegistrationClosed ? 'Pendaftaran Ditutup' : 'Pendaftaran Dibuka'}
+                              <span className={`text-[10px] font-black uppercase tracking-widest ${
+                                event.isFinished ? 'text-slate-800 font-extrabold' :
+                                event.isRegistrationClosed ? 'text-rose-600 font-extrabold' : 
+                                'text-emerald-500'
+                              }`}>
+                                 {event.isFinished ? 'Event Telah Selesai' : event.isRegistrationClosed ? 'Pendaftaran Ditutup' : 'Pendaftaran Dibuka'}
                               </span>
-                              {event.settings?.registrationDeadline && !event.isRegistrationClosed && (
-                                <span className="text-[7px] font-bold text-slate-700 uppercase tracking-widest">Hingga: {event.settings.registrationDeadline}</span>
+                              {event.isFinished ? (
+                                <span className="text-[7.5px] font-bold text-slate-500 uppercase tracking-widest">
+                                  Pelaksanaan Berakhir ({event.settings?.eventDate || '-'})
+                                </span>
+                              ) : event.settings?.registrationDeadline && !event.isRegistrationClosed ? (
+                                <span className="text-[7px] font-bold text-slate-700 uppercase tracking-widest">
+                                  Hingga: {safeFormatDateTime(event.settings.registrationDeadline)}
+                                </span>
+                              ) : event.settings?.registrationDeadline && event.isRegistrationClosed && (
+                                <span className="text-[7px] font-bold text-rose-500 uppercase tracking-widest">
+                                  Batas Akhir: {safeFormatDateTime(event.settings.registrationDeadline)}
+                                </span>
                               )}
                            </div>
                         </div>
@@ -552,22 +585,32 @@ export default function LandingPage({
                         </div>
                       </div>
 
-                      <button 
-                        onClick={() => {
-                          if (event.isRegistrationClosed) return;
-                          console.log("Register clicked for event:", event.id);
-                          onRegister(event.id);
-                        }}
-                        disabled={event.isRegistrationClosed}
-                        className={`w-full py-4 flex items-center justify-center gap-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 mb-3 ${
-                          event.isRegistrationClosed 
-                            ? 'bg-slate-100 text-slate-700 cursor-not-allowed border border-slate-200 shadow-none' 
-                            : 'bg-arcus-red text-white hover:bg-red-600 shadow-red-200'
-                        }`}
-                      >
-                        <Plus className="w-4 h-4" />
-                        {event.isRegistrationClosed ? 'PENDAFTARAN DITUTUP' : 'DAFTAR SEKARANG'}
-                      </button>
+                      {event.isFinished ? (
+                        <button 
+                          onClick={() => onViewLive(event.id)}
+                          className="w-full py-4 flex items-center justify-center gap-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95 mb-3 bg-slate-900 text-amber-400 hover:bg-arcus-red hover:text-white"
+                        >
+                          <Trophy className="w-4 h-4 text-amber-400" />
+                          LIHAT HASIL AKHIR &amp; JUARA
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => {
+                            if (event.isRegistrationClosed) return;
+                            console.log("Register clicked for event:", event.id);
+                            onRegister(event.id);
+                          }}
+                          disabled={event.isRegistrationClosed}
+                          className={`w-full py-4 flex items-center justify-center gap-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 mb-3 ${
+                            event.isRegistrationClosed 
+                              ? 'bg-slate-100 text-slate-700 cursor-not-allowed border border-slate-200 shadow-none' 
+                              : 'bg-arcus-red text-white hover:bg-red-600 shadow-red-200'
+                          }`}
+                        >
+                          <Plus className="w-4 h-4" />
+                          {event.isRegistrationClosed ? 'PENDAFTARAN DITUTUP' : 'DAFTAR SEKARANG'}
+                        </button>
+                      )}
 
                       <button 
                         onClick={() => onViewParticipants(event.id)}

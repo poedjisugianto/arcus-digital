@@ -53,7 +53,8 @@ import {
   ScoreEntry,
   ScoreLog,
   CategoryType,
-  Archer
+  Archer,
+  ScorerAccess
 } from './types';
 import { STORAGE_KEY, DEFAULT_GLOBAL_SETTINGS } from './constants';
 
@@ -178,6 +179,24 @@ const parseRouteFromUrl = (): { view: string; eventId: string | null; club: stri
         };
       }
     }
+
+    // Check if there is an active scorer session in localStorage (for mobile scorer refresh)
+    const savedScorerRaw = localStorage.getItem('arcus_scorer_session');
+    if (savedScorerRaw) {
+      try {
+        const parsedScorer = JSON.parse(savedScorerRaw);
+        if (parsedScorer?.scorer && parsedScorer?.eventId) {
+          if (!viewParam || viewParam.toUpperCase() === 'SCORER_PANEL' || viewParam.toUpperCase() === 'SCORER_LOGIN') {
+            return {
+              view: 'SCORER_PANEL',
+              eventId: eventParam || parsedScorer.eventId,
+              club: clubParam,
+              search: searchParam
+            };
+          }
+        }
+      } catch (e) {}
+    }
   } catch (e) {
     console.warn("Could not parse route from URL:", e);
   }
@@ -212,6 +231,21 @@ const buildRouteUrl = (v: string, eventId?: string | null, club?: string, search
 };
 
 const getInitialAppState = (initialEventId: string | null): AppState => {
+  let savedScorer: ScorerAccess | null = null;
+  let savedScorerEventId: string | null = null;
+  try {
+    const rawScorer = localStorage.getItem('arcus_scorer_session');
+    if (rawScorer) {
+      const parsedScorer = JSON.parse(rawScorer);
+      if (parsedScorer?.scorer) {
+        savedScorer = parsedScorer.scorer;
+        savedScorerEventId = parsedScorer.eventId || null;
+      }
+    }
+  } catch (e) {
+    console.warn("Could not parse scorer session", e);
+  }
+
   try {
     const localData = localStorage.getItem(STORAGE_KEY);
     if (localData) {
@@ -222,8 +256,8 @@ const getInitialAppState = (initialEventId: string | null): AppState => {
         notifications: parsed.notifications || [],
         globalSettings: parsed.globalSettings || DEFAULT_GLOBAL_SETTINGS,
         currentUser: parsed.currentUser || null,
-        activeEventId: initialEventId || parsed.activeEventId || null,
-        activeScorer: parsed.activeScorer || null,
+        activeEventId: initialEventId || savedScorerEventId || parsed.activeEventId || null,
+        activeScorer: savedScorer || parsed.activeScorer || null,
         isDataLoaded: true
       };
     }
@@ -236,7 +270,8 @@ const getInitialAppState = (initialEventId: string | null): AppState => {
     notifications: [],
     globalSettings: DEFAULT_GLOBAL_SETTINGS,
     currentUser: null,
-    activeEventId: initialEventId || null,
+    activeEventId: initialEventId || savedScorerEventId || null,
+    activeScorer: savedScorer,
     isDataLoaded: false
   };
 };
@@ -1170,6 +1205,37 @@ export default function App() {
     }
   }, [appState.events, appState.globalSettings, appState.currentUser, appState.activeEventId, appState.activeScorer, appState.isDataLoaded]);
 
+  // Dedicated lightweight auto-persistence for scorer session (guarantees survival across mobile browser refreshes)
+  useEffect(() => {
+    if (appState.activeScorer && appState.activeEventId) {
+      try {
+        localStorage.setItem('arcus_scorer_session', JSON.stringify({
+          eventId: appState.activeEventId,
+          scorer: appState.activeScorer,
+          accessCode: appState.activeScorer.accessCode,
+          timestamp: Date.now()
+        }));
+      } catch (err) {
+        console.warn("Could not save arcus_scorer_session to localStorage", err);
+      }
+    }
+  }, [appState.activeScorer, appState.activeEventId]);
+
+  // Keep scorer targets and permissions up to date when cloud data synchronizes
+  useEffect(() => {
+    if (appState.activeEventId && appState.activeScorer && appState.events.length > 0) {
+      const currentEv = appState.events.find(e => e.id === appState.activeEventId);
+      if (currentEv?.scorerAccess) {
+        const fresh = currentEv.scorerAccess.find(
+          s => s.id === appState.activeScorer?.id || s.accessCode === appState.activeScorer?.accessCode
+        );
+        if (fresh && JSON.stringify(fresh) !== JSON.stringify(appState.activeScorer)) {
+          setAppState(prev => ({ ...prev, activeScorer: fresh }));
+        }
+      }
+    }
+  }, [appState.events, appState.activeEventId, appState.activeScorer]);
+
   const fetchCloudData = async (userOverride?: User) => {
     if (!db || !isOnline || quotaExceeded) return;
     
@@ -1422,6 +1488,25 @@ export default function App() {
     }
   };
 
+  const handleOpenScorer = () => {
+    try {
+      const raw = localStorage.getItem('arcus_scorer_session');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.scorer && parsed?.eventId) {
+          setAppState(prev => ({
+            ...prev,
+            activeEventId: parsed.eventId,
+            activeScorer: parsed.scorer
+          }));
+          setView('SCORER_PANEL');
+          return;
+        }
+      }
+    } catch (e) {}
+    setView('SCORER_LOGIN');
+  };
+
   const onLoginSuccess = (user: User) => {
     setAppState(prev => ({ ...prev, currentUser: user }));
     setView('MEMBER_DASHBOARD');
@@ -1434,6 +1519,7 @@ export default function App() {
     setAppState(prev => ({ ...prev, currentUser: null, activeEventId: null, activeScorer: null }));
     try {
       sessionStorage.removeItem('arcus_active_route');
+      localStorage.removeItem('arcus_scorer_session');
     } catch (e) {}
     setView('LANDING');
   };
@@ -2215,7 +2301,7 @@ export default function App() {
             setView('REGISTER_PARTICIPANT');
           }}
           onLogin={() => setView('LOGIN_PANEL')}
-          onScorerLogin={() => setView('SCORER_LOGIN')}
+          onScorerLogin={handleOpenScorer}
           onCreateEvent={() => {
             if (!appState.currentUser) {
               setView('LOGIN_PANEL');
@@ -2340,6 +2426,16 @@ export default function App() {
         return <ScorerLogin 
           events={appState.events}
           onLogin={(event, scorer) => {
+            try {
+              localStorage.setItem('arcus_scorer_session', JSON.stringify({
+                eventId: event.id,
+                scorer,
+                accessCode: scorer.accessCode,
+                timestamp: Date.now()
+              }));
+            } catch (storageErr) {
+              console.warn("Failed to save arcus_scorer_session", storageErr);
+            }
             setAppState(prev => ({ ...prev, activeEventId: event.id, activeScorer: scorer }));
             setView('SCORER_PANEL');
             pushNotification("Akses Diterima", `Pencatat Skor: ${scorer.name}`, "SUCCESS");
@@ -2348,10 +2444,52 @@ export default function App() {
         />;
 
       case 'SCORER_PANEL':
-        if (!activeEvent) return null;
+        if (!activeEvent) {
+          return (
+            <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-white text-center select-none font-sans">
+              <div className="w-14 h-14 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-6"></div>
+              <h2 className="text-2xl font-black font-oswald uppercase italic tracking-wide text-white">
+                Menghubungkan ke Lapangan...
+              </h2>
+              <p className="text-purple-300 text-xs mt-2 font-bold uppercase tracking-widest">
+                {appState.activeScorer ? `Petugas: ${appState.activeScorer.name}` : 'Sinkronisasi data turnamen...'}
+              </p>
+              <div className="mt-8 flex flex-col sm:flex-row gap-3">
+                <button
+                  type="button"
+                  onClick={() => setView('LANDING')}
+                  className="px-5 py-2.5 bg-slate-800 text-slate-300 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-slate-700 active:scale-95 transition-all"
+                >
+                  Kembali ke Beranda
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      localStorage.removeItem('arcus_scorer_session');
+                    } catch (e) {}
+                    setAppState(prev => ({ ...prev, activeScorer: null }));
+                    setView('SCORER_LOGIN');
+                  }}
+                  className="px-5 py-2.5 bg-red-950/80 text-red-300 border border-red-800/60 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-red-900 active:scale-95 transition-all"
+                >
+                  Ganti Akun Petugas
+                </button>
+              </div>
+            </div>
+          );
+        }
         return <ScoringPanel 
           state={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           currentScorer={appState.activeScorer}
+          onLogoutScorer={() => {
+            try {
+              localStorage.removeItem('arcus_scorer_session');
+            } catch (e) {}
+            setAppState(prev => ({ ...prev, activeScorer: null }));
+            setView('SCORER_LOGIN');
+            pushNotification("Sesi Berakhir", "Anda telah keluar dari akses Tim Lapangan.", "INFO");
+          }}
           onSaveScore={async (score) => {
             const scores = Array.isArray(score) ? score : [score];
             handleUpdateEvent(activeEvent.id, {
@@ -2916,7 +3054,7 @@ export default function App() {
             setView('REGISTER_PARTICIPANT');
           }}
           onLogin={() => setView('LOGIN_PANEL')}
-          onScorerLogin={() => setView('SCORER_LOGIN')}
+          onScorerLogin={handleOpenScorer}
           onCreateEvent={() => {
             if (!appState.currentUser) {
               setView('LOGIN_PANEL');

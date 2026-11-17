@@ -9,7 +9,7 @@ import { ArcheryEvent, CategoryType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
 import ArcusLogo from './ArcusLogo';
 import { generateGoogleCalendarLink, generateICalFile } from '../lib/calendarUtils';
-import { safeFormatDateTime } from '../lib/dateUtils';
+import { safeFormatDateTime, isEventRegistrationClosed, isEventFinished } from '../lib/dateUtils';
 import { resolveGoogleDriveUrl } from '../lib/photoService';
 
 interface Props {
@@ -22,8 +22,9 @@ interface Props {
 }
 
 export default function EventInfo({ event, onBack, onRegister, onShare, onViewParticipants, onViewLiveScoreboard }: Props) {
-  const isExpired = event.settings?.registrationDeadline && new Date() > new Date(event.settings?.registrationDeadline);
-  const isRegistrationOpen = event.status !== 'DRAFT' && event.status !== 'COMPLETED';
+  const isFinished = isEventFinished(event);
+  const isRegClosed = isEventRegistrationClosed(event);
+  const isRegistrationOpen = event.status !== 'DRAFT' && !isRegClosed && !isFinished;
   
   // Gabungkan peserta dari archers dan registrations secara unik berdasarkan ID (hanya kategori atlet yang valid)
   const activeArchers = React.useMemo(() => {
@@ -113,10 +114,22 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
             <div className="bg-white rounded-3xl p-6 md:p-10 border border-slate-100 shadow-sm relative overflow-hidden">
               <div className="absolute top-0 right-0 w-64 h-64 bg-arcus-red/5 -mr-32 -mt-32 rounded-full" />
               <div className="relative z-10">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-arcus-red/10 text-arcus-red text-[8px] md:text-[9px] font-black uppercase tracking-widest mb-4 md:mb-6">
-                  <Award className="w-3 h-3" />
-                  {event.status === 'ACTIVE' ? 'Live Now' : 'Upcoming Event'}
-                </div>
+                {isFinished ? (
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900 text-amber-400 text-[8px] md:text-[9px] font-black uppercase tracking-widest mb-4 md:mb-6 shadow-sm">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-amber-400" />
+                    Event Telah Selesai
+                  </div>
+                ) : isRegClosed ? (
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-[8px] md:text-[9px] font-black uppercase tracking-widest mb-4 md:mb-6">
+                    <Clock className="w-3.5 h-3.5 text-rose-600" />
+                    Pendaftaran Ditutup
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-arcus-red/10 text-arcus-red text-[8px] md:text-[9px] font-black uppercase tracking-widest mb-4 md:mb-6">
+                    <Award className="w-3 h-3" />
+                    {event.status === 'ACTIVE' ? 'Live Now' : 'Upcoming Event'}
+                  </div>
+                )}
                 <h1 className="text-2xl md:text-5xl font-black font-oswald uppercase italic leading-tight mb-6 md:mb-8 tracking-tight text-slate-900">
                   {event.settings?.tournamentName || 'Untitled Event'}
                 </h1>
@@ -328,7 +341,7 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
                   <>
                     <button 
                       onClick={onRegister}
-                      className="w-full py-5 bg-arcus-red text-white rounded-[2rem] font-black font-oswald uppercase italic text-xl hover:bg-slate-900 transition-all shadow-xl shadow-arcus-red/20 flex items-center justify-center gap-3"
+                      className="w-full py-5 bg-arcus-red text-white rounded-[2rem] font-black font-oswald uppercase italic text-xl hover:bg-slate-900 transition-all shadow-xl shadow-arcus-red/20 flex items-center justify-center gap-3 active:scale-[0.98]"
                     >
                       Daftar Sekarang
                     </button>
@@ -338,16 +351,25 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
                       </p>
                     )}
                   </>
+                ) : isFinished ? (
+                  <div className="space-y-3">
+                    <div className="w-full py-5 bg-slate-900 text-amber-400 rounded-[2rem] font-black font-oswald uppercase italic text-xl text-center shadow-md flex items-center justify-center gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-amber-400" />
+                      Event Telah Selesai
+                    </div>
+                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest text-center">
+                      Waktu pelaksanaan event telah berakhir ({event.settings?.eventDate || 'Selesai'})
+                    </p>
+                  </div>
                 ) : (
                   <div className="space-y-3">
-                    <div className="w-full py-5 bg-slate-100 text-slate-700 rounded-[2rem] font-black font-oswald uppercase italic text-xl text-center">
-                      Pendaftaran Tutup
+                    <div className="w-full py-5 bg-rose-50 border border-rose-200 text-rose-700 rounded-[2rem] font-black font-oswald uppercase italic text-xl text-center">
+                      Pendaftaran Ditutup
                     </div>
-                    {isExpired && (
-                      <p className="text-[9px] font-black text-arcus-red uppercase tracking-widest text-center">
-                        Waktu pendaftaran sudah berakhir
-                      </p>
-                    )}
+                    <p className="text-[9px] font-black text-rose-600 uppercase tracking-widest text-center flex items-center justify-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 shrink-0" />
+                      Batas waktu pendaftaran online sudah berakhir ({event.settings?.registrationDeadline ? safeFormatDateTime(event.settings.registrationDeadline) : 'Waktu Lewat'})
+                    </p>
                   </div>
                 )}
 

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, Target, QrCode, X, User, Delete, CheckCircle2, 
-  ChevronRight, ChevronLeft, Trash2, ScanLine, ShieldCheck, Lock
+  ChevronRight, ChevronLeft, Trash2, ScanLine, ShieldCheck, Lock, LogOut
 } from 'lucide-react';
 import { ArcheryEvent, ScoreEntry, Archer, TargetType, ScoreLog, CategoryType, ScorerAccess } from '../types';
 import { CATEGORY_LABELS } from '../constants';
@@ -12,9 +12,10 @@ interface Props {
   currentScorer?: ScorerAccess | null;
   onSaveScore: (score: ScoreEntry | ScoreEntry[], log?: ScoreLog | ScoreLog[]) => void;
   onBack?: () => void;
+  onLogoutScorer?: () => void;
 }
 
-const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBack }) => {
+const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBack, onLogoutScorer }) => {
   const [selectedCategory, setSelectedCategory] = useState<CategoryType | 'ALL'>('ALL');
   
   const allowedTargets = useMemo(() => {
@@ -480,9 +481,25 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
                   <ShieldCheck className="w-2.5 h-2.5 text-emerald-600" /> Manual Save (Verifikasi)
                 </span>
               </div>
-              <p className="text-[9px] font-bold uppercase mt-1 tracking-widest text-slate-800">
-                {currentScorer ? `Petugas: ${currentScorer.name}` : 'Field Score Terminal'}
-              </p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-800">
+                  {currentScorer ? `Petugas: ${currentScorer.name}` : 'Field Score Terminal'}
+                </p>
+                {currentScorer && onLogoutScorer && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm(`Ganti petugas / keluar dari akun ${currentScorer.name}? Anda harus memasukkan kode akses kembali untuk masuk.`)) {
+                        onLogoutScorer();
+                      }
+                    }}
+                    className="inline-flex items-center gap-1 text-[8px] font-black uppercase text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-1.5 py-0.5 rounded border border-red-200 transition-colors active:scale-95"
+                    title="Ganti Petugas / Keluar"
+                  >
+                    <LogOut className="w-2.5 h-2.5" /> Ganti / Keluar
+                  </button>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-1.5 font-sans">

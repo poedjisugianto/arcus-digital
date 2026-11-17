@@ -731,8 +731,8 @@ const ArcherList: React.FC<Props> = ({
 
       {showAddForm && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-lg rounded-[3rem] shadow-2xl p-10 space-y-8 animate-in zoom-in-95">
-            <div className="flex items-center justify-between">
+          <div className="bg-white w-full max-w-lg max-h-[90vh] rounded-[2.5rem] sm:rounded-[3rem] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95">
+            <div className="flex items-center justify-between px-6 sm:px-10 pt-6 sm:pt-8 pb-4 border-b border-slate-100 shrink-0">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-red-50 rounded-2xl">
                   <UserPlus className="w-6 h-6 text-arcus-red" />
@@ -747,6 +747,7 @@ const ArcherList: React.FC<Props> = ({
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setShowAddForm(false)}
                 className="p-2 text-slate-300 hover:text-slate-900 transition-colors"
               >
@@ -754,252 +755,256 @@ const ArcherList: React.FC<Props> = ({
               </button>
             </div>
 
-            {/* Mode Switcher */}
-            <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1.5">
-              <button
-                type="button"
-                className="flex-1 py-2 px-3 rounded-xl text-xs font-black uppercase flex items-center justify-center gap-2 bg-white text-slate-900 shadow-sm transition-all"
-              >
-                <UserPlus className="w-4 h-4 text-arcus-red" />
-                Input Manual
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowAddForm(false);
-                  setShowImportModal(true);
-                }}
-                className="flex-1 py-2 px-3 rounded-xl text-xs font-black uppercase flex items-center justify-center gap-2 text-slate-600 hover:text-emerald-700 hover:bg-white/60 transition-all"
-              >
-                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-                Import Peserta (Excel)
-              </button>
-            </div>
+            <form onSubmit={handleManualAdd} className="flex flex-col flex-1 min-h-0">
+              <div className="px-6 sm:px-10 py-5 space-y-5 overflow-y-auto flex-1 min-h-0 overscroll-contain">
+                {/* Mode Switcher */}
+                <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1.5">
+                  <button
+                    type="button"
+                    className="flex-1 py-2 px-3 rounded-xl text-xs font-black uppercase flex items-center justify-center gap-2 bg-white text-slate-900 shadow-sm transition-all"
+                  >
+                    <UserPlus className="w-4 h-4 text-arcus-red" />
+                    Input Manual
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddForm(false);
+                      setShowImportModal(true);
+                    }}
+                    className="flex-1 py-2 px-3 rounded-xl text-xs font-black uppercase flex items-center justify-center gap-2 text-slate-600 hover:text-emerald-700 hover:bg-white/60 transition-all"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                    Import Peserta (Excel)
+                  </button>
+                </div>
 
-            <form onSubmit={handleManualAdd} className="space-y-4">
-              <div className="grid grid-cols-1 gap-4">
-                <label className="block">
-                  <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest px-1">
-                    Nama Lengkap
-                  </span>
-                  <input
-                    type="text"
-                    required
-                    value={newArcher.name}
-                    onChange={(e) =>
-                      setNewArcher({ ...newArcher, name: e.target.value })
-                    }
-                    className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none focus:ring-4 ring-red-500/10 transition-all text-slate-900"
-                  />
-                </label>
+                <div className="grid grid-cols-1 gap-4">
+                  <label className="block">
+                    <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest px-1">
+                      Nama Lengkap
+                    </span>
+                    <input
+                      type="text"
+                      required
+                      value={newArcher.name}
+                      onChange={(e) =>
+                        setNewArcher({ ...newArcher, name: e.target.value })
+                      }
+                      className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none focus:ring-4 ring-red-500/10 transition-all text-slate-900"
+                    />
+                  </label>
 
-                <label className="block">
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest">
-                      Nomor KTA (Kartu Tanda Anggota) {Boolean(settings?.requireKta) && <span className="text-red-500 font-black">*</span>}
-                    </span>
-                    <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${
-                      Boolean(settings?.requireKta)
-                        ? 'text-red-700 bg-red-50 border-red-200 font-black'
-                        : 'text-slate-500 bg-slate-100 border-slate-200'
-                    }`}>
-                      {Boolean(settings?.requireKta) ? 'Wajib (Event Resmi)' : 'Tidak Wajib (Opsional)'}
-                    </span>
+                  <label className="block">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest">
+                        Nomor KTA (Kartu Tanda Anggota) {Boolean(settings?.requireKta) && <span className="text-red-500 font-black">*</span>}
+                      </span>
+                      <span className={`text-[8px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${
+                        Boolean(settings?.requireKta)
+                          ? 'text-red-700 bg-red-50 border-red-200 font-black'
+                          : 'text-slate-500 bg-slate-100 border-slate-200'
+                      }`}>
+                        {Boolean(settings?.requireKta) ? 'Wajib (Event Resmi)' : 'Tidak Wajib (Opsional)'}
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      required={Boolean(settings?.requireKta)}
+                      value={newArcher.ktaNumber}
+                      onChange={(e) =>
+                        setNewArcher({ ...newArcher, ktaNumber: e.target.value.toUpperCase() })
+                      }
+                      className={`mt-1 block w-full rounded-2xl border px-4 py-2.5 font-bold outline-none focus:ring-4 ring-blue-500/10 transition-all text-slate-900 placeholder:text-slate-400 placeholder:font-normal ${
+                        Boolean(settings?.requireKta) && !newArcher.ktaNumber.trim() ? 'border-amber-400' : 'border-slate-200'
+                      }`}
+                      placeholder={Boolean(settings?.requireKta) ? "Nomor KTA wajib diisi (Contoh: KTA-2024-001)" : "Contoh: KTA-2024-001 (Bisa diabaikan / Latber)"}
+                    />
+                  </label>
+
+                  <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                    <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-2">Pasfoto Peserta (ID Card)</span>
+                    <div className="flex items-center gap-4">
+                      <div className="relative w-16 h-16 rounded-2xl bg-slate-200 border-2 border-white overflow-hidden shadow-md flex items-center justify-center text-slate-700 shrink-0">
+                        {newArcher.photoUrl ? (
+                          <img src={newArcher.photoUrl} alt="Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <Camera className="w-6 h-6" />
+                        )}
+                        {isUploadingPhoto && (
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-left">
+                        <label className="cursor-pointer bg-slate-900 text-white hover:bg-arcus-red px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all inline-block">
+                          {newArcher.photoUrl ? "Ganti Foto" : "Unggah Foto"}
+                          <input type="file" accept="image/*" onChange={handleManualPhotoChange} className="hidden" />
+                        </label>
+                        <p className="text-[7.5px] font-bold text-slate-700 mt-1 uppercase">Opsional. Membantu pembuatan kartu tanda pengenal.</p>
+                      </div>
+                    </div>
                   </div>
-                  <input
-                    type="text"
-                    required={Boolean(settings?.requireKta)}
-                    value={newArcher.ktaNumber}
-                    onChange={(e) =>
-                      setNewArcher({ ...newArcher, ktaNumber: e.target.value.toUpperCase() })
-                    }
-                    className={`mt-1 block w-full rounded-2xl border px-4 py-2.5 font-bold outline-none focus:ring-4 ring-blue-500/10 transition-all text-slate-900 placeholder:text-slate-400 placeholder:font-normal ${
-                      Boolean(settings?.requireKta) && !newArcher.ktaNumber.trim() ? 'border-amber-400' : 'border-slate-200'
-                    }`}
-                    placeholder={Boolean(settings?.requireKta) ? "Nomor KTA wajib diisi (Contoh: KTA-2024-001)" : "Contoh: KTA-2024-001 (Bisa diabaikan / Latber)"}
-                  />
-                </label>
 
-                <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                  <span className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-2">Pasfoto Peserta (ID Card)</span>
-                  <div className="flex items-center gap-4">
-                    <div className="relative w-16 h-16 rounded-2xl bg-slate-200 border-2 border-white overflow-hidden shadow-md flex items-center justify-center text-slate-700 shrink-0">
-                      {newArcher.photoUrl ? (
-                        <img src={newArcher.photoUrl} alt="Preview" className="w-full h-full object-cover" />
-                      ) : (
-                        <Camera className="w-6 h-6" />
-                      )}
-                      {isUploadingPhoto && (
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        </div>
-                      )}
+                  <label className="block">
+                    <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest px-1">
+                      Email Archer (Opsional)
+                    </span>
+                    <input
+                      type="email"
+                      value={newArcher.email}
+                      onChange={(e) =>
+                        setNewArcher({ ...newArcher, email: e.target.value })
+                      }
+                      className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none focus:ring-4 ring-red-500/10 transition-all text-slate-900 placeholder:text-slate-700"
+                      placeholder="email@archer.com"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest px-1">
+                      Nomor Telepon (WA)
+                    </span>
+                    <input
+                      type="text"
+                      value={newArcher.phone}
+                      onChange={(e) =>
+                        setNewArcher({ ...newArcher, phone: e.target.value })
+                      }
+                      className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none focus:ring-4 ring-red-500/10 transition-all text-slate-900"
+                      placeholder="0812..."
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest px-1">
+                      Klub / Instansi
+                    </span>
+                    <input
+                      type="text"
+                      required
+                      value={newArcher.club}
+                      onChange={(e) =>
+                        setNewArcher({ ...newArcher, club: e.target.value })
+                      }
+                      className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none focus:ring-4 ring-red-500/10 transition-all text-slate-900"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest px-1">
+                      Kategori
+                    </span>
+                    <select
+                      value={newArcher.category}
+                      onChange={(e) =>
+                        setNewArcher({
+                          ...newArcher,
+                          category: e.target.value as CategoryType,
+                        })
+                      }
+                      className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none focus:ring-4 ring-red-500/10 transition-all text-slate-900"
+                    >
+                      {eventCategories.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {getCategoryDisplayName(cat, settings?.categoryConfigs)}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <label className="block">
+                    <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest px-1">
+                      Bantalan
+                    </span>
+                    <input
+                      type="number"
+                      value={newArcher.targetNo}
+                      onChange={(e) =>
+                        setNewArcher({
+                          ...newArcher,
+                          targetNo: Math.min(
+                            totalTargets,
+                            parseInt(e.target.value) || 1,
+                          ),
+                        })
+                      }
+                      className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none focus:ring-4 ring-red-500/10 transition-all text-slate-900"
+                      min="1"
+                      max={totalTargets}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest px-1">
+                      Posisi
+                    </span>
+                    <select
+                      value={newArcher.position}
+                      onChange={(e) =>
+                        setNewArcher({
+                          ...newArcher,
+                          position: e.target.value as any,
+                        })
+                      }
+                      className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none text-slate-900"
+                    >
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      <option value="C">C</option>
+                      <option value="D">D</option>
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest px-1">
+                      Sesi (Wave)
+                    </span>
+                    <input
+                      type="number"
+                      value={newArcher.wave}
+                      onChange={(e) =>
+                        setNewArcher({
+                          ...newArcher,
+                          wave: parseInt(e.target.value) || 1,
+                        })
+                      }
+                      className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none text-slate-900 focus:ring-4 ring-red-500/10 transition-all"
+                      min="1"
+                    />
+                  </label>
+                </div>
+
+                {/* Excel Import Callout */}
+                <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 bg-emerald-600 text-white rounded-xl shrink-0">
+                      <FileSpreadsheet className="w-4 h-4" />
                     </div>
                     <div className="text-left">
-                      <label className="cursor-pointer bg-slate-900 text-white hover:bg-arcus-red px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all inline-block">
-                        {newArcher.photoUrl ? "Ganti Foto" : "Unggah Foto"}
-                        <input type="file" accept="image/*" onChange={handleManualPhotoChange} className="hidden" />
-                      </label>
-                      <p className="text-[7.5px] font-bold text-slate-700 mt-1 uppercase">Opsional. Membantu pembuatan kartu tanda pengenal.</p>
+                      <span className="text-[11px] font-black text-emerald-950 block">Punya Banyak Peserta?</span>
+                      <span className="text-[10px] text-emerald-800">Gunakan fitur Import Peserta untuk upload puluhan / ratusan atlet sekaligus via file Excel.</span>
                     </div>
                   </div>
-                </div>
-
-                <label className="block">
-                  <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest px-1">
-                    Email Archer (Opsional)
-                  </span>
-                  <input
-                    type="email"
-                    value={newArcher.email}
-                    onChange={(e) =>
-                      setNewArcher({ ...newArcher, email: e.target.value })
-                    }
-                    className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none focus:ring-4 ring-red-500/10 transition-all text-slate-900 placeholder:text-slate-700"
-                    placeholder="email@archer.com"
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest px-1">
-                    Nomor Telepon (WA)
-                  </span>
-                  <input
-                    type="text"
-                    value={newArcher.phone}
-                    onChange={(e) =>
-                      setNewArcher({ ...newArcher, phone: e.target.value })
-                    }
-                    className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none focus:ring-4 ring-red-500/10 transition-all text-slate-900"
-                    placeholder="0812..."
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest px-1">
-                    Klub / Instansi
-                  </span>
-                  <input
-                    type="text"
-                    required
-                    value={newArcher.club}
-                    onChange={(e) =>
-                      setNewArcher({ ...newArcher, club: e.target.value })
-                    }
-                    className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none focus:ring-4 ring-red-500/10 transition-all text-slate-900"
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest px-1">
-                    Kategori
-                  </span>
-                  <select
-                    value={newArcher.category}
-                    onChange={(e) =>
-                      setNewArcher({
-                        ...newArcher,
-                        category: e.target.value as CategoryType,
-                      })
-                    }
-                    className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none focus:ring-4 ring-red-500/10 transition-all text-slate-900"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddForm(false);
+                      setShowImportModal(true);
+                    }}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase px-3 py-1.5 rounded-lg shrink-0 transition-all shadow-sm"
                   >
-                    {eventCategories.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {getCategoryDisplayName(cat, settings?.categoryConfigs)}
-                        </option>
-                      ))}
-                  </select>
-                </label>
+                    Import Peserta
+                  </button>
+                </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <label className="block">
-                  <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest px-1">
-                    Bantalan
-                  </span>
-                  <input
-                    type="number"
-                    value={newArcher.targetNo}
-                    onChange={(e) =>
-                      setNewArcher({
-                        ...newArcher,
-                        targetNo: Math.min(
-                          totalTargets,
-                          parseInt(e.target.value) || 1,
-                        ),
-                      })
-                    }
-                    className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none focus:ring-4 ring-red-500/10 transition-all text-slate-900"
-                    min="1"
-                    max={totalTargets}
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest px-1">
-                    Posisi
-                  </span>
-                  <select
-                    value={newArcher.position}
-                    onChange={(e) =>
-                      setNewArcher({
-                        ...newArcher,
-                        position: e.target.value as any,
-                      })
-                    }
-                    className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none text-slate-900"
-                  >
-                    <option value="A">A</option>
-                    <option value="B">B</option>
-                    <option value="C">C</option>
-                    <option value="D">D</option>
-                  </select>
-                </label>
-                <label className="block">
-                  <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest px-1">
-                    Sesi (Wave)
-                  </span>
-                  <input
-                    type="number"
-                    value={newArcher.wave}
-                    onChange={(e) =>
-                      setNewArcher({
-                        ...newArcher,
-                        wave: parseInt(e.target.value) || 1,
-                      })
-                    }
-                    className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none text-slate-900 focus:ring-4 ring-red-500/10 transition-all"
-                    min="1"
-                  />
-                </label>
-              </div>
-
-              {/* Excel Import Callout */}
-              <div className="bg-emerald-50 border border-emerald-200/80 rounded-2xl p-3 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 bg-emerald-600 text-white rounded-xl shrink-0">
-                    <FileSpreadsheet className="w-4 h-4" />
-                  </div>
-                  <div className="text-left">
-                    <span className="text-[11px] font-black text-emerald-950 block">Punya Banyak Peserta?</span>
-                    <span className="text-[10px] text-emerald-800">Gunakan fitur Import Peserta untuk upload puluhan / ratusan atlet sekaligus via file Excel.</span>
-                  </div>
-                </div>
+              <div className="px-6 sm:px-10 py-4 border-t border-slate-100 bg-white shrink-0">
                 <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddForm(false);
-                    setShowImportModal(true);
-                  }}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase px-3 py-1.5 rounded-lg shrink-0 transition-all shadow-sm"
+                  type="submit"
+                  className="w-full bg-arcus-red text-white py-3.5 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-red-600/20 hover:bg-red-700 active:scale-95 transition-all"
                 >
-                  Import Peserta
+                  Simpan Peserta
                 </button>
               </div>
-
-              <button
-                type="submit"
-                className="w-full bg-arcus-red text-white py-3.5 rounded-xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-red-600/20 hover:bg-red-700 active:scale-95 transition-all"
-              >
-                Simpan Peserta
-              </button>
             </form>
           </div>
         </div>

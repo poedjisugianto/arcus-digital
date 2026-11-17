@@ -23,6 +23,7 @@ import { getGoogleMapsUrl } from '../lib/mapsHelper';
 import { TechnicalSupportCard, TechnicalSupportModeBanner } from './TechnicalSupportCard';
 import { isSupportAccessActive } from '../lib/supportAccess';
 import { generateDefaultCategoryBlocks, reallocateAllParticipants } from '../lib/targetAllocation';
+import { isRegistrationDeadlinePassed, isEventFinished, safeFormatDateTime } from '../lib/dateUtils';
 import { toast } from 'sonner';
 
 export const getDefaultHighestScores = (targetType?: TargetType): { high1: string; high2: string } => {
@@ -1034,8 +1035,20 @@ const AdminPanel: React.FC<Props> = ({
                       </label>
 
                       <label className="block group">
-                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1 italic">Tanggal</span>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1 italic">Tanggal</span>
+                          {localSettings.eventDate && isEventFinished({ settings: localSettings }) && (
+                            <span className="text-[8px] font-black uppercase text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                              Event Selesai
+                            </span>
+                          )}
+                        </div>
                         <input type="text" placeholder="DD - DD MM YYYY" value={localSettings.eventDate} onChange={e => updateSettings({ eventDate: e.target.value })} className="block mt-1 w-full rounded-lg border-slate-200 p-3 border font-bold outline-none focus:border-arcus-red text-slate-900" />
+                        {localSettings.eventDate && isEventFinished({ settings: localSettings }) && (
+                          <span className="text-[8.5px] font-bold text-amber-800 mt-1 block">
+                            Waktu pelaksanaan event telah berakhir. Status lomba ditandai selesai secara otomatis.
+                          </span>
+                        )}
                       </label>
                     </div>
 
@@ -1077,9 +1090,20 @@ const AdminPanel: React.FC<Props> = ({
                     {!isPractice && (
                       <div className="space-y-6 pt-4 border-t border-slate-100">
                         <label className="block group">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Clock className="w-3.5 h-3.5 text-arcus-red" />
-                            <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1">Batas Akhir Pendaftaran Online</span>
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2">
+                              <Clock className="w-3.5 h-3.5 text-arcus-red" />
+                              <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1">Batas Akhir Pendaftaran Online</span>
+                            </div>
+                            {localSettings.registrationDeadline && (
+                              <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded border ${
+                                isRegistrationDeadlinePassed(localSettings.registrationDeadline)
+                                  ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              }`}>
+                                {isRegistrationDeadlinePassed(localSettings.registrationDeadline) ? 'Pendaftaran Ditutup Otomatis' : 'Pendaftaran Aktif'}
+                              </span>
+                            )}
                           </div>
                           <input 
                             type="datetime-local" 
@@ -1087,6 +1111,19 @@ const AdminPanel: React.FC<Props> = ({
                             onChange={e => updateSettings({ registrationDeadline: e.target.value })} 
                             className="block w-full rounded-lg border-slate-200 p-3 border font-bold text-sm outline-none focus:border-arcus-red transition-all text-slate-900" 
                           />
+                          {localSettings.registrationDeadline && (
+                            <span className="text-[8.5px] text-slate-600 font-medium mt-1 block">
+                              {isRegistrationDeadlinePassed(localSettings.registrationDeadline) ? (
+                                <span className="text-rose-600 font-bold">
+                                  Batas waktu telah terlewati ({safeFormatDateTime(localSettings.registrationDeadline)}). Formulir online otomatis ditutup & menolak pendaftaran baru.
+                                </span>
+                              ) : (
+                                <span className="text-emerald-700 font-semibold">
+                                  Pendaftaran online otomatis ditutup pada {safeFormatDateTime(localSettings.registrationDeadline)}.
+                                </span>
+                              )}
+                            </span>
+                          )}
                         </label>
 
                         <label className="block group">
