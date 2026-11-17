@@ -310,6 +310,7 @@ export interface CertificateConfig {
   layoutDensity?: 'COMPACT' | 'BALANCED' | 'SPACIOUS';
   contentGap?: number; // Jarak antar baris/elemen tengah dalam pixel (default: 4px untuk padat)
   centerOffsetY?: number; // Penyesuaian posisi vertikal seluruh blok tengah (-80 s/d +80 px)
+  allowParticipantDownload?: boolean; // Saklar buka/tutup akses download E-Sertifikat mandiri peserta hadir (default: false)
 }
 
 export interface TechnicalSupportAccess {

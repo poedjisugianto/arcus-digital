@@ -1,16 +1,17 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { 
   Calendar, MapPin, Users, Trophy, Target, 
   ChevronRight, ArrowLeft, Share2, Download, 
   ShieldCheck, Info, Clock, Award, CheckCircle2,
-  ExternalLink, Smartphone
+  ExternalLink, Smartphone, Medal
 } from 'lucide-react';
-import { ArcheryEvent, CategoryType } from '../types';
+import { ArcheryEvent, CategoryType, Match, TargetType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
 import ArcusLogo from './ArcusLogo';
 import { generateGoogleCalendarLink, generateICalFile } from '../lib/calendarUtils';
 import { safeFormatDateTime, isEventRegistrationClosed, isEventFinished } from '../lib/dateUtils';
 import { resolveGoogleDriveUrl } from '../lib/photoService';
+import { findCategoryConfig } from '../lib/firestoreUtils';
 
 interface Props {
   event: ArcheryEvent;
@@ -54,6 +55,139 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
   // Total atlet terdaftar yang valid dan selaras 100% dengan daftar peserta
   const hasLoadedList = (event.archers && event.archers.length > 0) || (event.registrations && event.registrations.length > 0) || event.isDetailedLoaded;
   const totalParticipants = hasLoadedList ? activeArchers.length : (event.registrationCount || activeArchers.length || 0);
+
+  const [selectedWinnerCategory, setSelectedWinnerCategory] = useState<string>('ALL');
+
+  // Hitung Juara tiap kategori saat event selesai (prioritas hasil Bagan Aduan, fallback ke peringkat Kualifikasi)
+  const categoryChampions = useMemo(() => {
+    if (!isFinished) return [];
+
+    const allArchers = activeArchers.length > 0 ? activeArchers : (event.archers || []);
+    const scoresList = event.scores || [];
+    const matchesMap = (event.matches || {}) as Record<string, Match[]>;
+    const configuredCats = event.settings?.categoryConfigs
+      ? Object.keys(event.settings.categoryConfigs).filter(c => c !== CategoryType.OFFICIAL)
+      : [];
+    const archerCats = Array.from(new Set(allArchers.map(a => String(a.category)).filter(c => c && c !== CategoryType.OFFICIAL)));
+    const categoryKeys = Array.from(new Set([...configuredCats, ...archerCats]));
+
+    return categoryKeys.map(cat => {
+      const catConfig = findCategoryConfig(cat, event.settings?.categoryConfigs);
+      const catArchers = allArchers.filter(a => String(a.category) === cat);
+
+      const rankedArchers = catArchers
+        .map(archer => {
+          const qualScores = scoresList.filter(s => s.archerId === archer.id && s.sessionId === 'QUAL' && !s.isDeleted);
+          const total = qualScores.reduce((acc, curr) => acc + (curr.total || 0), 0);
+          const manualSixes = qualScores.reduce((acc, curr) => acc + (curr.count6 || 0), 0);
+          const manualFives = qualScores.reduce((acc, curr) => acc + (curr.count5 || 0), 0);
+
+          const isSmallTarget = catConfig?.targetType === TargetType.PUTA || catConfig?.targetType === TargetType.TRADITIONAL_PUTA;
+          const isSixRing = catConfig?.targetType === TargetType.TRADITIONAL_6_RING;
+          const isFiveRing = catConfig?.targetType === TargetType.FACE_5_RING;
+          const allArrows = qualScores.flatMap(s => s.arrows || []).filter(v => v !== undefined && v !== -1);
+
+          let arrowSixes = 0;
+          let arrowFives = 0;
+          const h1 = catConfig?.highestScore1;
+          const h2 = catConfig?.highestScore2;
+
+          if (h1 || h2) {
+            arrowSixes = allArrows.filter(v => {
+              if (h1 === '10+X') return v === 10 || v === 'X';
+              if (h1 === 'X') return v === 'X';
+              const num = parseInt(h1 || '');
+              return !isNaN(num) ? v === num : false;
+            }).length;
+            arrowFives = allArrows.filter(v => {
+              if (h2 === 'X') return v === 'X';
+              const num = parseInt(h2 || '');
+              return !isNaN(num) ? v === num : false;
+            }).length;
+          } else if (isSmallTarget) {
+            arrowSixes = allArrows.filter(v => v === 2).length;
+            arrowFives = allArrows.filter(v => v === 1).length;
+          } else if (isSixRing) {
+            arrowSixes = allArrows.filter(v => v === 6).length;
+            arrowFives = allArrows.filter(v => v === 5).length;
+          } else if (isFiveRing) {
+            arrowSixes = allArrows.filter(v => v === 5).length;
+            arrowFives = allArrows.filter(v => v === 4).length;
+          } else if (catConfig?.targetType === TargetType.FACE_MEGA_MENDUNG) {
+            arrowSixes = allArrows.filter(v => v === 10).length;
+            arrowFives = allArrows.filter(v => v === 9).length;
+          } else {
+            arrowSixes = allArrows.filter(v => v === 'X' || v === 10).length;
+            arrowFives = allArrows.filter(v => v === 9).length;
+          }
+
+          const hasManual = qualScores.some(s => s.count6 !== undefined && s.count6 !== 0);
+          return {
+            ...archer,
+            total,
+            sixes: hasManual ? manualSixes : arrowSixes,
+            fives: hasManual ? manualFives : arrowFives
+          };
+        })
+        .sort((a, b) => {
+          if (b.total !== a.total) return b.total - a.total;
+          if (b.sixes !== a.sixes) return b.sixes - a.sixes;
+          return b.fives - a.fives;
+        });
+
+      const catMatches = matchesMap[cat] || [];
+      const finalMatch = catMatches.find(m => m.round === '2' && (m.status === 'COMPLETED' || Boolean(m.winnerId)));
+      const bronzeMatch = catMatches.find(m => m.round === '1' && (m.status === 'COMPLETED' || Boolean(m.winnerId)));
+
+      let goldId = finalMatch?.winnerId;
+      let silverId = finalMatch?.winnerId
+        ? (finalMatch.winnerId === finalMatch.archerAId ? finalMatch.archerBId : finalMatch.archerAId)
+        : undefined;
+      let bronzeId = bronzeMatch?.winnerId;
+      let fourthId = bronzeMatch?.winnerId
+        ? (bronzeMatch.winnerId === bronzeMatch.archerAId ? bronzeMatch.archerBId : bronzeMatch.archerAId)
+        : undefined;
+
+      const isFromBracket = Boolean(goldId || bronzeId);
+
+      if (!isFromBracket) {
+        if (rankedArchers[0] && rankedArchers[0].total > 0) goldId = rankedArchers[0].id;
+        if (rankedArchers[1] && rankedArchers[1].total > 0) silverId = rankedArchers[1].id;
+        if (rankedArchers[2] && rankedArchers[2].total > 0) bronzeId = rankedArchers[2].id;
+      }
+
+      const podiumDefs = [
+        { rank: 1, label: 'Juara 1', medal: 'Emas', id: goldId },
+        { rank: 2, label: 'Juara 2', medal: 'Perak', id: silverId },
+        { rank: 3, label: 'Juara 3', medal: 'Perunggu', id: bronzeId },
+        ...(isFromBracket && fourthId ? [{ rank: 4, label: 'Juara 4', medal: 'Harapan 1', id: fourthId }] : [])
+      ];
+
+      const winners = podiumDefs
+        .map(p => {
+          if (!p.id) return null;
+          const found = rankedArchers.find(a => a.id === p.id) || catArchers.find(a => a.id === p.id);
+          if (!found) return null;
+          return {
+            rank: p.rank,
+            label: p.label,
+            medal: p.medal,
+            archerId: found.id,
+            name: found.name,
+            club: found.club || 'Individu / Bebas',
+            score: (found as any).total || 0
+          };
+        })
+        .filter((w): w is NonNullable<typeof w> => Boolean(w));
+
+      return {
+        category: cat,
+        categoryLabel: CATEGORY_LABELS[cat] || cat,
+        source: isFromBracket ? 'Babak Aduan' : 'Kualifikasi',
+        winners
+      };
+    }).filter(entry => entry.winners.length > 0);
+  }, [isFinished, activeArchers, event.archers, event.scores, event.matches, event.settings?.categoryConfigs]);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-arcus-red selection:text-white">
@@ -164,6 +298,142 @@ export default function EventInfo({ event, onBack, onRegister, onShare, onViewPa
                 </div>
               </div>
             </div>
+
+            {/* Podium / Juara Tiap Kategori (Tampil Otomatis Setelah Event Selesai) */}
+            {isFinished && (
+              <div className="bg-white rounded-3xl p-6 md:p-10 border border-slate-100 shadow-sm space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-lg md:text-2xl font-black font-oswald uppercase italic text-slate-900 flex items-center gap-3">
+                      <Trophy className="w-5 h-5 md:w-6 md:h-6 text-amber-500" />
+                      Daftar Juara Tiap Kategori
+                    </h3>
+                    <p className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">
+                      Hasil Podium Resmi Turnamen
+                    </p>
+                  </div>
+
+                  {categoryChampions.length > 1 && (
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedWinnerCategory('ALL')}
+                        className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider whitespace-nowrap border transition-all ${
+                          selectedWinnerCategory === 'ALL'
+                            ? 'bg-slate-900 border-slate-900 text-amber-400 shadow-xs'
+                            : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-900'
+                        }`}
+                      >
+                        Semua ({categoryChampions.length})
+                      </button>
+                      {categoryChampions.map(c => (
+                        <button
+                          key={c.category}
+                          type="button"
+                          onClick={() => setSelectedWinnerCategory(c.category)}
+                          className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-wider whitespace-nowrap border transition-all ${
+                            selectedWinnerCategory === c.category
+                              ? 'bg-slate-900 border-slate-900 text-amber-400 shadow-xs'
+                              : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-900'
+                          }`}
+                        >
+                          {c.categoryLabel}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {categoryChampions.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {categoryChampions
+                      .filter(c => selectedWinnerCategory === 'ALL' || c.category === selectedWinnerCategory)
+                      .map(catEntry => (
+                        <div key={catEntry.category} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 md:p-5 space-y-3">
+                          <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-200">
+                            <span className="text-xs md:text-sm font-black font-oswald uppercase italic text-slate-900 tracking-wide">
+                              {catEntry.categoryLabel}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[8px] font-black uppercase tracking-widest text-slate-600 shrink-0">
+                              {catEntry.source}
+                            </span>
+                          </div>
+
+                          <div className="space-y-2">
+                            {catEntry.winners.map(w => (
+                              <div
+                                key={`${catEntry.category}-${w.rank}-${w.archerId}`}
+                                className={`flex items-center justify-between gap-3 p-3 rounded-xl border transition-all ${
+                                  w.rank === 1
+                                    ? 'bg-gradient-to-r from-amber-50 to-yellow-50/60 border-amber-200'
+                                    : w.rank === 2
+                                    ? 'bg-white border-slate-200'
+                                    : w.rank === 3
+                                    ? 'bg-orange-50/50 border-orange-200/80'
+                                    : 'bg-white border-slate-100'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div
+                                    className={`w-8 h-8 rounded-xl flex items-center justify-center font-black font-oswald text-xs shrink-0 shadow-2xs ${
+                                      w.rank === 1
+                                        ? 'bg-amber-400 text-amber-950'
+                                        : w.rank === 2
+                                        ? 'bg-slate-200 text-slate-800'
+                                        : w.rank === 3
+                                        ? 'bg-orange-300 text-orange-950'
+                                        : 'bg-slate-100 text-slate-600'
+                                    }`}
+                                  >
+                                    {w.rank === 1 ? <Trophy className="w-4 h-4" /> : <Medal className="w-4 h-4" />}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <span
+                                        className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${
+                                          w.rank === 1
+                                            ? 'bg-amber-400/25 text-amber-900'
+                                            : w.rank === 2
+                                            ? 'bg-slate-200/80 text-slate-700'
+                                            : w.rank === 3
+                                            ? 'bg-orange-200/80 text-orange-900'
+                                            : 'bg-slate-100 text-slate-600'
+                                        }`}
+                                      >
+                                        {w.label}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm font-black font-oswald uppercase italic text-slate-900 truncate mt-0.5">
+                                      {w.name}
+                                    </p>
+                                    <p className="text-[9px] font-bold text-slate-600 uppercase tracking-wider truncate">
+                                      {w.club}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {w.score > 0 && (
+                                  <div className="text-right shrink-0">
+                                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Skor</p>
+                                    <p className="text-base font-black font-oswald italic text-slate-900 leading-none">{w.score}</p>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                    <Trophy className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                    <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
+                      Belum ada hasil skor atau pemenang yang tercatat untuk event ini.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Categories */}
             <div className="bg-white rounded-3xl p-4 md:p-10 border border-slate-100 shadow-sm">

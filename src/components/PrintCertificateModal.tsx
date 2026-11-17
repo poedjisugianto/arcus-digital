@@ -102,6 +102,9 @@ export default function PrintCertificateModal({
     return raw || 'Peserta';
   });
   const [centerOffsetY, setCenterOffsetY] = useState<number>(existingConfig?.centerOffsetY ?? 0);
+  const [allowParticipantDownload, setAllowParticipantDownload] = useState<boolean>(
+    Boolean(existingConfig?.allowParticipantDownload)
+  );
   const [isUploadingBg, setIsUploadingBg] = useState<boolean>(false);
   const [bgRetryStage, setBgRetryStage] = useState<number>(0);
   const [bgLoadError, setBgLoadError] = useState<boolean>(false);
@@ -424,6 +427,7 @@ export default function PrintCertificateModal({
       participantPredicateStyle,
       participantCustomLabel,
       centerOffsetY,
+      allowParticipantDownload,
       ...overrides
     };
 
@@ -1346,6 +1350,58 @@ export default function PrintCertificateModal({
                         <span>Simpan Desain</span>
                       </button>
                     )}
+                  </div>
+
+                  {/* SAKLAR AKSES DOWNLOAD MANDIRI PESERTA (DEFAULT: NON-AKTIF) */}
+                  <div className={`p-5 sm:p-6 rounded-2xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                    allowParticipantDownload
+                      ? 'bg-emerald-500/10 border-emerald-400/40'
+                      : 'bg-slate-900 border-white/10'
+                  }`}>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <h5 className="text-sm font-black uppercase tracking-wider text-white">
+                          Akses Download E-Sertifikat Peserta
+                        </h5>
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                          allowParticipantDownload
+                            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
+                            : 'bg-slate-800 text-slate-400 border-white/10'
+                        }`}>
+                          {allowParticipantDownload ? 'AKTIF (DIBUKA)' : 'NON-AKTIF (TERTUTUP)'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        {allowParticipantDownload
+                          ? 'Peserta yang tercatat HADIR (sudah Check-In / Registrasi Ulang) dapat mengunduh file PDF E-Sertifikat langsung dari halaman Daftar Peserta.'
+                          : 'Non-aktif (default). Tombol E-Sertifikat disembunyikan di Daftar Peserta sehingga hanya tampil tombol Tiket.'}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={allowParticipantDownload}
+                      onClick={() => {
+                        const nextVal = !allowParticipantDownload;
+                        setAllowParticipantDownload(nextVal);
+                        if (onSaveSettings) {
+                          saveCertificateConfig({ allowParticipantDownload: nextVal });
+                        }
+                      }}
+                      className={`relative inline-flex h-8 w-16 shrink-0 cursor-pointer items-center rounded-full border-2 transition-colors duration-200 focus:outline-hidden ${
+                        allowParticipantDownload
+                          ? 'bg-emerald-500 border-emerald-400'
+                          : 'bg-slate-700 border-slate-600'
+                      }`}
+                      title={allowParticipantDownload ? 'Klik untuk menonaktifkan download mandiri' : 'Klik untuk mengaktifkan download mandiri peserta hadir'}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-200 ${
+                          allowParticipantDownload ? 'translate-x-8' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
                   </div>
 
                   {/* SECTION 1: LINK GAMBAR / UPLOAD DESAIN SENDIRI (BLANKO CUSTOM) */}

@@ -72,10 +72,21 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing, organiz
         targetNo: r.targetNo || 0,
         wave: r.wave || 1
       }));
-    const combined = [...fromArchers, ...fromRegs];
-    const unique = Array.from(new Map(combined.map(item => [item.id, item])).values());
-    return unique;
+    const map = new Map<string, any>();
+    fromRegs.forEach((item: any) => map.set(item.id, item));
+    fromArchers.forEach((item: any) => {
+      const existing = map.get(item.id);
+      map.set(item.id, {
+        ...(existing || {}),
+        ...item,
+        checkedIn: Boolean(existing?.checkedIn || item.checkedIn),
+        checkInTimestamp: item.checkInTimestamp || existing?.checkInTimestamp
+      });
+    });
+    return Array.from(map.values());
   }, [event.archers, event.registrations]);
+
+  const isParticipantCertEnabled = Boolean(event.settings?.certificateConfig?.allowParticipantDownload);
 
   const officials = useMemo(() => {
     const fromArchers = (event.archers || []).filter(a => a.category === CategoryType.OFFICIAL);
@@ -243,7 +254,7 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing, organiz
                   {viewMode === 'ARCHERS' && <th className="px-4 md:px-10 py-3 md:py-6 hidden sm:table-cell">Category</th>}
                   {viewMode === 'ARCHERS' && <th className="px-4 md:px-10 py-3 md:py-6 text-center">Target</th>}
                   <th className="px-4 md:px-10 py-3 md:py-6 text-right">Status</th>
-                  <th className="px-3 md:px-6 py-3 md:py-6 text-center">{viewMode === 'ARCHERS' ? 'Tiket & E-Sertifikat' : 'Tiket'}</th>
+                  <th className="px-3 md:px-6 py-3 md:py-6 text-center">{viewMode === 'ARCHERS' && isParticipantCertEnabled ? 'Tiket & E-Sertifikat' : 'Tiket'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -297,7 +308,10 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing, organiz
                           <QrCode className="w-3.5 h-3.5 text-red-600 group-hover/btn:text-white" />
                           <span className="hidden sm:inline">Tiket</span>
                         </button>
-                        {viewMode === 'ARCHERS' && (item.status || '').toUpperCase() !== 'REJECTED' && (
+                        {viewMode === 'ARCHERS' &&
+                          isParticipantCertEnabled &&
+                          Boolean((item as Archer).checkedIn) &&
+                          (item.status || '').toUpperCase() !== 'REJECTED' && (
                           <button
                             onClick={() => handleDownloadCertificate(item as Archer)}
                             disabled={downloadingCertId !== null}
