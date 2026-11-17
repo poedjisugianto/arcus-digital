@@ -1906,18 +1906,23 @@ export default function App() {
     if (!activeEvent) return;
 
     try {
+      const cleanParticipant = sanitizeForFirestore({
+        ...participant,
+        eventId: (participant as any).eventId || activeEvent.id
+      });
+
       if (db && isOnline) {
         const { doc, setDoc } = await import('firebase/firestore');
-        const subRef = doc(db, 'events', activeEvent.id, 'submissions', participant.id);
+        const subRef = doc(db, 'events', activeEvent.id, 'submissions', cleanParticipant.id);
         await setDoc(subRef, {
-          ...participant,
+          ...cleanParticipant,
           serverTimestamp: serverTimestamp(),
           updatedAt: new Date().toISOString()
         }, { merge: true });
-        console.log(`[CLIENT-ADD] Participant submission ${participant.id} added in Firestore`);
+        console.log(`[CLIENT-ADD] Participant submission ${cleanParticipant.id} added in Firestore`);
       }
 
-      const isOfficial = participant.regType === 'OFFICIAL' || participant.category === 'OFFICIAL';
+      const isOfficial = cleanParticipant.regType === 'OFFICIAL' || cleanParticipant.category === 'OFFICIAL';
       const currentArchers = activeEvent.archers || [];
       const currentOfficials = activeEvent.officials || [];
 
@@ -1925,9 +1930,9 @@ export default function App() {
       let updatedOfficials = [...currentOfficials];
 
       if (isOfficial) {
-        updatedOfficials.push(participant);
+        updatedOfficials.push(cleanParticipant);
       } else {
-        updatedArchers.push(participant as Archer);
+        updatedArchers.push(cleanParticipant as Archer);
       }
 
       const accurateCount = getAccurateParticipantCount(updatedArchers, activeEvent.registrations || []);

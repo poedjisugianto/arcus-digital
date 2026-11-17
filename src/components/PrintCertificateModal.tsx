@@ -5,12 +5,12 @@ import {
   Settings2, Image as ImageIcon, Upload, Trash2, Check, 
   X, ChevronLeft, ChevronRight, RefreshCw, Sliders, 
   Palette, Eye, Sparkles, ShieldCheck, FileText, CheckCircle2,
-  Users, Layers, ExternalLink, HelpCircle
+  Users, Layers, ExternalLink, HelpCircle, Loader2, AlertTriangle
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { ArcheryEvent, CategoryType, Archer, Match, TournamentSettings, CertificateConfig, CertificateTemplateStyle, CertificateSignatory } from '../types';
 import { CATEGORY_LABELS } from '../constants';
-import { resolveGoogleDriveUrl } from '../lib/photoService';
+import { resolveGoogleDriveUrl, compressPhoto, uploadPhotoToStorage } from '../lib/photoService';
 import { toast } from 'sonner';
 
 interface Props {
@@ -102,6 +102,67 @@ export default function PrintCertificateModal({
     return raw || 'Peserta';
   });
   const [centerOffsetY, setCenterOffsetY] = useState<number>(existingConfig?.centerOffsetY ?? 0);
+  const [isUploadingBg, setIsUploadingBg] = useState<boolean>(false);
+  const [bgRetryStage, setBgRetryStage] = useState<number>(0);
+  const [bgLoadError, setBgLoadError] = useState<boolean>(false);
+  const [bgLoaded, setBgLoaded] = useState<boolean>(false);
+
+  useEffect(() => {
+    setBgRetryStage(0);
+    setBgLoadError(false);
+    setBgLoaded(false);
+  }, [customBgUrl]);
+
+  const extractGoogleDriveId = (rawUrl: string): string | null => {
+    const cleaned = rawUrl.trim();
+    const m1 = cleaned.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (m1?.[1]) return m1[1];
+    const m2 = cleaned.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (m2?.[1]) return m2[1];
+    const m3 = cleaned.match(/lh3\.googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/);
+    if (m3?.[1]) return m3[1];
+    const m4 = cleaned.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (m4?.[1] && (cleaned.includes('drive.google.com') || cleaned.includes('docs.google.com'))) return m4[1];
+    return null;
+  };
+
+  const getCustomBgSrc = (rawUrl: string): string | null => {
+    const cleaned = (rawUrl || '').trim();
+    if (!cleaned) return null;
+
+    // Handle Google Drive URLs with multi-stage reliable CDN fallbacks
+    const driveId = extractGoogleDriveId(cleaned);
+    if (driveId) {
+      if (bgRetryStage === 0) {
+        return `https://drive.google.com/thumbnail?id=${driveId}&sz=w2000`;
+      }
+      if (bgRetryStage === 1) {
+        return `https://lh3.googleusercontent.com/d/${driveId}`;
+      }
+      if (bgRetryStage === 2) {
+        return `https://drive.usercontent.google.com/download?id=${driveId}&export=view&authuser=0`;
+      }
+      return `https://drive.google.com/uc?export=view&id=${driveId}`;
+    }
+
+    // Handle Dropbox share links (?dl=0 or ?dl=1 -> ?raw=1)
+    if (cleaned.includes('dropbox.com')) {
+      return cleaned.replace(/([?&])dl=[01]\b/, '$1raw=1');
+    }
+
+    return resolveGoogleDriveUrl(cleaned);
+  };
+
+  const handleCustomBgError = (failedStage: number) => {
+    const cleaned = (customBgUrl || '').trim();
+    const isDrive = Boolean(extractGoogleDriveId(cleaned));
+    if (isDrive && failedStage < 3) {
+      setBgRetryStage(prev => (prev === failedStage ? failedStage + 1 : prev));
+    } else {
+      setBgLoaded(false);
+      setBgLoadError(true);
+    }
+  };
 
   // Helper font family styling
   const getFontFamilyStyle = (font: string) => {
@@ -330,11 +391,11 @@ export default function PrintCertificateModal({
   const currentRecipient = recipients[currentPreviewIndex] || null;
 
   // Handle Save Settings
-  const handleSaveCertificateConfig = () => {
+  const saveCertificateConfig = (overrides?: Partial<CertificateConfig>) => {
     if (!onSaveSettings) return;
     const newConfig: CertificateConfig = {
       templateStyle,
-      customBackgroundUrl: customBgUrl,
+      customBackgroundUrl: customBgUrl.trim(),
       useCustomBackgroundOnly: useCustomBgOnly,
       printTextOnlyMode,
       title: certTitle,
@@ -362,7 +423,8 @@ export default function PrintCertificateModal({
       primaryTextColor,
       participantPredicateStyle,
       participantCustomLabel,
-      centerOffsetY
+      centerOffsetY,
+      ...overrides
     };
 
     onSaveSettings({
@@ -371,6 +433,8 @@ export default function PrintCertificateModal({
     });
     toast.success('Pengaturan & desain sertifikat berhasil disimpan!');
   };
+
+  const handleSaveCertificateConfig = () => saveCertificateConfig();
 
   // Apply batch manual certificate numbering
   const handleApplyManualNumberFormat = () => {
@@ -397,17 +461,42 @@ export default function PrintCertificateModal({
   };
 
   // Upload Custom Background Handlers
-  const handleBgFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBgFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setCustomBgUrl(reader.result as string);
-        setUseCustomBgOnly(true);
-        setTemplateStyle('CUSTOM_BACKGROUND');
-        toast.success('File desain sertifikat berhasil diunggah!');
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    setIsUploadingBg(true);
+    setBgLoadError(false);
+    setBgRetryStage(0);
+
+    try {
+      // Compress to crisp A4 landscape size so it stays fast and never hits Firestore 1MB limit
+      let { base64, blob } = await compressPhoto(file, 1600, 0.85);
+      let finalUrl = base64;
+
+      try {
+        const storagePath = `events/${event.id || 'temp'}/cert-blanko-${Date.now()}.jpg`;
+        finalUrl = await uploadPhotoToStorage(blob, storagePath);
+      } catch (storageErr) {
+        console.warn('Storage upload failed, using compressed base64 fallback:', storageErr);
+        // Ensure compressed base64 fits safely within Firestore 1MB doc limit (settings + data.settings = 2x)
+        if (base64.length > 350000) {
+          const tighter = await compressPhoto(file, 1200, 0.72);
+          finalUrl = tighter.base64;
+        }
+      }
+
+      setCustomBgUrl(finalUrl);
+      setUseCustomBgOnly(true);
+      setPrintTextOnlyMode(false);
+      setTemplateStyle('CUSTOM_BACKGROUND');
+      toast.success('Desain blanko berhasil dipasang! Klik "Simpan Desain" agar tersimpan permanen.');
+    } catch (err: any) {
+      console.error('Upload custom blanko error:', err);
+      toast.error('Gagal memproses file desain: ' + (err?.message || 'format tidak didukung'));
+    } finally {
+      setIsUploadingBg(false);
+      e.target.value = '';
     }
   };
 
@@ -488,7 +577,7 @@ export default function PrintCertificateModal({
     const tournamentLogo = event.settings?.logoUrl ? resolveGoogleDriveUrl(event.settings.logoUrl) : null;
     const clubLogo = event.settings?.clubLogoUrl ? resolveGoogleDriveUrl(event.settings.clubLogoUrl) : null;
     const secondaryLogo = event.settings?.secondaryLogoUrl ? resolveGoogleDriveUrl(event.settings.secondaryLogoUrl) : null;
-    const customBg = customBgUrl ? resolveGoogleDriveUrl(customBgUrl) : null;
+    const customBg = getCustomBgSrc(customBgUrl);
 
     // Font size classes for name - substantial and commanding
     const nameSizeClass = {
@@ -553,23 +642,31 @@ export default function PrintCertificateModal({
         {/* 1. BACKGROUND LAYER */}
         {!printTextOnlyMode && (
           <>
-            {/* Custom Uploaded Background Image */}
+            {/* Custom Uploaded / Linked Background Image */}
             {customBg && (
               <img 
+                key={`${customBg}-${bgRetryStage}`}
                 src={customBg} 
                 alt="Certificate Blanko" 
                 className="absolute inset-0 w-full h-full object-cover object-center z-0" 
                 referrerPolicy="no-referrer"
+                onError={() => handleCustomBgError(bgRetryStage)}
+                onLoad={() => {
+                  setBgLoadError(false);
+                  setBgLoaded(true);
+                }}
               />
             )}
 
-            {/* If NOT using custom background ONLY, render beautiful built-in frames */}
+            {/* If NOT using custom background ONLY, render built-in frames (transparent fill when customBg exists so custom blanko is never hidden!) */}
             {(!useCustomBgOnly || !customBg) && (
               <>
                 {/* Style: ROYAL GOLD */}
                 {templateStyle === 'ROYAL_GOLD' && (
-                  <div className="absolute inset-0 pointer-events-none z-0">
-                    <div className="absolute inset-0 bg-gradient-to-b from-[#FAF8F5] via-[#FFFDF9] to-[#F5EFEB]" />
+                  <div className="absolute inset-0 pointer-events-none z-[1]">
+                    {!customBg && (
+                      <div className="absolute inset-0 bg-gradient-to-b from-[#FAF8F5] via-[#FFFDF9] to-[#F5EFEB]" />
+                    )}
                     {/* Outer Gold Border */}
                     <div className="absolute inset-3 sm:inset-4 md:inset-5 border-[3px] sm:border-[4px] border-[#D4AF37]" />
                     {/* Inner Fine Border */}
@@ -584,7 +681,7 @@ export default function PrintCertificateModal({
 
                 {/* Style: MODERN SPORT */}
                 {templateStyle === 'MODERN_SPORT' && (
-                  <div className="absolute inset-0 pointer-events-none z-0 bg-gradient-to-br from-slate-50 via-white to-red-50/40">
+                  <div className={`absolute inset-0 pointer-events-none z-[1] ${!customBg ? 'bg-gradient-to-br from-slate-50 via-white to-red-50/40' : ''}`}>
                     <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-r from-red-600 via-amber-500 to-slate-900" />
                     <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-r from-slate-900 via-amber-500 to-red-600" />
                     <div className="absolute inset-4 sm:inset-6 border-2 border-slate-900/15" />
@@ -597,7 +694,7 @@ export default function PrintCertificateModal({
 
                 {/* Style: TRADITIONAL HERITAGE */}
                 {templateStyle === 'TRADITIONAL_HERITAGE' && (
-                  <div className="absolute inset-0 pointer-events-none z-0 bg-[#FDFBF7]">
+                  <div className={`absolute inset-0 pointer-events-none z-[1] ${!customBg ? 'bg-[#FDFBF7]' : ''}`}>
                     <div className="absolute inset-4 sm:inset-6 border-4 border-[#78350F]/70" />
                     <div className="absolute inset-6 sm:inset-8 border border-dashed border-[#B45309]/50" />
                     {/* Vintage Corner Brackets */}
@@ -610,7 +707,7 @@ export default function PrintCertificateModal({
 
                 {/* Style: MINIMAL CLEAN */}
                 {templateStyle === 'MINIMAL_CLEAN' && (
-                  <div className="absolute inset-0 pointer-events-none z-0 bg-white">
+                  <div className={`absolute inset-0 pointer-events-none z-[1] ${!customBg ? 'bg-white' : ''}`}>
                     <div className="absolute inset-6 sm:inset-8 border border-slate-900" />
                     <div className="absolute inset-7 sm:inset-9 border border-slate-300" />
                   </div>
@@ -1175,10 +1272,43 @@ export default function PrintCertificateModal({
                     </div>
                   </div>
 
+                  {/* Banner Peringatan jika Text-Only Mode Aktif atau URL Gagal Dimuat */}
+                  {printTextOnlyMode && (
+                    <div className="mb-3 p-2.5 rounded-xl bg-amber-500/15 border border-amber-400/40 flex items-center justify-between gap-3 shrink-0">
+                      <span className="text-[11px] font-bold text-amber-200 flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                        Mode "Cetak Teks Saja" sedang aktif sehingga latar/blanko sertifikat disembunyikan.
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setPrintTextOnlyMode(false)}
+                        className="px-3 py-1 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0"
+                      >
+                        Tampilkan Latar / Blanko
+                      </button>
+                    </div>
+                  )}
+
+                  {!printTextOnlyMode && customBgUrl.trim() && bgLoadError && (
+                    <div className="mb-3 p-2.5 rounded-xl bg-red-500/15 border border-red-400/40 flex items-center justify-between gap-3 shrink-0">
+                      <span className="text-[11px] font-bold text-red-200 flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                        Link gambar blanko tidak bisa dimuat. Pastikan link Google Drive diset publik ("Siapa saja yang memiliki link") atau gunakan link langsung gambar (.jpg/.png).
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('SETTINGS')}
+                        className="px-3 py-1 bg-white/10 hover:bg-white/20 text-white rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0"
+                      >
+                        Perbaiki Link
+                      </button>
+                    </div>
+                  )}
+
                   {/* Certificate Paper Sheet Canvas (Interactive Zoom / Fit) */}
                   <div className="flex-1 overflow-auto bg-slate-900/60 rounded-2xl border border-white/10 p-2 sm:p-6 flex items-center justify-center">
                     {currentRecipient ? (
-                      <div className="w-full max-w-4xl shadow-2xl rounded-xl overflow-hidden ring-1 ring-white/10">
+                      <div className="w-full max-w-4xl shadow-2xl rounded-xl overflow-hidden ring-1 ring-white/10 my-auto">
                         {renderCertificateSheet(currentRecipient)}
                       </div>
                     ) : (
@@ -1218,29 +1348,30 @@ export default function PrintCertificateModal({
                     )}
                   </div>
 
-                  {/* SECTION 1: UPLOAD DESAIN SENDIRI (PENYELENGGARA) */}
+                  {/* SECTION 1: LINK GAMBAR / UPLOAD DESAIN SENDIRI (BLANKO CUSTOM) */}
                   <div className="p-5 sm:p-6 rounded-2xl bg-slate-900 border border-amber-400/30 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-amber-400/20 text-amber-300 flex items-center justify-center font-black">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-amber-400/20 text-amber-300 flex items-center justify-center font-black shrink-0">
                           🎨
                         </div>
                         <div>
                           <h5 className="text-sm font-black uppercase tracking-wider text-white">
-                            Upload Desain Sertifikat Sendiri (Blanko Custom)
+                            Blanko Sertifikat Custom (Link Gambar / Upload)
                           </h5>
                           <p className="text-xs text-slate-400">
-                            Penyelenggara dapat mengunggah gambar latar sertifikat sendiri (Format PNG/JPG ukuran A4 Landscape).
+                            Cukup tempel link gambar (Google Drive / URL gambar langsung .jpg/.png) tanpa perlu upload file, atau unggah langsung dari perangkat.
                           </p>
                         </div>
                       </div>
                       <button
                         type="button"
+                        disabled={isUploadingBg}
                         onClick={() => fileBgInputRef.current?.click()}
-                        className="px-3.5 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs"
+                        className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 border border-white/15 disabled:opacity-60 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs shrink-0 self-start sm:self-auto"
                       >
-                        <Upload className="w-3.5 h-3.5" />
-                        <span>Unggah File Desain</span>
+                        {isUploadingBg ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5 text-amber-400" />}
+                        <span>{isUploadingBg ? 'Mengunggah...' : 'Atau Unggah File'}</span>
                       </button>
                       <input 
                         ref={fileBgInputRef}
@@ -1251,59 +1382,116 @@ export default function PrintCertificateModal({
                       />
                     </div>
 
-                    {/* URL Input Fallback */}
-                    <div className="space-y-1.5">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                        Atau Salin Link Gambar (URL / Google Drive):
-                      </span>
-                      <input 
-                        type="url"
-                        value={customBgUrl}
-                        onChange={e => {
-                          setCustomBgUrl(e.target.value);
-                          if (e.target.value) setTemplateStyle('CUSTOM_BACKGROUND');
-                        }}
-                        placeholder="https://... atau Google Drive URL gambar sertifikat..."
-                        className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-hidden focus:border-amber-400"
-                      />
+                    {/* Link Gambar Input (Utama - Tanpa Harus Upload) */}
+                    <div className="space-y-2 p-4 rounded-xl bg-slate-950/70 border border-amber-400/20">
+                      <label className="text-[11px] font-black uppercase tracking-wider text-amber-300 block">
+                        Tempel Link Gambar Blanko (Google Drive / URL Langsung .JPG / .PNG):
+                      </label>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input 
+                          type="text"
+                          value={customBgUrl}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setCustomBgUrl(val);
+                            if (val.trim()) {
+                              setTemplateStyle('CUSTOM_BACKGROUND');
+                              setUseCustomBgOnly(true);
+                              setPrintTextOnlyMode(false);
+                            }
+                          }}
+                          placeholder="https://drive.google.com/file/d/... atau https://.../blanko.jpg"
+                          className="flex-1 bg-slate-900 border border-white/15 rounded-xl px-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-hidden focus:border-amber-400"
+                        />
+                        {customBgUrl.trim() && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setTemplateStyle('CUSTOM_BACKGROUND');
+                              setUseCustomBgOnly(true);
+                              setPrintTextOnlyMode(false);
+                              if (onSaveSettings) {
+                                saveCertificateConfig({
+                                  templateStyle: 'CUSTOM_BACKGROUND',
+                                  useCustomBackgroundOnly: true,
+                                  printTextOnlyMode: false
+                                });
+                              }
+                              setActiveTab('PREVIEW');
+                            }}
+                            className="px-4 py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md shrink-0 flex items-center justify-center gap-1.5"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>{onSaveSettings ? 'Simpan & Lihat Pratinjau' : 'Lihat Pratinjau'}</span>
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-400 leading-relaxed">
+                        💡 Jika memakai <strong>Google Drive</strong>: Klik kanan file gambar → <em>Bagikan (Share)</em> → ubah akses menjadi <strong>"Siapa saja yang memiliki link"</strong>, lalu salin link-nya ke kotak di atas.
+                      </p>
                     </div>
 
                     {/* Custom Background Options */}
-                    {customBgUrl && (
-                      <div className="p-3 bg-slate-950/80 rounded-xl border border-white/10 flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <img 
-                            src={resolveGoogleDriveUrl(customBgUrl)} 
-                            alt="Background Preview" 
-                            className="w-16 h-11 object-cover rounded-lg border border-white/20"
-                            referrerPolicy="no-referrer"
-                          />
-                          <div>
-                            <p className="text-xs font-bold text-white">Desain Blanko Aktif</p>
-                            <label className="flex items-center gap-2 mt-1 cursor-pointer">
-                              <input 
-                                type="checkbox"
-                                checked={useCustomBgOnly}
-                                onChange={e => setUseCustomBgOnly(e.target.checked)}
-                                className="w-3.5 h-3.5 rounded text-amber-400"
-                              />
-                              <span className="text-[10px] text-slate-300">
-                                Sembunyikan bingkai bawaan (Tampilkan murni background custom)
-                              </span>
-                            </label>
+                    {customBgUrl.trim() && (
+                      <div className="p-3 bg-slate-950/80 rounded-xl border border-white/10 space-y-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <img 
+                              key={`thumb-${getCustomBgSrc(customBgUrl)}-${bgRetryStage}`}
+                              src={getCustomBgSrc(customBgUrl) || ''} 
+                              alt="Background Preview" 
+                              className="w-20 h-14 object-cover rounded-lg border border-white/20 bg-slate-900 shrink-0"
+                              referrerPolicy="no-referrer"
+                              onError={() => handleCustomBgError(bgRetryStage)}
+                              onLoad={() => {
+                                setBgLoadError(false);
+                                setBgLoaded(true);
+                              }}
+                            />
+                            <div>
+                              <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                                <span>Desain Blanko Aktif</span>
+                                {bgLoaded && !bgLoadError && (
+                                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-black uppercase">
+                                    Siap Tampil
+                                  </span>
+                                )}
+                              </p>
+                              <label className="flex items-center gap-2 mt-1 cursor-pointer">
+                                <input 
+                                  type="checkbox"
+                                  checked={useCustomBgOnly}
+                                  onChange={e => setUseCustomBgOnly(e.target.checked)}
+                                  className="w-3.5 h-3.5 rounded text-amber-400"
+                                />
+                                <span className="text-[10px] text-slate-300">
+                                  Sembunyikan bingkai bawaan (Tampilkan murni background custom)
+                                </span>
+                              </label>
+                            </div>
                           </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCustomBgUrl('');
+                              setUseCustomBgOnly(false);
+                              setBgLoadError(false);
+                              setBgLoaded(false);
+                              setTemplateStyle('ROYAL_GOLD');
+                            }}
+                            className="text-xs font-bold text-red-400 hover:text-red-300 px-2.5 py-1 rounded-lg hover:bg-red-400/10 transition-colors shrink-0"
+                          >
+                            Hapus Desain
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCustomBgUrl('');
-                            setUseCustomBgOnly(false);
-                            setTemplateStyle('ROYAL_GOLD');
-                          }}
-                          className="text-xs font-bold text-red-400 hover:text-red-300 px-2.5 py-1 rounded-lg hover:bg-red-400/10 transition-colors"
-                        >
-                          Hapus Desain
-                        </button>
+                        {bgLoadError && (
+                          <div className="flex items-center gap-2 text-[10px] text-amber-300 bg-amber-500/10 border border-amber-400/30 rounded-lg px-3 py-2">
+                            <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                            <span>
+                              Gambar blanko gagal dimuat dari link ini. Pastikan link berakhiran gambar (<code>.jpg</code>/<code>.png</code>) atau jika dari Google Drive, pastikan izin berbagi sudah diset ke <strong>"Siapa saja yang memiliki link"</strong> (bukan link folder).
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )}
 
