@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { ArcheryEvent, GlobalSettings, ParticipantRegistration, CategoryType, RegistrationStatus } from '../types';
 import { compressPhoto, uploadPhotoToStorage } from '../lib/photoService';
+import { auth } from '../firebase';
 
 declare global {
   interface Window {
@@ -735,7 +736,10 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
         // Refresh event context before registering to ensure data is absolute live
         // We add a try-catch specifically for this pre-check so it doesn't block registration if it fails
         try {
-          const freshRes = await fetch(`/api/event-details/${event.id}`);
+          const token = auth?.currentUser ? await auth.currentUser.getIdToken().catch(() => null) : null;
+          const freshRes = await fetch(`/api/event-details/${event.id}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined
+          });
           if (freshRes.ok) {
             const freshData = await freshRes.json();
             console.log("Cloud verify success", !!freshData.success);

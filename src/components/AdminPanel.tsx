@@ -117,15 +117,25 @@ const AdminPanel: React.FC<Props> = ({
   const [showPrintScoreSheetsModal, setShowPrintScoreSheetsModal] = useState(false);
   const [showPrintEliminationModal, setShowPrintEliminationModal] = useState(false);
   const [showPrintCertificateModal, setShowPrintCertificateModal] = useState(false);
-  const [localSettings, setLocalSettings] = useState<TournamentSettings>(() => {
+  const initialDraft = useMemo(() => {
     const savedDraft = localStorage.getItem(`admin_draft_${eventId}`);
     if (savedDraft) {
       try {
         const parsedDraft = tryRecoverJSON(savedDraft);
         if (parsedDraft && typeof parsedDraft === 'object' && Object.keys(parsedDraft).length > 0) {
-          return parsedDraft;
+          return parsedDraft as TournamentSettings;
         }
       } catch (e) { console.error("Draft parse failed", e); }
+    }
+    return null;
+  }, [eventId]);
+
+  const [localSettings, setLocalSettings] = useState<TournamentSettings>(() => {
+    if (initialDraft) {
+      return {
+        ...initialDraft,
+        categoryConfigs: initialDraft.categoryConfigs || {}
+      } as TournamentSettings;
     }
     const savedBackup = localStorage.getItem(`admin_saved_settings_${eventId}`);
     let backupSettings = null;
@@ -142,7 +152,7 @@ const AdminPanel: React.FC<Props> = ({
     } as TournamentSettings;
   });
   const isPractice = localSettings.isPractice;
-  const [isDirty, setIsDirty] = useState(false);
+  const [isDirty, setIsDirty] = useState<boolean>(() => Boolean(initialDraft));
   const [localScorers, setLocalScorers] = useState<ScorerAccess[]>(scorerAccess);
 
   // Sync draft to localStorage when settings change

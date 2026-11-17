@@ -107,6 +107,26 @@ const getAccurateParticipantCount = (archers: any[] = [], regs: any[] = [], fall
   return fallbackCount || 0;
 };
 
+const getApiAuthHeaders = async (): Promise<Record<string, string>> => {
+  try {
+    if (auth) {
+      if (typeof auth.authStateReady === 'function') {
+        await Promise.race([
+          auth.authStateReady(),
+          new Promise<void>((resolve) => setTimeout(resolve, 400))
+        ]);
+      }
+      if (auth.currentUser) {
+        const token = await auth.currentUser.getIdToken();
+        if (token) return { Authorization: `Bearer ${token}` };
+      }
+    }
+  } catch {
+    // Proceed unauthenticated if token retrieval fails
+  }
+  return {};
+};
+
 // Helper to parse route from URL search params & session storage
 // Helper to parse route from URL search params & session storage
 const parseRouteFromUrl = (): { view: string; eventId: string | null; club: string; search: string } => {
@@ -503,11 +523,13 @@ export default function App() {
       if (targetUrlEventId) {
         try {
           console.log(`[TARGET-EVENT] Direct loading target event: ${targetUrlEventId}`);
-          const res = await fetch(`/api/event-details/${targetUrlEventId}`);
+          const authHeaders = await getApiAuthHeaders();
+          const res = await fetch(`/api/event-details/${targetUrlEventId}?bypassCache=true`, { headers: authHeaders });
           if (res.ok) {
             const body = await res.json();
             if (body.success && body.data) {
               const evData = body.data;
+              const isPartial = Boolean(evData.isPartialFallback);
               const rawSubmissions = (evData.registrations || []).map((s: any) => {
                 const base = s.archerData || s.officialData || s.participantData || s.data || s;
                 const regType = s.regType || base.regType || (s.category === 'OFFICIAL' ? 'OFFICIAL' : 'ARCHER');
@@ -516,24 +538,60 @@ export default function App() {
               const cloudArchers = rawSubmissions.filter((s: any) => s.regType !== 'OFFICIAL');
               const cloudOfficials = rawSubmissions.filter((s: any) => s.regType === 'OFFICIAL');
 
-              const fullEvent: ArcheryEvent = {
-                ...evData,
-                id: targetUrlEventId,
-                settings: { ...(evData.settings || {}) },
-                registrations: rawSubmissions,
-                archers: cloudArchers,
-                officials: cloudOfficials,
-                registrationCount: getAccurateParticipantCount(cloudArchers, rawSubmissions, evData.registrationCount),
-                scores: evData.scores || [],
-                scoreLogs: evData.scoreLogs || [],
-                isDetailedLoaded: true
-              };
-
               setAppState(prev => {
                 const exists = prev.events.some(e => e.id === targetUrlEventId);
-                const updated = exists 
-                  ? prev.events.map(e => e.id === targetUrlEventId ? { ...e, ...fullEvent } : e)
-                  : [fullEvent, ...prev.events];
+                let updated: ArcheryEvent[];
+                if (exists) {
+                  updated = prev.events.map(e => {
+                    if (e.id !== targetUrlEventId) return e;
+                    const archerMap = new Map((e.archers || []).map(a => [a.id, a]));
+                    cloudArchers.forEach((a: any) => archerMap.set(a.id, a as Archer));
+                    (evData.archers || []).forEach((a: any) => archerMap.set(a.id, a as Archer));
+
+                    const officialMap = new Map((e.officials || []).map(o => [o.id, o]));
+                    cloudOfficials.forEach((o: any) => officialMap.set(o.id, o as any));
+                    (evData.officials || []).forEach((o: any) => officialMap.set(o.id, o as any));
+
+                    const regMap = new Map((e.registrations || []).map(r => [r.id, r]));
+                    rawSubmissions.forEach((r: any) => regMap.set(r.id, r));
+
+                    const finalArchers = Array.from(archerMap.values());
+                    const finalOfficials = Array.from(officialMap.values());
+                    const finalRegs = Array.from(regMap.values());
+                    const incomingScores = evData.scores || [];
+                    const incomingLogs = evData.scoreLogs || [];
+
+                    return {
+                      ...e,
+                      ...evData,
+                      id: targetUrlEventId,
+                      settings: mergeTournamentSettings(e.settings, evData.settings),
+                      registrations: finalRegs,
+                      archers: finalArchers,
+                      officials: finalOfficials,
+                      registrationCount: getAccurateParticipantCount(finalArchers, finalRegs, evData.registrationCount || e.registrationCount),
+                      scores: incomingScores.length ? incomingScores : (e.scores || []),
+                      scoreLogs: incomingLogs.length ? incomingLogs : (e.scoreLogs || []),
+                      isDetailedLoaded: !isPartial || e.isDetailedLoaded || finalRegs.length > 0
+                    };
+                  });
+                } else {
+                  const finalArchers = cloudArchers.length ? cloudArchers : (evData.archers || []);
+                  const finalOfficials = cloudOfficials.length ? cloudOfficials : (evData.officials || []);
+                  const fullEvent: ArcheryEvent = {
+                    ...evData,
+                    id: targetUrlEventId,
+                    settings: mergeTournamentSettings({}, evData.settings),
+                    registrations: rawSubmissions,
+                    archers: finalArchers,
+                    officials: finalOfficials,
+                    registrationCount: getAccurateParticipantCount(finalArchers, rawSubmissions, evData.registrationCount),
+                    scores: evData.scores || [],
+                    scoreLogs: evData.scoreLogs || [],
+                    isDetailedLoaded: !isPartial || rawSubmissions.length > 0
+                  };
+                  updated = [fullEvent, ...prev.events];
+                }
                 return {
                   ...prev,
                   activeEventId: targetUrlEventId,
@@ -598,10 +656,7 @@ export default function App() {
       const publicEvents = snapshot.docs.map(doc => {
         const d = doc.data();
         const base = d.data || d;
-        const settings = {
-           ...(base.settings || base || {}),
-           ...(d.settings || {})
-         };
+        const settings = mergeTournamentSettings(base.settings || base, d.settings);
         return { 
           ...base, 
           ...d,
@@ -688,10 +743,7 @@ export default function App() {
           const userEvents = snapshot.docs.map(doc => {
             const d = doc.data();
             const base = d.data || d;
-            const settings = {
-               ...(base.settings || base || {}),
-               ...(d.settings || {})
-            };
+            const settings = mergeTournamentSettings(base.settings || base, d.settings);
             return { 
               ...base, 
               ...d, 
@@ -722,7 +774,7 @@ export default function App() {
                 eventMap.set(ue.id, {
                   ...existing,
                   ...ue,
-                  settings: { ...(existing.settings || {}), ...(ue.settings || {}) } as any,
+                  settings: mergeTournamentSettings(existing.settings, ue.settings) as any,
                   registrations: finalRegs,
                   archers: finalArchers,
                   officials: finalOfficials,
@@ -768,11 +820,13 @@ export default function App() {
     const fetchDataViaAPI = async () => {
       try {
         console.log(`[API-LOAD] Fetching event details for event: ${eventId} via server API...`);
-        const res = await fetch(`/api/event-details/${eventId}`);
+        const authHeaders = await getApiAuthHeaders();
+        const res = await fetch(`/api/event-details/${eventId}?bypassCache=true`, { headers: authHeaders });
         if (res.ok) {
           const body = await res.json();
           if (body.success && body.data) {
             const evData = body.data;
+            const isPartial = Boolean(evData.isPartialFallback);
             
             // Correctly flatten each submission, mapping nested properties to the root level
             const rawSubmissions = (evData.registrations || []).map((s: any) => {
@@ -814,28 +868,33 @@ export default function App() {
                     return {
                       ...e,
                       ...evData,
+                      id: eventId,
+                      settings: mergeTournamentSettings(e.settings, evData.settings),
                       registrations: finalRegs,
                       archers: finalArchers,
                       officials: finalOfficials,
                       registrationCount: getAccurateParticipantCount(finalArchers, finalRegs, evData.registrationCount || e.registrationCount),
                       scores: cloudScores.length ? cloudScores : (e.scores || []),
                       scoreLogs: cloudScoreLogs.length ? cloudScoreLogs : (e.scoreLogs || []),
-                      isDetailedLoaded: true
+                      isDetailedLoaded: !isPartial || e.isDetailedLoaded || finalRegs.length > 0
                     };
                   }
                   return e;
                 });
               } else {
+                const finalArchers = cloudArchers.length ? cloudArchers : (evData.archers || []);
+                const finalOfficials = cloudOfficials.length ? cloudOfficials : (evData.officials || []);
                 const newEvent = {
                   ...evData,
                   id: eventId,
+                  settings: mergeTournamentSettings({}, evData.settings),
                   registrations: rawSubmissions,
-                  archers: cloudArchers,
-                  officials: cloudOfficials,
-                  registrationCount: getAccurateParticipantCount(cloudArchers, rawSubmissions, evData.registrationCount),
+                  archers: finalArchers,
+                  officials: finalOfficials,
+                  registrationCount: getAccurateParticipantCount(finalArchers, rawSubmissions, evData.registrationCount),
                   scores: cloudScores,
                   scoreLogs: cloudScoreLogs,
-                  isDetailedLoaded: true
+                  isDetailedLoaded: !isPartial || rawSubmissions.length > 0
                 };
                 updatedEvents = [newEvent, ...prev.events];
               }
@@ -1126,6 +1185,10 @@ export default function App() {
           if (prev.activeEventId !== eventId) return prev;
           const newEvents = prev.events.map(e => {
             if (e.id === eventId) {
+              // Avoid wiping cached/optimistic scores when Firestore local cache emits an empty snapshot first
+              if (snapshot.metadata.fromCache && rawScores.length === 0 && (e.scores?.length || 0) > 0) {
+                return e;
+              }
               return {
                 ...e,
                 scores: rawScores
@@ -1149,6 +1212,9 @@ export default function App() {
           if (prev.activeEventId !== eventId) return prev;
           const newEvents = prev.events.map(e => {
             if (e.id === eventId) {
+              if (snapshot.metadata.fromCache && rawLogs.length === 0 && (e.scoreLogs?.length || 0) > 0) {
+                return e;
+              }
               return {
                 ...e,
                 scoreLogs: rawLogs
@@ -1169,7 +1235,7 @@ export default function App() {
       unsubScores();
       unsubScoreLogs();
     };
-  }, [db, appState.activeEventId, appState.currentUser, appState.activeScorer]);
+  }, [db, appState.activeEventId, appState.currentUser?.id, appState.activeScorer?.id]);
 
   // 4. SuperAdmin Subscriptions
   useEffect(() => {
@@ -1253,15 +1319,13 @@ export default function App() {
       
       // Fetch public events primarily via API (faster)
       try {
-        const res = await fetch('/api/public-events');
+        const authHeaders = await getApiAuthHeaders();
+        const res = await fetch('/api/public-events?bypassCache=true', { headers: authHeaders });
         if (res.ok) {
            const data = await res.json();
            cloudEvents = (data.events || []).map((e: any) => {
              const base = e.data || e;
-             const settings = {
-                ...(base.settings || base || {}),
-                ...(e.settings || {})
-             };
+             const settings = mergeTournamentSettings(base.settings || base, e.settings);
              return { 
                ...base, 
                ...e, 
@@ -1276,10 +1340,7 @@ export default function App() {
         cloudEvents = eventsSnap.docs.map(doc => {
           const d = doc.data();
           const base = d.data || d;
-          const settings = {
-             ...(base.settings || base || {}),
-             ...(d.settings || {})
-          };
+          const settings = mergeTournamentSettings(base.settings || base, d.settings);
           return { ...base, ...d, id: doc.id, settings, status: (d.status || base.status || 'DRAFT').toString().toUpperCase() } as ArcheryEvent;
         });
       }
@@ -1292,10 +1353,7 @@ export default function App() {
           const existing = eventMap.get(ce.id);
           const keepDetailed = existing?.isDetailedLoaded;
           
-          const mergedSettings = {
-            ...(existing?.settings || {}),
-            ...(ce.settings || {})
-          };
+          const mergedSettings = mergeTournamentSettings(existing?.settings, ce.settings);
 
           eventMap.set(ce.id, {
             ...(existing || {}),
@@ -1304,6 +1362,13 @@ export default function App() {
             registrations: keepDetailed ? existing.registrations : (ce.registrations?.length ? ce.registrations : (existing?.registrations || [])),
             archers: keepDetailed ? existing.archers : (ce.archers?.length ? ce.archers : (existing?.archers || [])),
             officials: keepDetailed ? existing.officials : (ce.officials?.length ? ce.officials : (existing?.officials || [])),
+            scores: existing?.scores?.length ? existing.scores : (ce.scores || []),
+            scoreLogs: existing?.scoreLogs?.length ? existing.scoreLogs : (ce.scoreLogs || []),
+            registrationCount: getAccurateParticipantCount(
+              keepDetailed ? existing.archers : (ce.archers?.length ? ce.archers : (existing?.archers || [])),
+              keepDetailed ? existing.registrations : (ce.registrations?.length ? ce.registrations : (existing?.registrations || [])),
+              ce.registrationCount ?? existing?.registrationCount
+            ),
             isDetailedLoaded: keepDetailed || false,
             status: (ce.status || existing?.status || 'DRAFT').toUpperCase() as ArcheryEvent['status']
           });
@@ -1337,13 +1402,15 @@ export default function App() {
     setIsSyncing(true);
     
     try {
+      const authHeaders = await getApiAuthHeaders();
       if (isGuest) {
         const url = `/api/event-details/${eventId}${bypassCache ? '?bypassCache=true' : ''}`;
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: authHeaders });
         if (res.ok) {
           const body = await res.json();
           if (body.success && body.data) {
             const evData = body.data;
+            const isPartial = Boolean(evData.isPartialFallback);
             
             const rawSubmissions = (evData.registrations || []).map((s: any) => {
               const base = s.archerData || s.officialData || s.participantData || s.data || s;
@@ -1365,16 +1432,22 @@ export default function App() {
               if (exists) {
                 updatedEvents = prev.events.map(e => {
                   if (e.id === eventId) {
+                    const useIncomingRegs = !isPartial || rawSubmissions.length > 0;
+                    const finalRegs = useIncomingRegs ? rawSubmissions : (e.registrations || []);
+                    const finalArchers = useIncomingRegs ? cloudArchers : (e.archers || []);
+                    const finalOfficials = useIncomingRegs ? cloudOfficials : (e.officials || []);
                     return {
                       ...e,
                       ...evData,
-                      registrations: rawSubmissions,
-                      archers: cloudArchers,
-                      officials: cloudOfficials,
-                      registrationCount: rawSubmissions.length,
-                      scores: cloudScores,
-                      scoreLogs: cloudScoreLogs,
-                      isDetailedLoaded: true
+                      id: eventId,
+                      settings: mergeTournamentSettings(e.settings, evData.settings),
+                      registrations: finalRegs,
+                      archers: finalArchers,
+                      officials: finalOfficials,
+                      registrationCount: getAccurateParticipantCount(finalArchers, finalRegs, evData.registrationCount || e.registrationCount),
+                      scores: (!isPartial || cloudScores.length > 0) ? cloudScores : (e.scores || []),
+                      scoreLogs: (!isPartial || cloudScoreLogs.length > 0) ? cloudScoreLogs : (e.scoreLogs || []),
+                      isDetailedLoaded: !isPartial || e.isDetailedLoaded || finalRegs.length > 0
                     };
                   }
                   return e;
@@ -1383,13 +1456,14 @@ export default function App() {
                 const newEvent = {
                   ...evData,
                   id: eventId,
+                  settings: mergeTournamentSettings({}, evData.settings),
                   registrations: rawSubmissions,
                   archers: cloudArchers,
                   officials: cloudOfficials,
-                  registrationCount: rawSubmissions.length,
+                  registrationCount: getAccurateParticipantCount(cloudArchers, rawSubmissions, evData.registrationCount),
                   scores: cloudScores,
                   scoreLogs: cloudScoreLogs,
-                  isDetailedLoaded: true
+                  isDetailedLoaded: !isPartial || rawSubmissions.length > 0
                 };
                 updatedEvents = [newEvent, ...prev.events];
               }
@@ -1406,12 +1480,13 @@ export default function App() {
       } else {
         await syncCloudData(true);
         // Force trigger fetch for admin as well to make sure everything is perfect
-        const url = `/api/event-details/${eventId}${bypassCache ? '?bypassCache=true' : ''}`;
-        const res = await fetch(url);
+        const url = `/api/event-details/${eventId}?bypassCache=true`;
+        const res = await fetch(url, { headers: authHeaders });
         if (res.ok) {
           const body = await res.json();
           if (body.success && body.data) {
             const evData = body.data;
+            const isPartial = Boolean(evData.isPartialFallback);
             const rawSubmissions = (evData.registrations || []).map((s: any) => {
               const base = s.archerData || s.officialData || s.participantData || s.data || s;
               const regType = s.regType || base.regType || (s.category === 'OFFICIAL' ? 'OFFICIAL' : 'ARCHER');
@@ -1419,18 +1494,28 @@ export default function App() {
             });
             const cloudArchers = rawSubmissions.filter((s: any) => s.regType !== 'OFFICIAL');
             const cloudOfficials = rawSubmissions.filter((s: any) => s.regType === 'OFFICIAL');
+            const cloudScores = evData.scores || [];
+            const cloudScoreLogs = evData.scoreLogs || [];
             
             setAppState(prev => {
               const updatedEvents = prev.events.map(e => {
                 if (e.id === eventId) {
+                  const useIncomingRegs = !isPartial || rawSubmissions.length > 0;
+                  const finalRegs = useIncomingRegs ? rawSubmissions : (e.registrations || []);
+                  const finalArchers = useIncomingRegs ? cloudArchers : (e.archers || []);
+                  const finalOfficials = useIncomingRegs ? cloudOfficials : (e.officials || []);
                   return {
                     ...e,
                     ...evData,
-                    registrations: rawSubmissions,
-                    archers: cloudArchers,
-                    officials: cloudOfficials,
-                    registrationCount: rawSubmissions.length,
-                    isDetailedLoaded: true
+                    id: eventId,
+                    settings: mergeTournamentSettings(e.settings, evData.settings),
+                    registrations: finalRegs,
+                    archers: finalArchers,
+                    officials: finalOfficials,
+                    registrationCount: getAccurateParticipantCount(finalArchers, finalRegs, evData.registrationCount || e.registrationCount),
+                    scores: (!isPartial || cloudScores.length > 0) ? cloudScores : (e.scores || []),
+                    scoreLogs: (!isPartial || cloudScoreLogs.length > 0) ? cloudScoreLogs : (e.scoreLogs || []),
+                    isDetailedLoaded: !isPartial || e.isDetailedLoaded || finalRegs.length > 0
                   };
                 }
                 return e;
@@ -1754,6 +1839,11 @@ export default function App() {
 
         const cleanFirestoreUpdate = sanitizeForFirestore(firestoreUpdate);
         await updateDoc(doc(db, 'events', id), cleanFirestoreUpdate);
+        fetch('/api/cache/invalidate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventId: id })
+        }).catch(() => {});
         pushNotification("Berhasil", "Perubahan disimpan.", "SUCCESS");
         setHasPendingChanges(false);
       } catch (err: any) {

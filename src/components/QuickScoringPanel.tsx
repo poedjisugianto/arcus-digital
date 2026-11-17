@@ -318,6 +318,11 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
   // Local state for arrows and scores per archer
   const [localArcherScores, setLocalArcherScores] = useState<Record<string, ArcherScoreState>>({});
   const [dirtyArchers, setDirtyArchers] = useState<Record<string, boolean>>({});
+  const dirtyArchersRef = useRef<Record<string, boolean>>({});
+  const prevScopeKeyRef = useRef<string>('');
+  useEffect(() => {
+    dirtyArchersRef.current = dirtyArchers;
+  }, [dirtyArchers]);
 
   // Refs for direct input elements
   const cellRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -390,61 +395,78 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
     return config?.ends || 6;
   }, [archersToDisplay, event.settings?.categoryConfigs]);
 
-  // Load existing scores into local state when switching Target or End
+  // Load existing scores into local state when switching Target or End (preserving unsaved edits on background snapshots)
   useEffect(() => {
-    const newScores: Record<string, ArcherScoreState> = {};
+    const scopeKey = `${selectedTarget}_${currentEnd}_${mode}_${selectedCategory}`;
+    const scopeChanged = prevScopeKeyRef.current !== scopeKey;
+    prevScopeKeyRef.current = scopeKey;
+
+    if (scopeChanged) {
+      dirtyArchersRef.current = {};
+      setDirtyArchers({});
+    }
+
+    const activeDirty = scopeChanged ? {} : dirtyArchersRef.current;
     const scoresList = event.scores || [];
 
-    archersToDisplay.forEach(a => {
-      const config = findCategoryConfig(a.category, event.settings?.categoryConfigs);
-      const numArrows = config?.arrows || 6;
+    setLocalArcherScores(prev => {
+      const nextScores: Record<string, ArcherScoreState> = {};
 
-      const existing = scoresList
-        .filter(s => {
-          if (!s || s.isDeleted) return false;
-          const norm = (s.sessionId === '1' || s.sessionId === '2' || !s.sessionId) ? 'QUAL' : s.sessionId;
-          const isSameArcher = String(s.archerId) === String(a.id);
-          const isSameEnd = Number(s.endIndex) === Number(currentEnd);
-          return isSameArcher && isSameEnd && norm === 'QUAL';
-        })
-        .sort((scoreA, scoreB) => getScoreTimestamp(scoreB.lastUpdated) - getScoreTimestamp(scoreA.lastUpdated))[0];
-
-      if (existing) {
-        let loadedArrows: ArrowVal[] = new Array(numArrows).fill(-1);
-        if (Array.isArray(existing.arrows) && existing.arrows.length > 0) {
-          loadedArrows = existing.arrows.slice(0, numArrows).map((v: any): ArrowVal => {
-            if (v === -1 || v === null || v === undefined) return -1;
-            if (v === 'X' || v === 'x') return 'X';
-            if (v === 'M' || v === 'm') return 'M';
-            const num = Number(v);
-            return isNaN(num) ? -1 : num;
-          });
-          while (loadedArrows.length < numArrows) {
-            loadedArrows.push(-1);
-          }
+      archersToDisplay.forEach(a => {
+        if (!scopeChanged && activeDirty[a.id] && prev[a.id]) {
+          nextScores[a.id] = prev[a.id];
+          return;
         }
 
-        const summary = calculateEndSummary(loadedArrows, config?.targetType, config);
-        newScores[a.id] = {
-          arrows: loadedArrows,
-          total: existing.total !== undefined ? existing.total : summary.total,
-          count6: existing.count6 !== undefined ? existing.count6 : summary.count6,
-          count5: existing.count5 !== undefined ? existing.count5 : summary.count5,
-          isManualTotal: false
-        };
-      } else {
-        newScores[a.id] = {
-          arrows: new Array(numArrows).fill(-1),
-          total: 0,
-          count6: 0,
-          count5: 0,
-          isManualTotal: false
-        };
-      }
-    });
+        const config = findCategoryConfig(a.category, event.settings?.categoryConfigs);
+        const numArrows = config?.arrows || 6;
 
-    setLocalArcherScores(newScores);
-    setDirtyArchers({});
+        const existing = scoresList
+          .filter(s => {
+            if (!s || s.isDeleted) return false;
+            const norm = (s.sessionId === '1' || s.sessionId === '2' || !s.sessionId) ? 'QUAL' : s.sessionId;
+            const isSameArcher = String(s.archerId) === String(a.id);
+            const isSameEnd = Number(s.endIndex) === Number(currentEnd);
+            return isSameArcher && isSameEnd && norm === 'QUAL';
+          })
+          .sort((scoreA, scoreB) => getScoreTimestamp(scoreB.lastUpdated) - getScoreTimestamp(scoreA.lastUpdated))[0];
+
+        if (existing) {
+          let loadedArrows: ArrowVal[] = new Array(numArrows).fill(-1);
+          if (Array.isArray(existing.arrows) && existing.arrows.length > 0) {
+            loadedArrows = existing.arrows.slice(0, numArrows).map((v: any): ArrowVal => {
+              if (v === -1 || v === null || v === undefined) return -1;
+              if (v === 'X' || v === 'x') return 'X';
+              if (v === 'M' || v === 'm') return 'M';
+              const num = Number(v);
+              return isNaN(num) ? -1 : num;
+            });
+            while (loadedArrows.length < numArrows) {
+              loadedArrows.push(-1);
+            }
+          }
+
+          const summary = calculateEndSummary(loadedArrows, config?.targetType, config);
+          nextScores[a.id] = {
+            arrows: loadedArrows,
+            total: existing.total !== undefined ? existing.total : summary.total,
+            count6: existing.count6 !== undefined ? existing.count6 : summary.count6,
+            count5: existing.count5 !== undefined ? existing.count5 : summary.count5,
+            isManualTotal: false
+          };
+        } else {
+          nextScores[a.id] = {
+            arrows: new Array(numArrows).fill(-1),
+            total: 0,
+            count6: 0,
+            count5: 0,
+            isManualTotal: false
+          };
+        }
+      });
+
+      return nextScores;
+    });
   }, [selectedTarget, currentEnd, mode, selectedCategory, archersToDisplay, event.scores, event.settings?.categoryConfigs]);
 
   const tableArcherConfig = useMemo(() => {

@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Search, ArrowLeft, Users, Trophy, Target, ChevronRight, Filter, CheckCircle2, Info, RefreshCw, QrCode, MessageCircle } from 'lucide-react';
+import { Search, ArrowLeft, Users, Trophy, Target, ChevronRight, Filter, CheckCircle2, Info, RefreshCw, QrCode, MessageCircle, Award, Loader2 } from 'lucide-react';
 import { ArcheryEvent, CategoryType, Archer } from '../types';
 import { CATEGORY_LABELS } from '../constants';
 import ArcusLogo from './ArcusLogo';
 import ParticipantTicketModal from './ParticipantTicketModal';
+import { downloadArcherCertificatePdf } from '../lib/certificatePdf';
 import { toast } from 'sonner';
 
 interface Props {
@@ -41,6 +42,21 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing, organiz
   };
 
   const [selectedTicketParticipant, setSelectedTicketParticipant] = useState<Archer | null>(null);
+  const [downloadingCertId, setDownloadingCertId] = useState<string | null>(null);
+
+  const handleDownloadCertificate = async (archer: Archer) => {
+    if (downloadingCertId) return;
+    setDownloadingCertId(archer.id);
+    try {
+      await downloadArcherCertificatePdf(event, archer);
+      toast.success(`E-Sertifikat PDF (${archer.name}) berhasil diunduh!`);
+    } catch (err: any) {
+      console.error('Download E-Sertifikat PDF error:', err);
+      toast.error('Gagal mengunduh file PDF E-Sertifikat. Silakan coba lagi.');
+    } finally {
+      setDownloadingCertId(null);
+    }
+  };
 
   const categories = useMemo(() => {
     return (Object.keys(CategoryType) as CategoryType[]).filter(cat => cat !== CategoryType.OFFICIAL);
@@ -227,7 +243,7 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing, organiz
                   {viewMode === 'ARCHERS' && <th className="px-4 md:px-10 py-3 md:py-6 hidden sm:table-cell">Category</th>}
                   {viewMode === 'ARCHERS' && <th className="px-4 md:px-10 py-3 md:py-6 text-center">Target</th>}
                   <th className="px-4 md:px-10 py-3 md:py-6 text-right">Status</th>
-                  <th className="px-3 md:px-6 py-3 md:py-6 text-center">Tiket</th>
+                  <th className="px-3 md:px-6 py-3 md:py-6 text-center">{viewMode === 'ARCHERS' ? 'Tiket & E-Sertifikat' : 'Tiket'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -272,14 +288,31 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing, organiz
                       </div>
                     </td>
                     <td className="px-3 md:px-6 py-3 md:py-6 text-center">
-                      <button
-                        onClick={() => setSelectedTicketParticipant(item as Archer)}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-900 hover:text-white text-slate-800 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 group/btn"
-                        title="Lihat / Simpan Tiket Barcode"
-                      >
-                        <QrCode className="w-3.5 h-3.5 text-red-600 group-hover/btn:text-white" />
-                        <span className="hidden sm:inline">Tiket</span>
-                      </button>
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button
+                          onClick={() => setSelectedTicketParticipant(item as Archer)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-900 hover:text-white text-slate-800 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 group/btn"
+                          title="Lihat / Simpan Tiket Barcode"
+                        >
+                          <QrCode className="w-3.5 h-3.5 text-red-600 group-hover/btn:text-white" />
+                          <span className="hidden sm:inline">Tiket</span>
+                        </button>
+                        {viewMode === 'ARCHERS' && (item.status || '').toUpperCase() !== 'REJECTED' && (
+                          <button
+                            onClick={() => handleDownloadCertificate(item as Archer)}
+                            disabled={downloadingCertId !== null}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-amber-50 hover:bg-amber-500 text-amber-800 hover:text-slate-950 border border-amber-200 hover:border-amber-500 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all shadow-sm active:scale-95 group/cert disabled:opacity-60"
+                            title="Download E-Sertifikat PDF"
+                          >
+                            {downloadingCertId === item.id ? (
+                              <Loader2 className="w-3.5 h-3.5 text-amber-600 animate-spin" />
+                            ) : (
+                              <Award className="w-3.5 h-3.5 text-amber-600 group-hover/cert:text-slate-950" />
+                            )}
+                            <span>{downloadingCertId === item.id ? 'PDF...' : 'E-Sertifikat'}</span>
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}

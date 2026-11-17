@@ -113,30 +113,27 @@ setTimeout(async () => {
 }, 500);
 
 // Transformation helper for Firestore REST API
+function transformRestValue(value: any): any {
+  if (!value || typeof value !== 'object') return value;
+  if (value.nullValue !== undefined) return null;
+  if (value.stringValue !== undefined) return value.stringValue;
+  if (value.integerValue !== undefined) return parseInt(value.integerValue, 10);
+  if (value.doubleValue !== undefined) return parseFloat(value.doubleValue);
+  if (value.booleanValue !== undefined) return value.booleanValue;
+  if (value.timestampValue !== undefined) return value.timestampValue;
+  if (value.mapValue !== undefined) return transformRestFields(value.mapValue.fields);
+  if (value.arrayValue !== undefined) {
+    return (value.arrayValue.values || []).map((v: any) => transformRestValue(v));
+  }
+  return value;
+}
+
 function transformRestFields(fields: any) {
   const result: any = {};
   if (!fields) return result;
-  
+
   for (const [key, val] of Object.entries(fields)) {
-    const value = val as any;
-    if (value.stringValue !== undefined) result[key] = value.stringValue;
-    else if (value.integerValue !== undefined) result[key] = parseInt(value.integerValue);
-    else if (value.doubleValue !== undefined) result[key] = parseFloat(value.doubleValue);
-    else if (value.booleanValue !== undefined) result[key] = value.booleanValue;
-    else if (value.timestampValue !== undefined) result[key] = value.timestampValue;
-    else if (value.mapValue !== undefined) result[key] = transformRestFields(value.mapValue.fields);
-    else if (value.arrayValue !== undefined) {
-      result[key] = (value.arrayValue.values || []).map((v: any) => {
-        if (v.stringValue !== undefined) return v.stringValue;
-        if (v.integerValue !== undefined) return parseInt(v.integerValue);
-        if (v.doubleValue !== undefined) return parseFloat(v.doubleValue);
-        if (v.booleanValue !== undefined) return v.booleanValue;
-        if (v.mapValue !== undefined) return transformRestFields(v.mapValue.fields);
-        return v;
-      });
-    } else {
-      result[key] = value;
-    }
+    result[key] = transformRestValue(val);
   }
   return result;
 }
@@ -171,7 +168,7 @@ function convertToRestFields(data: any): any {
 }
 
 // REST helper to fetch a document
-async function restGetDoc(collectionPath: string, docId: string) {
+async function restGetDoc(collectionPath: string, docId: string, authHeader?: string) {
   const pid = firebaseConfig.projectId || process.env.VITE_FIREBASE_PROJECT_ID;
   const dbId = firebaseConfig.firestoreDatabaseId || process.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || "(default)";
   const apiKey = firebaseConfig.apiKey || process.env.VITE_FIREBASE_API_KEY;
@@ -179,12 +176,16 @@ async function restGetDoc(collectionPath: string, docId: string) {
 
   try {
     const url = `https://firestore.googleapis.com/v1/projects/${pid}/databases/${dbId}/documents/${collectionPath}/${docId}?key=${apiKey}`;
-    const res = await axios.get(url, { timeout: 6000 });
+    const res = await axios.get(url, {
+      timeout: 6000,
+      headers: authHeader ? { Authorization: authHeader } : undefined
+    });
     if (res.data && res.data.fields) {
       return transformRestFields(res.data.fields);
     }
   } catch (err: any) {
-    if (err.response?.status !== 404) {
+    const status = err.response?.status;
+    if (status !== 404 && status !== 403 && status !== 401) {
       console.warn(`[REST-API] Get ${collectionPath}/${docId} failed:`, err.message);
     }
   }
@@ -215,23 +216,57 @@ async function restWriteDoc(collectionPath: string, docId: string, data: any, us
   }
 }
 
-// REST helper to list documents in a collection
-async function restListDocs(collectionPath: string, pageSize: number = 100) {
+// REST helper to list documents in a collection without noisy 401/403 console errors
+async function restListDocsSafe(
+  collectionPath: string,
+  pageSize: number = 300,
+  authHeader?: string
+): Promise<{ docs: any[]; forbidden: boolean; failed: boolean }> {
   const pid = firebaseConfig.projectId || process.env.VITE_FIREBASE_PROJECT_ID;
   const dbId = firebaseConfig.firestoreDatabaseId || process.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || "(default)";
   const apiKey = firebaseConfig.apiKey || process.env.VITE_FIREBASE_API_KEY;
-  if (!pid || !apiKey) return [];
+  if (!pid || !apiKey) return { docs: [], forbidden: false, failed: true };
+
+  const docs: any[] = [];
+  let pageToken: string | undefined = undefined;
+  let safetyCount = 0;
 
   try {
-    const url = `https://firestore.googleapis.com/v1/projects/${pid}/databases/${dbId}/documents/${collectionPath}?key=${apiKey}&pageSize=${pageSize}`;
-    const res = await axios.get(url, { timeout: 6000 });
-    if (res.data && Array.isArray(res.data.documents)) {
-      return res.data.documents.map((doc: any) => transformRestFields(doc.fields));
-    }
+    do {
+      let url = `https://firestore.googleapis.com/v1/projects/${pid}/databases/${dbId}/documents/${collectionPath}?key=${apiKey}&pageSize=${pageSize}`;
+      if (pageToken) {
+        url += `&pageToken=${encodeURIComponent(pageToken)}`;
+      }
+      const res = await axios.get(url, {
+        timeout: 6000,
+        headers: authHeader ? { Authorization: authHeader } : undefined
+      });
+      if (res.data && Array.isArray(res.data.documents)) {
+        res.data.documents.forEach((doc: any) => {
+          const transformed = transformRestFields(doc.fields);
+          const docId = doc.name ? doc.name.split('/').pop() : undefined;
+          docs.push(docId ? { ...transformed, id: transformed.id || docId } : transformed);
+        });
+      }
+      pageToken = res.data?.nextPageToken;
+      safetyCount++;
+    } while (pageToken && safetyCount < 10);
+    return { docs, forbidden: false, failed: false };
   } catch (err: any) {
-    console.warn(`[REST-API] List ${collectionPath} failed:`, err.message);
+    const status = err.response?.status;
+    if (status === 403 || status === 401) {
+      return { docs, forbidden: true, failed: false };
+    }
+    if (status !== 404) {
+      console.warn(`[REST-API] List ${collectionPath} failed:`, err.message);
+    }
+    return { docs, forbidden: false, failed: true };
   }
-  return [];
+}
+
+async function restListDocs(collectionPath: string, pageSize: number = 300, authHeader?: string) {
+  const result = await restListDocsSafe(collectionPath, pageSize, authHeader);
+  return result.docs;
 }
 
 // Hard Fallback Data removed to ensure only real user data is shown.
@@ -1511,86 +1546,127 @@ app.get("/api/db-test", async (req, res) => {
 
 // --- PRODUCTION API FOR EVENT DISCOVERY ---
 let publicEventsCache: { data: any, timestamp: number } | null = null;
-const PUBLIC_EVENTS_CACHE_TTL = 30 * 1000; // 30 seconds Cache TTL
+const PUBLIC_EVENTS_CACHE_TTL = 5 * 1000; // 5 seconds Cache TTL to prevent stale overwrites after edits
+
+app.post("/api/cache/invalidate", (req, res) => {
+  const { eventId } = req.body || {};
+  publicEventsCache = null;
+  if (eventId && eventDetailsCache[eventId]) {
+    delete eventDetailsCache[eventId];
+  } else if (!eventId) {
+    Object.keys(eventDetailsCache).forEach(k => delete eventDetailsCache[k]);
+  }
+  return res.json({ success: true });
+});
 
 app.get("/api/public-events", async (req, res) => {
-  res.setHeader('Cache-Control', 'public, max-age=15'); 
+  res.setHeader('Cache-Control', 'no-store');
   const now = Date.now();
+  const bypassCache = req.query.bypassCache === 'true' || req.query.refresh === 'true';
+  const authHeader = typeof req.headers.authorization === 'string' && req.headers.authorization.startsWith('Bearer ')
+    ? req.headers.authorization
+    : undefined;
 
-  if (publicEventsCache && (now - publicEventsCache.timestamp < PUBLIC_EVENTS_CACHE_TTL)) {
+  if (!bypassCache && !authHeader && publicEventsCache && (now - publicEventsCache.timestamp < PUBLIC_EVENTS_CACHE_TTL)) {
     return res.json({ ...publicEventsCache.data, source: 'memory-cache' });
   }
 
   const currentDb = getAdminDB();
-  if (!currentDb) return res.status(503).json({ error: "Initializing", success: false });
-
   const pid = firebaseConfig.projectId;
   const dbId = firebaseConfig.firestoreDatabaseId || "(default)";
 
-  try {
-    const snapshot = await currentDb.collection('events')
-      .orderBy('createdAt', 'desc')
-      .limit(100)
-      .get();
-    const events: any[] = [];
-    
-    snapshot.forEach((d: any) => {
-      const rawData = d.data();
-      const eventData = rawData.data || rawData;
-      
-      const status = (rawData.status || eventData.status || 'DRAFT').toString().toUpperCase();
-      
-      // Deep merge settings from both sources
-      const settings = {
-        ...(eventData.settings || eventData || {}),
-        ...(rawData.settings || {})
-      };
-
-      if (status !== 'DELETED') {
-         events.push({
-           ...eventData,
-           id: d.id,
-           status,
-           settings,
-           registrationCount: rawData.registrationCount || 0,
-           createdAt: rawData.createdAt || eventData.createdAt || new Date().toISOString()
-         });
-       }
-    });
-
-    const result = { success: true, events, source: 'admin-sdk' };
-    publicEventsCache = { data: result, timestamp: now };
-    return res.json(result);
-  } catch (err: any) {
-    // 2. Try REST API Fallback
+  if (currentDb) {
     try {
-      const url = `https://firestore.googleapis.com/v1/projects/${pid}/databases/${dbId}/documents/events?key=${firebaseConfig.apiKey}&pageSize=100`;
-      const response = await axios.get(url, { timeout: 5000 });
-          
-      if (response.data && response.data.documents) {
-        const documents = response.data.documents || [];
-        const fallbackEvents: any[] = [];
+      const snapshot = await currentDb.collection('events')
+        .orderBy('createdAt', 'desc')
+        .limit(100)
+        .get();
+      const events: any[] = [];
+      
+      snapshot.forEach((d: any) => {
+        const rawData = d.data();
+        const eventData = rawData.data || rawData;
         
-        documents.forEach((d: any) => {
-          const transformed = transformRestFields(d.fields);
-          const rawData = transformed.data || transformed;
-          const status = (transformed.status || rawData.status || 'ACTIVE').toString().toUpperCase();
-          const docId = d.name.split('/').pop();
-          
-          if (status !== 'DELETED') {
-            fallbackEvents.push({ ...rawData, id: docId, status, createdAt: transformed.createdAt || rawData.createdAt || new Date().toISOString() });
+        const status = (rawData.status || eventData.status || 'DRAFT').toString().toUpperCase();
+        
+        // Deep merge settings from both sources (root settings wins over nested data.settings)
+        const settings = {
+          ...(eventData.settings || eventData || {}),
+          ...(rawData.settings || {}),
+          categoryConfigs: {
+            ...((eventData.settings && eventData.settings.categoryConfigs) || {}),
+            ...((rawData.settings && rawData.settings.categoryConfigs) || {})
           }
-        });
+        };
 
-        const resultFallback = { success: true, events: fallbackEvents.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()), source: `cloud-rest-fallback` };
-        publicEventsCache = { data: resultFallback, timestamp: now };
-        return res.json(resultFallback);
-      }
-      return res.json({ success: true, events: [], source: 'empty' });
-    } catch (restErr: any) {
-       // SILENT FAIL on public list - client will try direct SDK fetch
-       return res.json({ success: true, events: [], source: 'error-silent' });
+        if (status !== 'DELETED') {
+           events.push({
+             ...eventData,
+             ...rawData,
+             id: d.id,
+             status,
+             settings,
+             registrationCount: rawData.registrationCount ?? eventData.registrationCount ?? 0,
+             createdAt: rawData.createdAt || eventData.createdAt || new Date().toISOString()
+           });
+         }
+      });
+
+      const result = { success: true, events, source: 'admin-sdk' };
+      publicEventsCache = { data: result, timestamp: now };
+      return res.json(result);
+    } catch (err: any) {
+      console.warn("[API/PUBLIC-EVENTS] Admin SDK failed, using REST fallback:", err.message);
     }
+  }
+
+  // 2. REST API Fallback (merges both nested data and top-level root fields properly)
+  try {
+    const url = `https://firestore.googleapis.com/v1/projects/${pid}/databases/${dbId}/documents/events?key=${firebaseConfig.apiKey}&pageSize=100`;
+    const response = await axios.get(url, {
+      timeout: 5000,
+      headers: authHeader ? { Authorization: authHeader } : undefined
+    });
+        
+    if (response.data && response.data.documents) {
+      const documents = response.data.documents || [];
+      const fallbackEvents: any[] = [];
+      
+      documents.forEach((d: any) => {
+        const transformed = transformRestFields(d.fields);
+        const baseData = transformed.data || transformed;
+        const status = (transformed.status || baseData.status || 'DRAFT').toString().toUpperCase();
+        const docId = d.name.split('/').pop();
+        const settings = {
+          ...(baseData.settings || baseData || {}),
+          ...(transformed.settings || {}),
+          categoryConfigs: {
+            ...((baseData.settings && baseData.settings.categoryConfigs) || {}),
+            ...((transformed.settings && transformed.settings.categoryConfigs) || {})
+          }
+        };
+        
+        if (status !== 'DELETED') {
+          fallbackEvents.push({
+            ...baseData,
+            ...transformed,
+            id: docId,
+            status,
+            settings,
+            registrationCount: transformed.registrationCount ?? baseData.registrationCount ?? 0,
+            createdAt: transformed.createdAt || baseData.createdAt || new Date().toISOString()
+          });
+        }
+      });
+
+      const resultFallback = { success: true, events: fallbackEvents.sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()), source: `cloud-rest-fallback` };
+      publicEventsCache = { data: resultFallback, timestamp: now };
+      return res.json(resultFallback);
+    }
+    return res.json({ success: true, events: [], source: 'empty' });
+  } catch (restErr: any) {
+     // SILENT FAIL on public list - client will try direct SDK fetch
+     return res.json({ success: true, events: [], source: 'error-silent' });
   }
 });
 
@@ -1785,129 +1861,198 @@ app.post("/api/register-participant", async (req, res) => {
 
 // Memory cache for individual event details to save quota on live views
 const eventDetailsCache: Record<string, { data: any, timestamp: number }> = {};
-const DETAIL_CACHE_TTL = 30 * 1000; // 30 detik (Optimal untuk menghemat kuota Firestore)
+const DETAIL_CACHE_TTL = 5 * 1000; // 5 detik agar perubahan terbaru tidak tertimpa cache lama
 
 app.get("/api/event-details/:id", async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
   const eventId = req.params.id;
   const now = Date.now();
   const bypassCache = req.query.bypassCache === 'true' || req.query.refresh === 'true';
+  const authHeader = typeof req.headers.authorization === 'string' && req.headers.authorization.startsWith('Bearer ')
+    ? req.headers.authorization
+    : undefined;
 
-  if (!bypassCache && eventDetailsCache[eventId] && (now - eventDetailsCache[eventId].timestamp < DETAIL_CACHE_TTL)) {
+  if (!bypassCache && !authHeader && eventDetailsCache[eventId] && (now - eventDetailsCache[eventId].timestamp < DETAIL_CACHE_TTL)) {
     return res.json({ success: true, data: eventDetailsCache[eventId].data, source: 'cache' });
   }
 
-  const currentDb = getAdminDB();
-  if (!currentDb) {
-    return res.json({ success: false, message: "Sistem Cloud belum dikonfigurasi", data: null });
-  }
+  const buildRootFallbackRegistrations = (baseObj: any, rootObj: any) => {
+    const rootArchers = Array.isArray(rootObj.archers) ? rootObj.archers : (Array.isArray(baseObj.archers) ? baseObj.archers : []);
+    const rootOfficials = Array.isArray(rootObj.officials) ? rootObj.officials : (Array.isArray(baseObj.officials) ? baseObj.officials : []);
+    return [
+      ...rootArchers.map((a: any) => ({ ...a, regType: a.regType || 'ARCHER' })),
+      ...rootOfficials.map((o: any) => ({ ...o, regType: 'OFFICIAL' }))
+    ];
+  };
 
+  const currentDb = getAdminDB();
   const pid = firebaseConfig.projectId;
   const dbId = firebaseConfig.firestoreDatabaseId || "(default)";
-  console.log(`[API/EVENT-DETAILS] Fetching via Admin SDK for ${eventId} (PID: ${pid}, DB: ${dbId})...`);
 
-  try {
-    // 1. Fetch Event Document
-    const eventRef = currentDb.collection('events').doc(eventId);
-    const eventSnap = await eventRef.get();
-    
-    if (!eventSnap.exists) {
-      return res.json({ success: false, notFound: true, message: "Event tidak ditemukan", data: null });
-    }
-    
-    const data = eventSnap.data() || {};
-    const base = data.data || data;
-    const settings = {
-      ...(base.settings || base || {}),
-      ...(data.settings || {})
-    };
-    const status = (data.status || base.status || 'DRAFT').toString().toUpperCase();
-
-    // 2. Fetch Submissions
-    let submissions: any[] = [];
+  if (currentDb) {
+    console.log(`[API/EVENT-DETAILS] Fetching via Admin SDK for ${eventId} (PID: ${pid}, DB: ${dbId})...`);
     try {
-      const submissionsSnap = await eventRef.collection('submissions').limit(5000).get();
-      submissionsSnap.forEach((d: any) => submissions.push({ id: d.id, ...d.data() }));
-    } catch (subErr: any) {
-      console.warn(`[API/EVENT-DETAILS] Submissions fetch failed via Admin SDK, trying REST fallback... ${subErr.message}`);
-      // REST fallback...
-      if (pid && firebaseConfig.apiKey) {
-        const subUrl = `https://firestore.googleapis.com/v1/projects/${pid}/databases/${dbId}/documents/events/${eventId}/submissions?key=${firebaseConfig.apiKey}&pageSize=1000`;
-        try {
-          const subRes = await axios.get(subUrl, { timeout: 4000 });
-          if (subRes.data && subRes.data.documents) {
-            subRes.data.documents.forEach((d: any) => {
-              const transformed = transformRestFields(d.fields);
-              const docId = d.name.split('/').pop();
-              submissions.push({ ...transformed, id: docId });
-            });
-            console.log(`[API/EVENT-DETAILS] REST fallback success: fetched ${submissions.length} submissions`);
+      // 1. Fetch Event Document
+      const eventRef = currentDb.collection('events').doc(eventId);
+      const eventSnap = await eventRef.get();
+      
+      if (!eventSnap.exists) {
+        return res.json({ success: false, notFound: true, message: "Event tidak ditemukan", data: null });
+      }
+      
+      const data = eventSnap.data() || {};
+      const base = data.data || data;
+      const settings = {
+        ...(base.settings || base || {}),
+        ...(data.settings || {}),
+        categoryConfigs: {
+          ...((base.settings && base.settings.categoryConfigs) || {}),
+          ...((data.settings && data.settings.categoryConfigs) || {})
+        }
+      };
+      const status = (data.status || base.status || 'DRAFT').toString().toUpperCase();
+
+      // 2. Fetch Submissions
+      let submissions: any[] = [];
+      let submissionsPartial = false;
+      try {
+        const submissionsSnap = await eventRef.collection('submissions').limit(5000).get();
+        submissionsSnap.forEach((d: any) => submissions.push({ id: d.id, ...d.data() }));
+      } catch (subErr: any) {
+        const restSub = await restListDocsSafe(`events/${eventId}/submissions`, 500, authHeader);
+        submissions = restSub.docs;
+        if (restSub.forbidden || restSub.failed) {
+          submissionsPartial = true;
+          if (submissions.length === 0) {
+            submissions = buildRootFallbackRegistrations(base, data);
           }
-        } catch (restErr: any) {
-          console.warn(`[API/EVENT-DETAILS] Submissions REST fallback:`, restErr.message);
         }
       }
-    }
 
-    // 3. Fetch Scores
-    let scores: any[] = [];
-    try {
-      const scoresSnap = await eventRef.collection('scores').limit(5000).get();
-      scoresSnap.forEach((d: any) => scores.push({ id: d.id, ...d.data() }));
-    } catch (scoreErr: any) {
-      console.warn(`[API/EVENT-DETAILS] Scores fetch note: ${scoreErr.message}`);
-    }
-
-    // 4. Fetch ScoreLogs
-    let scoreLogs: any[] = [];
-    try {
-      const logsSnap = await eventRef.collection('scoreLogs').limit(2000).get();
-      logsSnap.forEach((d: any) => scoreLogs.push({ id: d.id, ...d.data() }));
-    } catch (logErr: any) {
-      console.warn(`[API/EVENT-DETAILS] ScoreLogs fetch note: ${logErr.message}`);
-    }
-
-    console.log(`[API/EVENT-DETAILS] Successfully fetched details for ${eventId}: Submissions Count=${submissions.length}, Scores Count=${scores.length}, ScoreLogs Count=${scoreLogs.length}`);
-
-    const responseData = {
-      ...base,
-      ...data,
-      settings,
-      status,
-      registrations: submissions,
-      scores,
-      scoreLogs,
-      id: eventId
-    };
-
-    eventDetailsCache[eventId] = { data: responseData, timestamp: now };
-    return res.json({ success: true, data: responseData, source: 'admin-sdk' });
-  } catch (error: any) {
-    // REST API Fallback for Detail
-    if (pid && firebaseConfig.apiKey) {
+      // 3. Fetch Scores
+      let scores: any[] = [];
+      let scoresPartial = false;
       try {
-        const url = `https://firestore.googleapis.com/v1/projects/${pid}/databases/${dbId}/documents/events/${eventId}?key=${firebaseConfig.apiKey}`;
-        const response = await axios.get(url, { timeout: 3000 });
-        
-        if (response.data) {
-          const transformedData = transformRestFields(response.data.fields);
-          const data = transformedData.data || transformedData;
-          
-          return res.json({ 
-            success: true, 
-            data: { ...data, id: eventId, registrations: [] }, 
-            source: 'cloud-rest-fallback' 
-          });
+        const scoresSnap = await eventRef.collection('scores').limit(5000).get();
+        scoresSnap.forEach((d: any) => scores.push({ id: d.id, ...d.data() }));
+      } catch (scoreErr: any) {
+        const restScores = await restListDocsSafe(`events/${eventId}/scores`, 500, authHeader);
+        scores = restScores.docs;
+        if (restScores.forbidden || restScores.failed) {
+          scoresPartial = true;
         }
-      } catch (restErr: any) {
+      }
+
+      // 4. Fetch ScoreLogs
+      let scoreLogs: any[] = [];
+      let scoreLogsPartial = false;
+      try {
+        const logsSnap = await eventRef.collection('scoreLogs').limit(2000).get();
+        logsSnap.forEach((d: any) => scoreLogs.push({ id: d.id, ...d.data() }));
+      } catch (logErr: any) {
+        const restLogs = await restListDocsSafe(`events/${eventId}/scoreLogs`, 500, authHeader);
+        scoreLogs = restLogs.docs;
+        if (restLogs.forbidden || restLogs.failed) {
+          scoreLogsPartial = true;
+        }
+      }
+
+      const isPartialFallback = submissionsPartial || scoresPartial || scoreLogsPartial;
+      const responseData = {
+        ...base,
+        ...data,
+        settings,
+        status,
+        registrations: submissions,
+        scores,
+        scoreLogs,
+        id: eventId,
+        isPartialFallback
+      };
+
+      if (!authHeader && !isPartialFallback) {
+        eventDetailsCache[eventId] = { data: responseData, timestamp: now };
+      }
+      return res.json({ success: true, data: responseData, source: 'admin-sdk' });
+    } catch (error: any) {
+      console.warn(`[API/EVENT-DETAILS] Admin SDK failed for ${eventId}, trying full REST fallback:`, error.message);
+    }
+  }
+
+  // Full REST API Fallback (fetches root event doc + submissions + scores + scoreLogs subcollections)
+  if (pid && firebaseConfig.apiKey) {
+    try {
+      const docUrl = `https://firestore.googleapis.com/v1/projects/${pid}/databases/${dbId}/documents/events/${eventId}?key=${firebaseConfig.apiKey}`;
+      const docRes = await axios.get(docUrl, {
+        timeout: 5000,
+        headers: authHeader ? { Authorization: authHeader } : undefined
+      });
+
+      if (docRes.data && docRes.data.fields) {
+        const transformedData = transformRestFields(docRes.data.fields);
+        const base = transformedData.data || transformedData;
+        const settings = {
+          ...(base.settings || base || {}),
+          ...(transformedData.settings || {}),
+          categoryConfigs: {
+            ...((base.settings && base.settings.categoryConfigs) || {}),
+            ...((transformedData.settings && transformedData.settings.categoryConfigs) || {})
+          }
+        };
+        const status = (transformedData.status || base.status || 'DRAFT').toString().toUpperCase();
+
+        const [subRes, scoresRes, logsRes] = await Promise.all([
+          restListDocsSafe(`events/${eventId}/submissions`, 500, authHeader),
+          restListDocsSafe(`events/${eventId}/scores`, 500, authHeader),
+          restListDocsSafe(`events/${eventId}/scoreLogs`, 500, authHeader)
+        ]);
+
+        const submissionsPartial = subRes.forbidden || subRes.failed;
+        const scoresPartial = scoresRes.forbidden || scoresRes.failed;
+        const scoreLogsPartial = logsRes.forbidden || logsRes.failed;
+        const isPartialFallback = submissionsPartial || scoresPartial || scoreLogsPartial;
+
+        let submissions = subRes.docs;
+        if (submissionsPartial && submissions.length === 0) {
+          submissions = buildRootFallbackRegistrations(base, transformedData);
+        }
+
+        const responseData = {
+          ...base,
+          ...transformedData,
+          id: eventId,
+          status,
+          settings,
+          registrations: submissions,
+          scores: scoresRes.docs,
+          scoreLogs: logsRes.docs,
+          isPartialFallback
+        };
+
+        if (!authHeader && !isPartialFallback) {
+          eventDetailsCache[eventId] = { data: responseData, timestamp: now };
+        }
+        return res.json({
+          success: true,
+          data: responseData,
+          source: 'cloud-rest-fallback'
+        });
+      }
+    } catch (restErr: any) {
+      const errStatus = restErr.response?.status;
+      if (errStatus === 404) {
+        return res.json({ success: false, notFound: true, message: "Event tidak ditemukan", data: null });
+      }
+      if (errStatus !== 401 && errStatus !== 403) {
         console.warn("[API/EVENT-DETAILS] REST Fallback:", restErr.message);
       }
     }
-
-    if (eventDetailsCache[eventId]) {
-      return res.json({ success: true, data: eventDetailsCache[eventId].data, source: 'error-fallback' });
-    }
-    return res.json({ success: false, message: "Event detail tidak tersedia di cloud", data: null });
   }
+
+  if (!authHeader && eventDetailsCache[eventId]) {
+    return res.json({ success: true, data: eventDetailsCache[eventId].data, source: 'error-fallback' });
+  }
+  return res.json({ success: false, message: "Event detail tidak tersedia di cloud", data: null });
 });
 
 app.post("/api/optimize-event/:id", async (req, res) => {
@@ -2011,6 +2156,70 @@ app.get("/api/og-image", async (req, res) => {
       return res.sendFile(fallbackPath);
     }
     return res.status(500).send("Error generating OG image");
+  }
+});
+
+// Lossless Image Proxy for Client-side E-Certificate PDF Generation (prevents CORS canvas tainting)
+app.get("/api/cert-image-proxy", async (req, res) => {
+  try {
+    const rawUrl = typeof req.query.url === 'string' ? req.query.url.trim() : '';
+    if (!rawUrl) {
+      return res.status(400).send("Missing url parameter");
+    }
+
+    if (rawUrl.startsWith('data:image/')) {
+      const matches = rawUrl.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      if (matches) {
+        res.setHeader('Content-Type', matches[1]);
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        return res.send(Buffer.from(matches[2], 'base64'));
+      }
+    }
+
+    const fileDMatch = rawUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    const idMatch = rawUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    const lhMatch = rawUrl.match(/lh3\.googleusercontent\.com\/d\/([a-zA-Z0-9_-]+)/);
+    const dPathMatch = rawUrl.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    const driveId = fileDMatch?.[1] || idMatch?.[1] || lhMatch?.[1] || ((rawUrl.includes('drive.google.com') || rawUrl.includes('docs.google.com')) ? dPathMatch?.[1] : null);
+
+    let candidateUrls: string[] = [];
+    if (driveId) {
+      candidateUrls = [
+        `https://drive.google.com/thumbnail?id=${driveId}&sz=w3000`,
+        `https://lh3.googleusercontent.com/d/${driveId}`,
+        `https://drive.usercontent.google.com/download?id=${driveId}&export=view&authuser=0`,
+        `https://drive.google.com/uc?export=view&id=${driveId}`
+      ];
+    } else if (rawUrl.includes('dropbox.com')) {
+      candidateUrls = [rawUrl.replace(/([?&])dl=[01]\b/, '$1raw=1')];
+    } else {
+      candidateUrls = [rawUrl];
+    }
+
+    for (const candidate of candidateUrls) {
+      try {
+        const imgRes = await axios.get(candidate, {
+          responseType: 'arraybuffer',
+          timeout: 10000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'image/png,image/jpeg,image/webp,image/svg+xml,image/*,*/*;q=0.8'
+          }
+        });
+        const contentType = String(imgRes.headers['content-type'] || '').toLowerCase();
+        if (contentType.startsWith('image/') || contentType.includes('octet-stream')) {
+          res.setHeader('Content-Type', contentType.startsWith('image/') ? contentType : 'image/png');
+          res.setHeader('Cache-Control', 'public, max-age=86400');
+          return res.send(Buffer.from(imgRes.data));
+        }
+      } catch {
+        // Try next candidate URL
+      }
+    }
+
+    return res.status(404).send("Image could not be retrieved");
+  } catch (err: any) {
+    return res.status(500).send("Proxy error");
   }
 });
 
