@@ -12,7 +12,7 @@ import {
 import { TournamentSettings, CategoryType, TargetType, PaymentMethod, ScorerAccess, CategoryConfig, Sponsorship, Archer, ParticipantRegistration, GlobalSettings, RundownItem, ArcheryEvent, AutoTargetConfig, AutoTargetModel, TargetFillOrder, TargetAssignTrigger, CategoryTargetBlock } from '../types';
 import { CATEGORY_LABELS, TARGET_LABELS, getCategoryDisplayName } from '../constants';
 import { tryRecoverJSON, mergeTournamentSettings, findCategoryConfig } from '../lib/firestoreUtils';
-import { resolveGoogleDriveUrl, compressPhoto } from '../lib/photoService';
+import { resolveGoogleDriveUrl, uploadImageAsset } from '../lib/photoService';
 import ArcherList from './ArcherList';
 import OfficialList from './OfficialList';
 import PrintRoundReportModal from './PrintRoundReportModal';
@@ -1992,11 +1992,23 @@ const AdminPanel: React.FC<Props> = ({
                             onChange={async (e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
+                              const loadingId = toast.loading('Mengunggah pamflet ke Storage...');
                               try {
-                                const { base64 } = await compressPhoto(file, 1200, 0.85);
-                                updateSettings({ pamphletUrl: base64 });
+                                const folder = eventId || 'general';
+                                const result = await uploadImageAsset(
+                                  file,
+                                  `tournaments/${folder}/pamphlet_${Date.now()}`,
+                                  { maxDim: 1400, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 900, fallbackQuality: 0.7 }
+                                );
+                                updateSettings({ pamphletUrl: result.url });
+                                toast.dismiss(loadingId);
+                                toast.success(result.storedInCloud ? 'Pamflet tersimpan di Firebase Storage!' : 'Pamflet berhasil dipasang!');
                               } catch (err: any) {
+                                toast.dismiss(loadingId);
                                 console.error('Gagal memproses gambar pamflet:', err);
+                                toast.error('Gagal memproses gambar pamflet');
+                              } finally {
+                                e.target.value = '';
                               }
                             }} 
                           />
@@ -2099,6 +2111,36 @@ const AdminPanel: React.FC<Props> = ({
                       onChange={e => updateSettings({ logoUrl: resolveGoogleDriveUrl(e.target.value) })} 
                       className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs outline-none focus:border-arcus-red transition-all" 
                     />
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all">
+                        <Upload className="w-3 h-3 text-amber-400" />
+                        <span>Upload ke Storage</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const lid = toast.loading('Mengunggah Logo Event...');
+                            try {
+                              const res = await uploadImageAsset(file, `tournaments/${eventId || 'general'}/logo_event_${Date.now()}`, { maxDim: 600, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 350, fallbackQuality: 0.7 });
+                              updateSettings({ logoUrl: res.url });
+                              toast.dismiss(lid);
+                              toast.success(res.storedInCloud ? 'Logo Event tersimpan di Storage!' : 'Logo Event dipasang!');
+                            } catch {
+                              toast.dismiss(lid);
+                              toast.error('Gagal mengunggah logo');
+                            } finally {
+                              e.target.value = '';
+                            }
+                          }}
+                        />
+                      </label>
+                      {localSettings.logoUrl && (
+                        <button type="button" onClick={() => updateSettings({ logoUrl: '' })} className="text-[9px] font-bold text-red-600 hover:underline">Hapus</button>
+                      )}
+                    </div>
                     <div className="h-16 bg-white rounded-xl border border-dashed border-slate-300 flex items-center justify-center p-2">
                       {localSettings.logoUrl ? (
                         <img 
@@ -2130,6 +2172,36 @@ const AdminPanel: React.FC<Props> = ({
                       onChange={e => updateSettings({ secondaryLogoUrl: resolveGoogleDriveUrl(e.target.value) })} 
                       className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs outline-none focus:border-blue-600 transition-all" 
                     />
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all">
+                        <Upload className="w-3 h-3 text-amber-400" />
+                        <span>Upload ke Storage</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const lid = toast.loading('Mengunggah Logo INORGA...');
+                            try {
+                              const res = await uploadImageAsset(file, `tournaments/${eventId || 'general'}/logo_inorga_${Date.now()}`, { maxDim: 600, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 350, fallbackQuality: 0.7 });
+                              updateSettings({ secondaryLogoUrl: res.url });
+                              toast.dismiss(lid);
+                              toast.success(res.storedInCloud ? 'Logo INORGA tersimpan di Storage!' : 'Logo INORGA dipasang!');
+                            } catch {
+                              toast.dismiss(lid);
+                              toast.error('Gagal mengunggah logo');
+                            } finally {
+                              e.target.value = '';
+                            }
+                          }}
+                        />
+                      </label>
+                      {localSettings.secondaryLogoUrl && (
+                        <button type="button" onClick={() => updateSettings({ secondaryLogoUrl: '' })} className="text-[9px] font-bold text-red-600 hover:underline">Hapus</button>
+                      )}
+                    </div>
                     <div className="h-16 bg-white rounded-xl border border-dashed border-slate-300 flex items-center justify-center p-2">
                       {localSettings.secondaryLogoUrl ? (
                         <img 
@@ -2161,6 +2233,36 @@ const AdminPanel: React.FC<Props> = ({
                       onChange={e => updateSettings({ clubLogoUrl: resolveGoogleDriveUrl(e.target.value) })} 
                       className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs outline-none focus:border-emerald-600 transition-all" 
                     />
+                    <div className="flex items-center justify-between gap-2">
+                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all">
+                        <Upload className="w-3 h-3 text-amber-400" />
+                        <span>Upload ke Storage</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const lid = toast.loading('Mengunggah Logo Klub...');
+                            try {
+                              const res = await uploadImageAsset(file, `tournaments/${eventId || 'general'}/logo_club_${Date.now()}`, { maxDim: 600, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 350, fallbackQuality: 0.7 });
+                              updateSettings({ clubLogoUrl: res.url });
+                              toast.dismiss(lid);
+                              toast.success(res.storedInCloud ? 'Logo Klub tersimpan di Storage!' : 'Logo Klub dipasang!');
+                            } catch {
+                              toast.dismiss(lid);
+                              toast.error('Gagal mengunggah logo');
+                            } finally {
+                              e.target.value = '';
+                            }
+                          }}
+                        />
+                      </label>
+                      {localSettings.clubLogoUrl && (
+                        <button type="button" onClick={() => updateSettings({ clubLogoUrl: '' })} className="text-[9px] font-bold text-red-600 hover:underline">Hapus</button>
+                      )}
+                    </div>
                     <div className="h-16 bg-white rounded-xl border border-dashed border-slate-300 flex items-center justify-center p-2">
                       {localSettings.clubLogoUrl ? (
                         <img 
@@ -3153,14 +3255,26 @@ const AdminPanel: React.FC<Props> = ({
                               type="file" 
                               accept="image/*" 
                               className="hidden" 
-                              onChange={e => {
+                              onChange={async (e) => {
                                 const file = e.target.files?.[0];
-                                if (file) {
-                                  const reader = new FileReader();
-                                  reader.onload = () => {
-                                    updateSponsorship(sponsor.id, 'logoUrl', reader.result as string);
-                                  };
-                                  reader.readAsDataURL(file);
+                                if (!file) return;
+                                const lid = toast.loading('Mengunggah Logo Sponsor ke Storage...');
+                                try {
+                                  const folder = eventId || 'general';
+                                  const res = await uploadImageAsset(
+                                    file,
+                                    `tournaments/${folder}/sponsor_${sponsor.id}_${Date.now()}`,
+                                    { maxDim: 600, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 350, fallbackQuality: 0.7 }
+                                  );
+                                  updateSponsorship(sponsor.id, 'logoUrl', res.url);
+                                  toast.dismiss(lid);
+                                  toast.success(res.storedInCloud ? 'Logo Sponsor tersimpan di Storage!' : 'Logo Sponsor dipasang!');
+                                } catch (err: any) {
+                                  toast.dismiss(lid);
+                                  console.error('Gagal mengunggah logo sponsor:', err);
+                                  toast.error('Gagal mengunggah logo sponsor');
+                                } finally {
+                                  e.target.value = '';
                                 }
                               }} 
                             />

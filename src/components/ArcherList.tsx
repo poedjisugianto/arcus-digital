@@ -38,7 +38,7 @@ import {
   ArcheryEvent
 } from "../types";
 import { CATEGORY_LABELS, getCategoryDisplayName } from "../constants";
-import { compressPhoto, uploadPhotoToStorage } from "../lib/photoService";
+import { uploadImageAsset } from "../lib/photoService";
 import { exportToExcel, exportToCSV } from "../lib/excelHelper";
 import ScoringSheet from "./ScoringSheet";
 import ParticipantScannerModal from "./ParticipantScannerModal";
@@ -132,19 +132,21 @@ const ArcherList: React.FC<Props> = ({
     if (file) {
       setIsUploadingPhoto(true);
       try {
-        const { base64, blob } = await compressPhoto(file, 250, 0.7);
-        let finalUrl = base64; // Fallback to base64
+        const randomId = Math.random().toString(36).substring(2, 11);
+        const eventFolder = eventId || 'manual';
+        const result = await uploadImageAsset(
+          file,
+          `registrations/${eventFolder}/photo_${Date.now()}_${randomId}`,
+          { maxDim: 360, quality: 0.78, fallbackMaxDim: 250, fallbackQuality: 0.65 }
+        );
 
-        try {
-          const randomId = Math.random().toString(36).substring(2, 11);
-          finalUrl = await uploadPhotoToStorage(blob, `registrations/${randomId}.jpg`);
-          toast.success("Foto berhasil diunggah");
-        } catch (stErr) {
-          console.warn("Storage upload failed, using secure base64 local fallback:", stErr);
+        if (result.storedInCloud) {
+          toast.success("Foto berhasil diunggah ke Storage");
+        } else {
           toast.success("Foto diproses secara lokal");
         }
 
-        setNewArcher(prev => ({ ...prev, photoUrl: finalUrl }));
+        setNewArcher(prev => ({ ...prev, photoUrl: result.url }));
       } catch (err: any) {
         toast.error("Gagal memproses foto: " + err.message);
       } finally {

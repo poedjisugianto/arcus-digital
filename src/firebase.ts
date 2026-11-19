@@ -20,12 +20,16 @@ const appletConfigs = import.meta.glob('/firebase-applet-config.json', { eager: 
 const appletConfig = appletConfigs['/firebase-applet-config.json']?.default || appletConfigs['/firebase-applet-config.json'] || {};
 
 const getFirebaseConfig = (): FirebaseConfig => {
+  const resolvedProjectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || appletConfig.projectId || "";
   // Use environment variables (Vite style) with fallback to firebase-applet-config.json
   const envConfig: FirebaseConfig = {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY || appletConfig.apiKey || "",
     authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || appletConfig.authDomain || "",
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || appletConfig.projectId || "",
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || appletConfig.storageBucket || "",
+    projectId: resolvedProjectId,
+    storageBucket:
+      import.meta.env.VITE_FIREBASE_STORAGE_BUCKET ||
+      appletConfig.storageBucket ||
+      (resolvedProjectId ? `${resolvedProjectId}.firebasestorage.app` : ""),
     messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || appletConfig.messagingSenderId || "",
     appId: import.meta.env.VITE_FIREBASE_APP_ID || appletConfig.appId || "",
     measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || appletConfig.measurementId || "",

@@ -1678,6 +1678,15 @@ app.post("/api/register-participant", async (req, res) => {
     return res.status(400).json({ success: false, message: "Missing required registration data or invalid format" });
   }
 
+  const isGiantData = (val: any) => typeof val === 'string' && (val.startsWith('data:') || val.length > 1000);
+  const slimItem = (item: any) => {
+    const c = { ...item };
+    if (isGiantData(c.paymentProof)) delete c.paymentProof;
+    if (isGiantData(c.paymentProofUrl)) delete c.paymentProofUrl;
+    if (isGiantData(c.photoUrl)) delete c.photoUrl;
+    return c;
+  };
+
   const currentDb = getAdminDB();
 
   // Try Admin SDK first if available
@@ -1719,17 +1728,7 @@ app.post("/api/register-participant", async (req, res) => {
           }, { merge: true });
         });
 
-        // 2. Update the main event metadata (ensure no base64 images/paymentProofs bloat root doc)
-        const slimItem = (item: any) => {
-          const c = { ...item };
-          delete c.paymentProof;
-          delete c.paymentProofUrl;
-          if (typeof c.photoUrl === 'string' && (c.photoUrl.startsWith('data:') || c.photoUrl.length > 500)) {
-            delete c.photoUrl;
-          }
-          return c;
-        };
-
+        // 2. Update the main event metadata (keep short Storage URLs, strip giant base64 strings)
         const newArchers = (archers || []).map(a => ({
           ...slimItem(a),
           status: a.status || "PENDING",
@@ -1794,7 +1793,8 @@ app.post("/api/register-participant", async (req, res) => {
   // Fallback to REST API (Uses API Key, bypassing server ADC permission restrictions)
   try {
     const eventData = await restGetDoc('events', eventId);
-    
+    let subWriteSuccessCount = 0;
+
     // Write submissions via REST
     for (let index = 0; index < registrations.length; index++) {
       const reg = registrations[index];
@@ -1802,25 +1802,26 @@ app.post("/api/register-participant", async (req, res) => {
       const officialData = (officials || []).find((o: any) => o.id === reg.id) || {};
       const regId = reg.id || `reg_${Date.now()}_${index}`;
       
-      await restWriteDoc(`events/${eventId}/submissions`, regId, {
+      const ok = await restWriteDoc(`events/${eventId}/submissions`, regId, {
         ...reg,
         ...archerData,
         ...officialData,
         id: regId,
         updatedAt: new Date().toISOString()
       });
+      if (ok) subWriteSuccessCount++;
     }
 
-    // Update parent event document
+    // Update parent event document (keep short Storage URLs, strip giant base64 strings)
     const newArchers = (archers || []).map(a => ({
-      ...a,
+      ...slimItem(a),
       status: a.status || "PENDING",
       timestamp: a.timestamp || Date.now(),
       registeredVia: 'ONLINE'
     }));
 
     const newOfficials = (officials || []).map(o => ({
-      ...o,
+      ...slimItem(o),
       status: o.status || "PENDING",
       timestamp: o.timestamp || Date.now(),
       registeredVia: 'ONLINE'
@@ -1831,13 +1832,17 @@ app.post("/api/register-participant", async (req, res) => {
     const mergedArchers = [...existingArchers.filter((a: any) => !newArchers.some((na: any) => na.id === a.id)), ...newArchers];
     const mergedOfficials = [...existingOfficials.filter((o: any) => !newOfficials.some((no: any) => no.id === o.id)), ...newOfficials];
 
-    await restWriteDoc('events', eventId, {
+    const eventWriteOk = await restWriteDoc('events', eventId, {
       archers: mergedArchers,
       officials: mergedOfficials,
       registrationCount: ((eventData?.registrationCount || existingArchers.length) + registrations.length),
       lastRegistrationAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
+
+    if (registrations.length > 0 && subWriteSuccessCount === 0 && !eventWriteOk) {
+      throw new Error("Firestore REST write rejected (no submissions or parent doc persisted).");
+    }
 
     if (eventDetailsCache[eventId]) {
       delete eventDetailsCache[eventId];
@@ -1849,12 +1854,10 @@ app.post("/api/register-participant", async (req, res) => {
       count: registrations.length
     });
   } catch (restErr: any) {
-    console.error("[API/REGISTER] REST Fallback also encountered an issue:", restErr.message);
-    // Return success to allow frontend to continue smoothly if local state was already captured
-    return res.json({
-      success: true,
-      message: "Pendaftaran berhasil dicatat.",
-      count: registrations.length
+    console.error("[API/REGISTER] REST Fallback failed:", restErr.message);
+    return res.status(500).json({
+      success: false,
+      message: restErr?.message || "Gagal menyimpan pendaftaran ke cloud via API."
     });
   }
 });

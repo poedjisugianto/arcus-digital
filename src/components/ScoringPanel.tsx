@@ -24,7 +24,13 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
     if (!currentScorer || !currentScorer.assignedTargets || currentScorer.assignedTargets.length === 0) {
       return allTargets;
     }
-    const filtered = currentScorer.assignedTargets.filter(t => t >= 1 && t <= total);
+    const filtered = Array.from(
+      new Set(
+        currentScorer.assignedTargets.filter(
+          (t): t is number => typeof t === 'number' && Number.isFinite(t) && t >= 1 && t <= total
+        )
+      )
+    );
     return filtered.length > 0 ? filtered : allTargets;
   }, [state.settings?.totalTargets, currentScorer]);
 
@@ -46,7 +52,13 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
   }, [allowedTargets, selectedTarget]);
 
   const availableCategories = useMemo(() => {
-    return Array.from(new Set((state.archers || []).map(a => a.category)));
+    return Array.from(
+      new Set(
+        (state.archers || [])
+          .map(a => a.category)
+          .filter((cat): cat is CategoryType => Boolean(cat))
+      )
+    );
   }, [state.archers]);
 
   const archersAtTarget = useMemo(() => {
@@ -505,16 +517,16 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
           <div className="flex items-center gap-1.5 font-sans">
              <button onClick={() => setShowScanner(true)} className="p-3 bg-arcus-red text-white rounded-lg active:scale-90 transition-all shadow-md"><ScanLine className="w-5 h-5" /></button>
              <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-[200px] px-2 bg-slate-50 border border-slate-100 p-1 rounded-lg">
-                {allowedTargets.map((targetNum) => (
+                {allowedTargets.map((targetNum, idx) => (
                   <button 
-                    key={targetNum} 
+                    key={`target-${targetNum}-${idx}`} 
                     onClick={() => setSelectedTarget(targetNum)}
                     className={`shrink-0 w-8 h-8 rounded-lg font-black text-[10px] transition-all border ${selectedTarget === targetNum ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-transparent border-transparent text-slate-900 opacity-60'}`}
                   >
                     {targetNum}
                   </button>
                 ))}
-             </div>
+              </div>
           </div>
         </div>
         
@@ -526,13 +538,13 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
           >
             ALL
           </button>
-          {availableCategories.map(cat => (
+          {availableCategories.map((cat, idx) => (
             <button 
-              key={cat}
+              key={`cat-${String(cat)}-${idx}`}
               onClick={() => setSelectedCategory(cat as CategoryType)}
               className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border whitespace-nowrap transition-all ${selectedCategory === cat ? 'bg-slate-900 text-white border-slate-900' : 'bg-white border-slate-200 text-slate-600'}`}
             >
-              {CATEGORY_LABELS[cat]}
+              {CATEGORY_LABELS[cat] || String(cat)}
             </button>
           ))}
         </div>
@@ -541,9 +553,9 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
       <div className="flex-1 flex flex-col md:flex-row bg-slate-50 overflow-hidden">
         {/* Archer Selection - High Visibility Vertical Bar */}
         <div className="w-full md:w-64 bg-[#FBFBFD] border-r border-slate-200 p-2 overflow-x-auto no-scrollbar flex md:flex-col gap-2 shrink-0">
-          {archersAtTarget.map(a => (
+          {archersAtTarget.map((a, idx) => (
             <button 
-              key={a.id} 
+              key={`archer-${a.id || 'noid'}-${idx}`} 
               onClick={() => setSelectedArcherId(a.id)}
               className={`flex-1 md:flex-none p-4 rounded-lg text-left border transition-all duration-200 ${selectedArcherId === a.id ? 'bg-arcus-sun border-yellow-500 text-black shadow-md' : 'bg-white border-slate-200 text-slate-900'}`}
             >
@@ -558,8 +570,8 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
                 </p>
                 <div className="flex items-center gap-2">
                    <div className="flex gap-0.5 overflow-hidden max-w-[60px]">
-                      {Array.from({ length: (state.settings?.categoryConfigs || {})[a.category as CategoryType]?.ends || 6 }).map((_, i) => (
-                         <div key={i} className={`w-1 h-1 rounded-full shrink-0 ${(state.scores || []).find(s => s.archerId === a.id && s.endIndex === i && !s.isDeleted) ? 'bg-slate-900' : 'bg-slate-200'}`} />
+                      {Array.from({ length: Math.max(0, Number((state.settings?.categoryConfigs || {})[a.category as CategoryType]?.ends) || 6) }).map((_, i) => (
+                         <div key={`dot-${a.id || idx}-${i}`} className={`w-1 h-1 rounded-full shrink-0 ${(state.scores || []).find(s => s.archerId === a.id && s.endIndex === i && !s.isDeleted) ? 'bg-slate-900' : 'bg-slate-200'}`} />
                       ))}
                    </div>
                 </div>
@@ -613,11 +625,11 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
               <div className="space-y-4 sm:space-y-5 text-center">
                 {/* Ends Navigation */}
                 <div className="flex items-center justify-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
-                  {Array.from({ length: config?.ends || 7 }).map((_, i) => {
+                  {Array.from({ length: Math.max(0, Number(config?.ends) || 7) }).map((_, i) => {
                     const scoreForEnd = (state.scores || []).find(s => s.archerId === selectedArcherId && s.endIndex === i && !s.isDeleted);
                     return (
                       <button 
-                        key={i} 
+                        key={`end-${i}`} 
                         onClick={() => setCurrentEnd(i)} 
                         className={`min-w-10 h-10 rounded-xl text-xs font-black border transition-all flex flex-col items-center justify-center ${
                           currentEnd === i 
@@ -642,7 +654,7 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
                     const filledStyle = isFilled ? getButtonStyles(a === 0 ? 'M' : a) : '';
                     return (
                       <button
-                        key={i} 
+                        key={`arrow-${i}`} 
                         type="button"
                         onClick={() => setActiveArrowIndex(i === activeArrowIndex ? null : i)}
                         className={`w-14 h-16 sm:w-20 sm:h-22 rounded-2xl border-2 flex flex-col items-center justify-between p-1.5 sm:p-2 transition-all relative ${
@@ -742,9 +754,9 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                  {keypadValues.map(val => (
+                  {keypadValues.map((val, idx) => (
                     <button 
-                      key={val} 
+                      key={`pad-${String(val)}-${idx}`} 
                       onClick={() => handleInput(val)}
                       className={`h-14 sm:h-20 rounded-2xl text-2xl sm:text-4xl font-black shadow-sm active:scale-95 transition-all flex items-center justify-center border-b-4 ${getButtonStyles(val)}`}
                     >
@@ -851,7 +863,7 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
               <div className="grid grid-cols-6 gap-2">
                 {tempArrows.map((arrow, idx) => (
                   <div 
-                    key={idx}
+                    key={`confirm-arrow-${idx}`}
                     className={`h-11 rounded-xl flex items-center justify-center font-black text-base border-2 shadow-xs ${
                       arrow === -1 
                         ? 'bg-slate-100 border-dashed border-slate-300 text-slate-400' 

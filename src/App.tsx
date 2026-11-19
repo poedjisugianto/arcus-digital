@@ -107,6 +107,25 @@ const getAccurateParticipantCount = (archers: any[] = [], regs: any[] = [], fall
   return fallbackCount || 0;
 };
 
+const pickNonEmptyMedia = (incomingVal: any, existingVal: any) => {
+  if (typeof incomingVal === 'string' && incomingVal.trim().length > 0) return incomingVal;
+  if (typeof existingVal === 'string' && existingVal.trim().length > 0) return existingVal;
+  return incomingVal ?? existingVal;
+};
+
+const mergeParticipantPreserveMedia = <T extends Record<string, any>>(existing: T | undefined, incoming: T): T => {
+  if (!existing) return incoming;
+  return {
+    ...existing,
+    ...incoming,
+    paymentProof: pickNonEmptyMedia(incoming.paymentProof, existing.paymentProof),
+    paymentProofUrl: pickNonEmptyMedia(incoming.paymentProofUrl, existing.paymentProofUrl),
+    photoUrl: pickNonEmptyMedia(incoming.photoUrl, existing.photoUrl),
+    checkedIn: incoming.checkedIn ?? existing.checkedIn,
+    checkInTimestamp: incoming.checkInTimestamp ?? existing.checkInTimestamp,
+  };
+};
+
 const getApiAuthHeaders = async (): Promise<Record<string, string>> => {
   try {
     if (auth) {
@@ -545,15 +564,15 @@ export default function App() {
                   updated = prev.events.map(e => {
                     if (e.id !== targetUrlEventId) return e;
                     const archerMap = new Map((e.archers || []).map(a => [a.id, a]));
-                    cloudArchers.forEach((a: any) => archerMap.set(a.id, a as Archer));
-                    (evData.archers || []).forEach((a: any) => archerMap.set(a.id, a as Archer));
+                    cloudArchers.forEach((a: any) => archerMap.set(a.id, mergeParticipantPreserveMedia(archerMap.get(a.id), a as Archer)));
+                    (evData.archers || []).forEach((a: any) => archerMap.set(a.id, mergeParticipantPreserveMedia(archerMap.get(a.id), a as Archer)));
 
                     const officialMap = new Map((e.officials || []).map(o => [o.id, o]));
-                    cloudOfficials.forEach((o: any) => officialMap.set(o.id, o as any));
-                    (evData.officials || []).forEach((o: any) => officialMap.set(o.id, o as any));
+                    cloudOfficials.forEach((o: any) => officialMap.set(o.id, mergeParticipantPreserveMedia(officialMap.get(o.id), o as any)));
+                    (evData.officials || []).forEach((o: any) => officialMap.set(o.id, mergeParticipantPreserveMedia(officialMap.get(o.id), o as any)));
 
                     const regMap = new Map((e.registrations || []).map(r => [r.id, r]));
-                    rawSubmissions.forEach((r: any) => regMap.set(r.id, r));
+                    rawSubmissions.forEach((r: any) => regMap.set(r.id, mergeParticipantPreserveMedia(regMap.get(r.id), r)));
 
                     const finalArchers = Array.from(archerMap.values());
                     const finalOfficials = Array.from(officialMap.values());
@@ -673,13 +692,13 @@ export default function App() {
           if (existing) {
             // Keep all rich participant data from existing state
             const archerMap = new Map((existing.archers || []).map(a => [a.id, a]));
-            (pe.archers || []).forEach((a: any) => archerMap.set(a.id, a));
+            (pe.archers || []).forEach((a: any) => archerMap.set(a.id, mergeParticipantPreserveMedia(archerMap.get(a.id), a)));
 
             const officialMap = new Map((existing.officials || []).map(o => [o.id, o]));
-            (pe.officials || []).forEach((o: any) => officialMap.set(o.id, o));
+            (pe.officials || []).forEach((o: any) => officialMap.set(o.id, mergeParticipantPreserveMedia(officialMap.get(o.id), o)));
 
             const regMap = new Map((existing.registrations || []).map(r => [r.id, r]));
-            (pe.registrations || []).forEach((r: any) => regMap.set(r.id, r));
+            (pe.registrations || []).forEach((r: any) => regMap.set(r.id, mergeParticipantPreserveMedia(regMap.get(r.id), r)));
 
             const finalArchers = Array.from(archerMap.values());
             const finalOfficials = Array.from(officialMap.values());
@@ -759,13 +778,13 @@ export default function App() {
               const existing = eventMap.get(ue.id);
               if (existing) {
                 const archerMap = new Map((existing.archers || []).map(a => [a.id, a]));
-                (ue.archers || []).forEach((a: any) => archerMap.set(a.id, a));
+                (ue.archers || []).forEach((a: any) => archerMap.set(a.id, mergeParticipantPreserveMedia(archerMap.get(a.id), a)));
 
                 const officialMap = new Map((existing.officials || []).map(o => [o.id, o]));
-                (ue.officials || []).forEach((o: any) => officialMap.set(o.id, o));
+                (ue.officials || []).forEach((o: any) => officialMap.set(o.id, mergeParticipantPreserveMedia(officialMap.get(o.id), o)));
 
                 const regMap = new Map((existing.registrations || []).map(r => [r.id, r]));
-                (ue.registrations || []).forEach((r: any) => regMap.set(r.id, r));
+                (ue.registrations || []).forEach((r: any) => regMap.set(r.id, mergeParticipantPreserveMedia(regMap.get(r.id), r)));
 
                 const finalArchers = Array.from(archerMap.values());
                 const finalOfficials = Array.from(officialMap.values());
@@ -850,16 +869,16 @@ export default function App() {
                 updatedEvents = prev.events.map(e => {
                   if (e.id === eventId) {
                     const archerMap = new Map((e.archers || []).map(a => [a.id, a]));
-                    cloudArchers.forEach((a: any) => archerMap.set(a.id, a as Archer));
-                    (evData.archers || []).forEach((a: any) => archerMap.set(a.id, a as Archer));
+                    cloudArchers.forEach((a: any) => archerMap.set(a.id, mergeParticipantPreserveMedia(archerMap.get(a.id), a as Archer)));
+                    (evData.archers || []).forEach((a: any) => archerMap.set(a.id, mergeParticipantPreserveMedia(archerMap.get(a.id), a as Archer)));
 
                     const officialMap = new Map((e.officials || []).map(o => [o.id, o]));
-                    cloudOfficials.forEach((o: any) => officialMap.set(o.id, o as any));
-                    (evData.officials || []).forEach((o: any) => officialMap.set(o.id, o as any));
+                    cloudOfficials.forEach((o: any) => officialMap.set(o.id, mergeParticipantPreserveMedia(officialMap.get(o.id), o as any)));
+                    (evData.officials || []).forEach((o: any) => officialMap.set(o.id, mergeParticipantPreserveMedia(officialMap.get(o.id), o as any)));
 
                     const regMap = new Map((e.registrations || []).map(r => [r.id, r]));
-                    rawSubmissions.forEach((r: any) => regMap.set(r.id, r));
-                    (evData.registrations || []).forEach((r: any) => regMap.set(r.id, r));
+                    rawSubmissions.forEach((r: any) => regMap.set(r.id, mergeParticipantPreserveMedia(regMap.get(r.id), r)));
+                    (evData.registrations || []).forEach((r: any) => regMap.set(r.id, mergeParticipantPreserveMedia(regMap.get(r.id), r)));
 
                     const finalArchers = Array.from(archerMap.values());
                     const finalOfficials = Array.from(officialMap.values());
@@ -949,13 +968,13 @@ export default function App() {
                 updatedEvents = prev.events.map(e => {
                   if (e.id === eventId) {
                     const archerMap = new Map((e.archers || []).map(a => [a.id, a]));
-                    cloudArchers.forEach(a => archerMap.set(a.id, a as Archer));
+                    cloudArchers.forEach(a => archerMap.set(a.id, mergeParticipantPreserveMedia(archerMap.get(a.id), a as Archer)));
 
                     const officialMap = new Map((e.officials || []).map(o => [o.id, o]));
-                    cloudOfficials.forEach(o => officialMap.set(o.id, o as any));
+                    cloudOfficials.forEach(o => officialMap.set(o.id, mergeParticipantPreserveMedia(officialMap.get(o.id), o as any)));
 
                     const regMap = new Map((e.registrations || []).map(r => [r.id, r]));
-                    rawSubmissions.forEach(r => regMap.set(r.id, r));
+                    rawSubmissions.forEach(r => regMap.set(r.id, mergeParticipantPreserveMedia(regMap.get(r.id), r)));
 
                     const finalArchers = Array.from(archerMap.values());
                     const finalOfficials = Array.from(officialMap.values());
@@ -1024,24 +1043,17 @@ export default function App() {
           if (exists) {
             updatedEvents = prev.events.map(e => {
               if (e.id === eventId) {
-                const mergedArchers = Array.from(
-                  new Map([
-                    ...(e.archers || []).map(a => [a.id, a] as [string, Archer]),
-                    ...(parentEvent.archers || []).map(a => [a.id, a] as [string, Archer])
-                  ]).values()
-                );
-                const mergedOfficials = Array.from(
-                  new Map([
-                    ...(e.officials || []).map(o => [o.id, o] as [string, any]),
-                    ...(parentEvent.officials || []).map(o => [o.id, o] as [string, any])
-                  ]).values()
-                );
-                const mergedRegistrations = Array.from(
-                  new Map([
-                    ...(e.registrations || []).map(r => [r.id, r] as [string, any]),
-                    ...(parentEvent.registrations || []).map(r => [r.id, r] as [string, any])
-                  ]).values()
-                );
+                const archerMap = new Map((e.archers || []).map(a => [a.id, a] as [string, Archer]));
+                (parentEvent.archers || []).forEach((a: any) => archerMap.set(a.id, mergeParticipantPreserveMedia(archerMap.get(a.id), a as Archer)));
+                const mergedArchers = Array.from(archerMap.values());
+
+                const officialMap = new Map((e.officials || []).map(o => [o.id, o] as [string, any]));
+                (parentEvent.officials || []).forEach((o: any) => officialMap.set(o.id, mergeParticipantPreserveMedia(officialMap.get(o.id), o)));
+                const mergedOfficials = Array.from(officialMap.values());
+
+                const regMap = new Map((e.registrations || []).map(r => [r.id, r] as [string, any]));
+                (parentEvent.registrations || []).forEach((r: any) => regMap.set(r.id, mergeParticipantPreserveMedia(regMap.get(r.id), r)));
+                const mergedRegistrations = Array.from(regMap.values());
 
                 return {
                   ...parentEvent,
@@ -1130,15 +1142,15 @@ export default function App() {
           if (exists) {
             updatedEvents = prev.events.map(e => {
               if (e.id === eventId) {
-                // Merge cleanly via Map to never lose items
+                // Merge cleanly via Map to never lose items or media URLs
                 const archerMap = new Map((e.archers || []).map(a => [a.id, a]));
-                cloudArchers.forEach(a => archerMap.set(a.id, a as Archer));
+                cloudArchers.forEach(a => archerMap.set(a.id, mergeParticipantPreserveMedia(archerMap.get(a.id), a as Archer)));
 
                 const officialMap = new Map((e.officials || []).map(o => [o.id, o]));
-                cloudOfficials.forEach(o => officialMap.set(o.id, o as any));
+                cloudOfficials.forEach(o => officialMap.set(o.id, mergeParticipantPreserveMedia(officialMap.get(o.id), o as any)));
 
                 const regMap = new Map((e.registrations || []).map(r => [r.id, r]));
-                rawSubmissions.forEach(r => regMap.set(r.id, r));
+                rawSubmissions.forEach(r => regMap.set(r.id, mergeParticipantPreserveMedia(regMap.get(r.id), r)));
 
                 const finalArchers = Array.from(archerMap.values());
                 const finalOfficials = Array.from(officialMap.values());
@@ -1255,18 +1267,38 @@ export default function App() {
   // 5. Auto-persistence to LocalStorage to save quota on repeated loads/refreshes
   useEffect(() => {
     if (appState.isDataLoaded && appState.events.length > 0) {
+      const stateToSave = {
+        globalSettings: appState.globalSettings,
+        events: appState.events,
+        currentUser: appState.currentUser,
+        activeEventId: appState.activeEventId,
+        activeScorer: appState.activeScorer
+      };
       try {
-        const stateToSave = {
-          globalSettings: appState.globalSettings,
-          events: appState.events,
-          currentUser: appState.currentUser,
-          activeEventId: appState.activeEventId,
-          activeScorer: appState.activeScorer
-        };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
         localStorage.setItem(`${STORAGE_KEY}_timestamp`, Date.now().toString());
       } catch (err) {
-        console.warn("Could not save state to localStorage", err);
+        try {
+          // Strip giant inline base64 strings while preserving HTTPS Storage URLs and retry
+          const stripGiantData = (val: any): any => {
+            if (typeof val === 'string') {
+              return val.startsWith('data:') && val.length > 20000 ? '' : val;
+            }
+            if (Array.isArray(val)) return val.map(stripGiantData);
+            if (val && typeof val === 'object') {
+              const out: any = {};
+              for (const k of Object.keys(val)) {
+                out[k] = stripGiantData(val[k]);
+              }
+              return out;
+            }
+            return val;
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(stripGiantData(stateToSave)));
+          localStorage.setItem(`${STORAGE_KEY}_timestamp`, Date.now().toString());
+        } catch (retryErr) {
+          console.warn("Could not save state to localStorage", retryErr);
+        }
       }
     }
   }, [appState.events, appState.globalSettings, appState.currentUser, appState.activeEventId, appState.activeScorer, appState.isDataLoaded]);
@@ -1433,9 +1465,18 @@ export default function App() {
                 updatedEvents = prev.events.map(e => {
                   if (e.id === eventId) {
                     const useIncomingRegs = !isPartial || rawSubmissions.length > 0;
-                    const finalRegs = useIncomingRegs ? rawSubmissions : (e.registrations || []);
-                    const finalArchers = useIncomingRegs ? cloudArchers : (e.archers || []);
-                    const finalOfficials = useIncomingRegs ? cloudOfficials : (e.officials || []);
+                    const existingRegById = new Map((e.registrations || []).map(r => [r.id, r]));
+                    const existingArcherById = new Map((e.archers || []).map(a => [a.id, a]));
+                    const existingOfficialById = new Map((e.officials || []).map(o => [o.id, o]));
+                    const finalRegs = useIncomingRegs
+                      ? rawSubmissions.map((r: any) => mergeParticipantPreserveMedia(existingRegById.get(r.id), r))
+                      : (e.registrations || []);
+                    const finalArchers = useIncomingRegs
+                      ? cloudArchers.map((a: any) => mergeParticipantPreserveMedia(existingArcherById.get(a.id), a as Archer))
+                      : (e.archers || []);
+                    const finalOfficials = useIncomingRegs
+                      ? cloudOfficials.map((o: any) => mergeParticipantPreserveMedia(existingOfficialById.get(o.id), o))
+                      : (e.officials || []);
                     return {
                       ...e,
                       ...evData,
@@ -1501,9 +1542,18 @@ export default function App() {
               const updatedEvents = prev.events.map(e => {
                 if (e.id === eventId) {
                   const useIncomingRegs = !isPartial || rawSubmissions.length > 0;
-                  const finalRegs = useIncomingRegs ? rawSubmissions : (e.registrations || []);
-                  const finalArchers = useIncomingRegs ? cloudArchers : (e.archers || []);
-                  const finalOfficials = useIncomingRegs ? cloudOfficials : (e.officials || []);
+                  const existingRegById = new Map((e.registrations || []).map(r => [r.id, r]));
+                  const existingArcherById = new Map((e.archers || []).map(a => [a.id, a]));
+                  const existingOfficialById = new Map((e.officials || []).map(o => [o.id, o]));
+                  const finalRegs = useIncomingRegs
+                    ? rawSubmissions.map((r: any) => mergeParticipantPreserveMedia(existingRegById.get(r.id), r))
+                    : (e.registrations || []);
+                  const finalArchers = useIncomingRegs
+                    ? cloudArchers.map((a: any) => mergeParticipantPreserveMedia(existingArcherById.get(a.id), a as Archer))
+                    : (e.archers || []);
+                  const finalOfficials = useIncomingRegs
+                    ? cloudOfficials.map((o: any) => mergeParticipantPreserveMedia(existingOfficialById.get(o.id), o))
+                    : (e.officials || []);
                   return {
                     ...e,
                     ...evData,
@@ -1762,14 +1812,14 @@ export default function App() {
         firestoreUpdate["data.scoreLogs"] = deleteField();
 
         // Helper to strip massive base64 images from archers/officials before saving to root event document
+        // while keeping short Firebase Storage HTTPS URLs intact
+        const isGiantInlineData = (val: any) => typeof val === 'string' && (val.startsWith('data:') || val.length > 1000);
         const slimParticipantForEventDoc = (item: any) => {
           if (!item || typeof item !== 'object') return item;
           const copy = { ...item };
-          delete copy.paymentProof;
-          delete copy.paymentProofUrl;
-          if (typeof copy.photoUrl === 'string' && (copy.photoUrl.startsWith('data:') || copy.photoUrl.length > 500)) {
-            delete copy.photoUrl;
-          }
+          if (isGiantInlineData(copy.paymentProof)) delete copy.paymentProof;
+          if (isGiantInlineData(copy.paymentProofUrl)) delete copy.paymentProofUrl;
+          if (isGiantInlineData(copy.photoUrl)) delete copy.photoUrl;
           return copy;
         };
 
@@ -2887,7 +2937,7 @@ export default function App() {
         return <FinancePanel 
           event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           globalSettings={appState.globalSettings}
-          onApproveRegistration={(regId) => {
+          onApproveRegistration={async (regId) => {
             const targetReg = (activeEvent.registrations || []).find(r => r.id === regId) || (activeEvent.archers || []).find(a => a.id === regId);
             let targetData: { targetNo?: number; position?: string; wave?: number; sessionName?: string } = {};
 
@@ -2911,6 +2961,21 @@ export default function App() {
               archers: updatedArchers.map(a => sanitizeForFirestore(a)),
               officials: updatedOfficials.map(o => sanitizeForFirestore(o))
             });
+            if (isOnline && db) {
+              try {
+                await setDoc(
+                  doc(db, 'events', activeEvent.id, 'submissions', regId),
+                  sanitizeForFirestore({
+                    status: RegistrationStatus.CONFIRMED,
+                    ...targetData,
+                    updatedAt: new Date().toISOString()
+                  }),
+                  { merge: true }
+                );
+              } catch (subApproveErr) {
+                console.warn('[FINANCE] Failed updating submission status in subcollection:', subApproveErr);
+              }
+            }
             pushNotification(
               "Status Peserta Diperbarui", 
               targetData.targetNo 
@@ -2933,6 +2998,7 @@ export default function App() {
       case 'ID_CARD_EDITOR':
         if (!activeEvent) return renderEventNotFoundOrLoading();
         return <IdCardEditor 
+          eventId={activeEvent.id}
           archers={activeEventArchers}
           officials={activeEventOfficials}
           settings={activeEvent.settings}

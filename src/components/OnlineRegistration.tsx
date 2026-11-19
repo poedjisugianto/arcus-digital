@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { ArcheryEvent, GlobalSettings, ParticipantRegistration, CategoryType, RegistrationStatus } from '../types';
-import { compressPhoto, uploadPhotoToStorage } from '../lib/photoService';
+import { uploadImageAsset } from '../lib/photoService';
 import { auth } from '../firebase';
 
 declare global {
@@ -81,6 +81,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
   const [collectiveMembers, setCollectiveMembers] = useState<{name: string, ktaNumber?: string, category: string, photoUrl?: string}[]>([]);
   const [newMember, setNewMember] = useState({ name: '', ktaNumber: '', category: '', photoUrl: '' });
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isUploadingProof, setIsUploadingProof] = useState(false);
   const [paymentErrorDetail, setPaymentErrorDetail] = useState<{ title: string; message: string; isAuthError?: boolean } | null>(null);
 
   const isGlobalGatewayActive = (globalSettings.paymentGatewayEnabled ?? (globalSettings.paymentGatewayProvider !== 'NONE')) && globalSettings.paymentGatewayProvider !== 'NONE';
@@ -132,22 +133,24 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
     if (file) {
       setIsUploadingPhoto(true);
       try {
-        const { base64, blob } = await compressPhoto(file, 250, 0.7);
-        let finalUrl = base64; // Fallback to base64
+        const randomId = Math.random().toString(36).substring(2, 11);
+        const eventFolder = event.id || 'general';
+        const result = await uploadImageAsset(
+          file,
+          `registrations/${eventFolder}/photo_${Date.now()}_${randomId}`,
+          { maxDim: 360, quality: 0.78, fallbackMaxDim: 250, fallbackQuality: 0.65 }
+        );
 
-        try {
-          const randomId = Math.random().toString(36).substring(2, 11);
-          finalUrl = await uploadPhotoToStorage(blob, `registrations/${randomId}.jpg`);
-          toast.success("Foto berhasil diunggah");
-        } catch (storageErr) {
-          console.warn("Storage upload failed, using secure base64 local fallback:", storageErr);
-          toast.success("Foto diproses secara lokal");
+        if (result.storedInCloud) {
+          toast.success("Foto berhasil diunggah ke Storage");
+        } else {
+          toast.success("Foto diproses");
         }
 
         if (isForNewMember) {
-          setNewMember(prev => ({ ...prev, photoUrl: finalUrl }));
+          setNewMember(prev => ({ ...prev, photoUrl: result.url }));
         } else {
-          setFormData(prev => ({ ...prev, photoUrl: finalUrl }));
+          setFormData(prev => ({ ...prev, photoUrl: result.url }));
         }
       } catch (err: any) {
         toast.error("Gagal memproses foto: " + err.message);
@@ -218,50 +221,37 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
     }
   }, [categories, formData.category, newMember.category]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      // Relaxed limit since we compress and server now accepts 10MB
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("File terlalu besar (Maks 10MB)");
-        return;
+    if (!file) return;
+
+    if (file.size > 15 * 1024 * 1024) {
+      toast.error("File terlalu besar (Maks 15MB)");
+      return;
+    }
+
+    setIsUploadingProof(true);
+    try {
+      const randomId = Math.random().toString(36).substring(2, 11);
+      const eventFolder = event.id || 'general';
+      const result = await uploadImageAsset(
+        file,
+        `registrations/${eventFolder}/proof_${Date.now()}_${randomId}`,
+        { maxDim: 1200, quality: 0.78, fallbackMaxDim: 750, fallbackQuality: 0.62 }
+      );
+
+      setFormData(prev => ({ ...prev, paymentProof: result.url }));
+      if (result.storedInCloud) {
+        toast.success("Bukti transfer berhasil disimpan ke Firebase Storage");
+      } else {
+        toast.success("Bukti pembayaran siap diunggah");
       }
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const img = new Image();
-        img.src = reader.result as string;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-          
-          // Max dimension 1200px
-          const maxDim = 1200;
-          if (width > height) {
-            if (width > maxDim) {
-              height *= maxDim / width;
-              width = maxDim;
-            }
-          } else {
-            if (height > maxDim) {
-              width *= maxDim / height;
-              height = maxDim;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          
-          // Compress to JPEG with 0.7 quality
-          const compressedData = canvas.toDataURL('image/jpeg', 0.7);
-          setFormData({ ...formData, paymentProof: compressedData });
-          toast.success("Bukti pembayaran siap diunggah");
-        };
-      };
-      reader.readAsDataURL(file);
+    } catch (err: any) {
+      console.error("Gagal memproses bukti transfer:", err);
+      toast.error("Gagal memproses bukti transfer: " + (err?.message || "format tidak didukung"));
+    } finally {
+      setIsUploadingProof(false);
+      e.target.value = '';
     }
   };
 
@@ -432,6 +422,11 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
       }
     }
     
+    if (isUploadingProof || isUploadingPhoto) {
+      toast.info("Mohon tunggu, gambar masih sedang diunggah ke Storage...");
+      return;
+    }
+
     if (formData.paymentType === 'MANUAL' && !formData.paymentProof) {
       toast.error("Silakan unggah bukti pembayaran terlebih dahulu");
       return;
@@ -499,6 +494,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
         category: formData.regType === 'OFFICIAL' ? 'OFFICIAL' : formData.category,
         regType: formData.regType,
         paymentProof: formData.paymentType === 'MANUAL' ? (formData.paymentProof || "") : "",
+        paymentProofUrl: formData.paymentType === 'MANUAL' ? (formData.paymentProof || "") : "",
         photoUrl: formData.photoUrl || "",
         totalPaid,
         platformFee,
@@ -570,6 +566,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
           category: member.category,
           regType: (member.category === 'OFFICIAL' || member.category === CategoryType.OFFICIAL) ? 'OFFICIAL' : 'ARCHER',
           paymentProof: formData.paymentType === 'MANUAL' ? (formData.paymentProof || "") : "",
+          paymentProofUrl: formData.paymentType === 'MANUAL' ? (formData.paymentProof || "") : "",
           photoUrl: member.photoUrl || "",
           totalPaid,
           platformFee,
@@ -1688,15 +1685,23 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between px-2">
                         <p className="text-[8px] font-black text-slate-700 uppercase italic">Upload Bukti Transfer</p>
-                        <p className="text-[6px] font-bold text-slate-600 uppercase italic">Otomatis Dikompresi</p>
+                        <p className="text-[6px] font-bold text-slate-600 uppercase italic">Simpan Otomatis ke Cloud</p>
                       </div>
                       <div className="relative group">
-                        <input type="file" onChange={handleFileChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
-                        <div className={`p-4 border-2 border-dashed rounded-xl transition-all flex flex-col items-center gap-1.5 ${formData.paymentProof ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
-                          {formData.paymentProof ? (
+                        <input type="file" accept="image/*" onChange={handleFileChange} disabled={isUploadingProof} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 disabled:cursor-wait" />
+                        <div className={`p-4 border-2 border-dashed rounded-xl transition-all flex flex-col items-center gap-2 ${formData.paymentProof ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
+                          {isUploadingProof ? (
                             <>
-                              <div className="p-1.5 bg-emerald-500 rounded-full text-white"><Check className="w-3 h-3" /></div>
-                              <p className="text-[9px] font-black text-emerald-600 uppercase">Bukti Terpilih</p>
+                              <Loader2 className="w-5 h-5 text-slate-700 animate-spin" />
+                              <p className="text-[9px] font-black text-slate-700 uppercase">Mengunggah Bukti ke Storage...</p>
+                            </>
+                          ) : formData.paymentProof ? (
+                            <>
+                              <img src={formData.paymentProof} alt="Preview Bukti" className="h-20 w-auto max-w-full object-contain rounded-lg border border-emerald-300 shadow-xs bg-white" />
+                              <div className="flex items-center gap-1.5">
+                                <div className="p-1 bg-emerald-500 rounded-full text-white"><Check className="w-2.5 h-2.5" /></div>
+                                <p className="text-[9px] font-black text-emerald-700 uppercase">Bukti Terunggah (Klik untuk Ganti)</p>
+                              </div>
                             </>
                           ) : (
                             <>
@@ -1728,10 +1733,10 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                   <button onClick={() => setStep(1)} className="px-5 py-3.5 bg-slate-50 text-slate-700 rounded-xl font-black uppercase text-[10px] hover:bg-slate-100 transition-all">Kembali</button>
                   <button 
                     onClick={handleSubmit} 
-                    disabled={isSubmitting || isRegistrationClosed} 
+                    disabled={isSubmitting || isUploadingProof || isUploadingPhoto || isRegistrationClosed} 
                     className={`flex-1 py-3.5 rounded-xl font-black uppercase text-[10px] transition-all shadow-lg active:scale-95 disabled:opacity-50 ${isRegistrationClosed ? 'bg-rose-600 hover:bg-rose-600 text-white cursor-not-allowed' : 'bg-arcus-red text-white hover:bg-red-600'}`}
                   >
-                    {isSubmitting ? 'Memproses...' : isRegistrationClosed ? 'Batas Waktu Lewat' : 'Proses Pendaftaran'}
+                    {isUploadingProof || isUploadingPhoto ? 'Mengunggah Gambar...' : isSubmitting ? 'Memproses...' : isRegistrationClosed ? 'Batas Waktu Lewat' : 'Proses Pendaftaran'}
                   </button>
                 </div>
               </div>

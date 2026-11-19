@@ -10,7 +10,7 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import { ArcheryEvent, CategoryType, Archer, Match, TournamentSettings, CertificateConfig, CertificateTemplateStyle, CertificateSignatory } from '../types';
 import { CATEGORY_LABELS } from '../constants';
-import { resolveGoogleDriveUrl, compressPhoto, uploadPhotoToStorage } from '../lib/photoService';
+import { resolveGoogleDriveUrl, uploadImageAsset } from '../lib/photoService';
 import { toast } from 'sonner';
 
 interface Props {
@@ -474,27 +474,22 @@ export default function PrintCertificateModal({
     setBgRetryStage(0);
 
     try {
-      // Compress to crisp A4 landscape size so it stays fast and never hits Firestore 1MB limit
-      let { base64, blob } = await compressPhoto(file, 1600, 0.85);
-      let finalUrl = base64;
+      const folder = event.id || 'temp';
+      const { url, storedInCloud } = await uploadImageAsset(
+        file,
+        `tournaments/${folder}/cert_blanko_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        { maxDim: 1600, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 1200, fallbackQuality: 0.72 }
+      );
 
-      try {
-        const storagePath = `events/${event.id || 'temp'}/cert-blanko-${Date.now()}.jpg`;
-        finalUrl = await uploadPhotoToStorage(blob, storagePath);
-      } catch (storageErr) {
-        console.warn('Storage upload failed, using compressed base64 fallback:', storageErr);
-        // Ensure compressed base64 fits safely within Firestore 1MB doc limit (settings + data.settings = 2x)
-        if (base64.length > 350000) {
-          const tighter = await compressPhoto(file, 1200, 0.72);
-          finalUrl = tighter.base64;
-        }
-      }
-
-      setCustomBgUrl(finalUrl);
+      setCustomBgUrl(url);
       setUseCustomBgOnly(true);
       setPrintTextOnlyMode(false);
       setTemplateStyle('CUSTOM_BACKGROUND');
-      toast.success('Desain blanko berhasil dipasang! Klik "Simpan Desain" agar tersimpan permanen.');
+      toast.success(
+        storedInCloud
+          ? 'Desain blanko diunggah ke Firebase Storage! Klik "Simpan Desain" agar tersimpan permanen.'
+          : 'Desain blanko berhasil dipasang! Klik "Simpan Desain" agar tersimpan permanen.'
+      );
     } catch (err: any) {
       console.error('Upload custom blanko error:', err);
       toast.error('Gagal memproses file desain: ' + (err?.message || 'format tidak didukung'));
@@ -505,30 +500,56 @@ export default function PrintCertificateModal({
   };
 
   // Upload Stamp Handler
-  const handleStampUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleStampUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setCustomStampUrl(reader.result as string);
-        toast.success('Stempel resmi panitia berhasil diunggah!');
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    const toastId = toast.loading('Mengunggah stempel resmi ke Storage...');
+    try {
+      const folder = event.id || 'temp';
+      const { url, storedInCloud } = await uploadImageAsset(
+        file,
+        `tournaments/${folder}/cert_stamp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        { maxDim: 600, quality: 0.88, preserveAlpha: true, fallbackMaxDim: 400, fallbackQuality: 0.75 }
+      );
+      setCustomStampUrl(url);
+      toast.success(
+        storedInCloud ? 'Stempel resmi berhasil diunggah ke Storage!' : 'Stempel resmi panitia berhasil dipasang!',
+        { id: toastId }
+      );
+    } catch (err: any) {
+      toast.error('Gagal mengunggah stempel: ' + (err?.message || 'error'), { id: toastId });
+    } finally {
+      e.target.value = '';
     }
   };
 
   // Upload Signatory Signature Handler
-  const handleSignatureUpload = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSignatureUpload = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const next = [...signatories];
-        next[index] = { ...next[index], signatureUrl: reader.result as string };
-        setSignatories(next);
-        toast.success(`Tanda tangan ${next[index].role} berhasil diunggah!`);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    const toastId = toast.loading('Mengunggah tanda tangan ke Storage...');
+    try {
+      const folder = event.id || 'temp';
+      const { url, storedInCloud } = await uploadImageAsset(
+        file,
+        `tournaments/${folder}/cert_sig_${index}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        { maxDim: 600, quality: 0.88, preserveAlpha: true, fallbackMaxDim: 400, fallbackQuality: 0.75 }
+      );
+      setSignatories(prev => {
+        const next = [...prev];
+        if (next[index]) {
+          next[index] = { ...next[index], signatureUrl: url };
+        }
+        return next;
+      });
+      toast.success(
+        storedInCloud ? 'Tanda tangan berhasil diunggah ke Storage!' : 'Tanda tangan berhasil dipasang!',
+        { id: toastId }
+      );
+    } catch (err: any) {
+      toast.error('Gagal mengunggah tanda tangan: ' + (err?.message || 'error'), { id: toastId });
+    } finally {
+      e.target.value = '';
     }
   };
 

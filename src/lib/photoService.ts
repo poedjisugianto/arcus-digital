@@ -71,23 +71,204 @@ export function compressPhoto(
   });
 }
 
+export interface SmartCompressedImage {
+  base64: string;
+  blob: Blob;
+  contentType: string;
+  extension: 'jpg' | 'png' | 'svg';
+}
+
 /**
- * Uploads a file or blob to Firebase Storage at the specified path.
- * Falls back to returning empty string or raising error on failure.
+ * Compresses an image smartly: preserves transparency (PNG/SVG) when preserveAlpha is true,
+ * and uses compact JPEG otherwise.
+ */
+export function compressImageSmart(
+  file: File,
+  options: { maxDim?: number; quality?: number; preserveAlpha?: boolean } = {}
+): Promise<SmartCompressedImage> {
+  const { maxDim = 1200, quality = 0.8, preserveAlpha = false } = options;
+
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+
+      if (file.type === 'image/svg+xml' && preserveAlpha) {
+        resolve({
+          base64: dataUrl,
+          blob: file,
+          contentType: 'image/svg+xml',
+          extension: 'svg',
+        });
+        return;
+      }
+
+      const img = new Image();
+      img.src = dataUrl;
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          let width = img.width || maxDim;
+          let height = img.height || maxDim;
+
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          canvas.width = Math.max(1, width);
+          canvas.height = Math.max(1, height);
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            throw new Error('Could not get 2D context from canvas');
+          }
+
+          const keepPng =
+            preserveAlpha && (file.type === 'image/png' || file.type === 'image/webp');
+          const mime = keepPng ? 'image/png' : 'image/jpeg';
+          const ext: 'png' | 'jpg' = keepPng ? 'png' : 'jpg';
+
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+          const base64 = keepPng
+            ? canvas.toDataURL('image/png')
+            : canvas.toDataURL('image/jpeg', quality);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                resolve({ base64, blob, contentType: mime, extension: ext });
+              } else {
+                reject(new Error('Failed to create blob from canvas'));
+              }
+            },
+            mime,
+            keepPng ? undefined : quality
+          );
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.onerror = (err) => reject(new Error('Failed to load image: ' + err));
+    };
+    reader.onerror = (err) => reject(new Error('Failed to read file: ' + err));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Uploads a file or blob to Firebase Storage at the specified path with a timeout guard.
  */
 export async function uploadPhotoToStorage(
   blob: Blob | File,
-  storagePath: string
+  storagePath: string,
+  contentType: string = 'image/jpeg',
+  timeoutMs: number = 15000
 ): Promise<string> {
-  if (!storage) {
-    throw new Error('Firebase Storage is not initialized');
+  if (!storage || !storage.app?.options?.storageBucket) {
+    throw new Error('Firebase Storage is not initialized or missing bucket');
   }
   const storageRef = ref(storage, storagePath);
-  const snapshot = await uploadBytes(storageRef, blob, {
-    contentType: 'image/jpeg',
+
+  const uploadTask = async () => {
+    const snapshot = await uploadBytes(storageRef, blob, {
+      contentType: blob.type || contentType,
+      cacheControl: 'public,max-age=31536000',
+    });
+    return await getDownloadURL(snapshot.ref);
+  };
+
+  if (timeoutMs > 0) {
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+    try {
+      return await Promise.race([
+        uploadTask(),
+        new Promise<string>((_, reject) => {
+          timerId = setTimeout(
+            () => reject(new Error('Firebase Storage upload timed out')),
+            timeoutMs
+          );
+        }),
+      ]);
+    } finally {
+      if (timerId) clearTimeout(timerId);
+    }
+  }
+
+  return await uploadTask();
+}
+
+/**
+ * Compresses an image file and uploads it to Firebase Storage.
+ * Falls back to compact Base64 only if Storage upload fails.
+ */
+export async function uploadImageAsset(
+  file: File,
+  storagePathWithoutExt: string,
+  options: {
+    maxDim?: number;
+    quality?: number;
+    preserveAlpha?: boolean;
+    fallbackMaxDim?: number;
+    fallbackQuality?: number;
+    timeoutMs?: number;
+  } = {}
+): Promise<{ url: string; storedInCloud: boolean; error?: string }> {
+  const {
+    maxDim = 1200,
+    quality = 0.8,
+    preserveAlpha = false,
+    fallbackMaxDim = 750,
+    fallbackQuality = 0.62,
+    timeoutMs = 15000,
+  } = options;
+
+  const compressed = await compressImageSmart(file, {
+    maxDim,
+    quality,
+    preserveAlpha,
   });
-  const downloadUrl = await getDownloadURL(snapshot.ref);
-  return downloadUrl;
+
+  const cleanPrefix = storagePathWithoutExt.replace(/\.(jpe?g|png|webp|svg)$/i, '');
+  const fullPath = `${cleanPrefix}.${compressed.extension}`;
+
+  try {
+    const downloadUrl = await uploadPhotoToStorage(
+      compressed.blob,
+      fullPath,
+      compressed.contentType,
+      timeoutMs
+    );
+    return { url: downloadUrl, storedInCloud: true };
+  } catch (err: any) {
+    console.warn(`[Storage] Upload to "${fullPath}" failed, using compact fallback:`, err?.message || err);
+    let fallbackUrl = compressed.base64;
+    if (fallbackUrl.length > 180000 && compressed.extension !== 'svg') {
+      try {
+        const tighter = await compressImageSmart(file, {
+          maxDim: fallbackMaxDim,
+          quality: fallbackQuality,
+          preserveAlpha: preserveAlpha && compressed.extension === 'png',
+        });
+        fallbackUrl = tighter.base64;
+      } catch {
+        // keep initial compressed base64
+      }
+    }
+    return {
+      url: fallbackUrl,
+      storedInCloud: false,
+      error: err?.message || 'Storage upload failed',
+    };
+  }
 }
 
 /**

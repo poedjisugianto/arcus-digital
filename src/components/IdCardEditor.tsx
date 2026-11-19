@@ -10,7 +10,8 @@ import { Archer, TournamentSettings, CategoryType, RegistrationStatus } from '..
 import { QRCodeSVG } from 'qrcode.react';
 import { Barcode } from './Barcode';
 import { safeFormatDate } from '../lib/dateUtils';
-import { resolveGoogleDriveUrl } from '../lib/photoService';
+import { resolveGoogleDriveUrl, uploadImageAsset } from '../lib/photoService';
+import { toast } from 'sonner';
 import { CATEGORY_LABELS } from '../constants';
 
 export const formatCardCategoryLabel = (category?: string, isOfficial?: boolean): string => {
@@ -30,6 +31,7 @@ export const formatCardCategoryLabel = (category?: string, isOfficial?: boolean)
 };
 
 interface Props {
+  eventId?: string;
   archers: Archer[];
   officials?: (Archer | any)[];
   settings: TournamentSettings;
@@ -184,7 +186,7 @@ const DEFAULT_CUSTOM_CONFIG: CustomCardConfig = {
   nameFontSize: 'LARGE'
 };
 
-const IdCardEditor: React.FC<Props> = ({ archers, officials: officialsProp = [], settings, onBack }) => {
+const IdCardEditor: React.FC<Props> = ({ eventId, archers, officials: officialsProp = [], settings, onBack }) => {
   const storageKey = useMemo(() => {
     return `arcus_idcard_config_${settings?.tournamentName ? encodeURIComponent(settings.tournamentName) : 'default'}`;
   }, [settings?.tournamentName]);
@@ -398,56 +400,83 @@ const IdCardEditor: React.FC<Props> = ({ archers, officials: officialsProp = [],
     registrationNo: 'OFF-001'
   }), [settings?.location]);
 
-  const handleAthleteBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAthleteBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setCustomConfig(prev => ({
-            ...prev,
-            athleteBgUrl: event.target?.result as string
-          }));
-        }
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    const lid = toast.loading('Mengunggah background ID Card Atlet ke Storage...');
+    try {
+      const folder = eventId || 'general';
+      const res = await uploadImageAsset(
+        file,
+        `tournaments/${folder}/idcard_athlete_bg_${Date.now()}`,
+        { maxDim: 1400, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 900, fallbackQuality: 0.72 }
+      );
+      setCustomConfig(prev => ({
+        ...prev,
+        athleteBgUrl: res.url
+      }));
+      toast.dismiss(lid);
+      toast.success(res.storedInCloud ? 'Desain Atlet tersimpan di Firebase Storage!' : 'Desain Atlet berhasil dipasang!');
+    } catch {
+      toast.dismiss(lid);
+      toast.error('Gagal memproses gambar desain');
+    } finally {
+      e.target.value = '';
     }
   };
 
-  const handleOfficialBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleOfficialBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setCustomConfig(prev => ({
-            ...prev,
-            officialBgUrl: event.target?.result as string
-          }));
-        }
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    const lid = toast.loading('Mengunggah background ID Card Official ke Storage...');
+    try {
+      const folder = eventId || 'general';
+      const res = await uploadImageAsset(
+        file,
+        `tournaments/${folder}/idcard_official_bg_${Date.now()}`,
+        { maxDim: 1400, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 900, fallbackQuality: 0.72 }
+      );
+      setCustomConfig(prev => ({
+        ...prev,
+        officialBgUrl: res.url
+      }));
+      toast.dismiss(lid);
+      toast.success(res.storedInCloud ? 'Desain Official tersimpan di Firebase Storage!' : 'Desain Official berhasil dipasang!');
+    } catch {
+      toast.dismiss(lid);
+      toast.error('Gagal memproses gambar desain');
+    } finally {
+      e.target.value = '';
     }
   };
 
-  const handleAddLogo = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAddLogo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          const newLogo: Logo = {
-            id: 'logo_' + Math.random().toString(36).substr(2, 9),
-            url: event.target.result as string,
-            name: file.name,
-            x: 20,
-            y: 20,
-            size: 60
-          };
-          setLogos([...logos, newLogo]);
-        }
+    if (!file) return;
+    const lid = toast.loading('Mengunggah logo ID Card ke Storage...');
+    try {
+      const folder = eventId || 'general';
+      const res = await uploadImageAsset(
+        file,
+        `tournaments/${folder}/idcard_logo_${Date.now()}`,
+        { maxDim: 600, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 350, fallbackQuality: 0.7 }
+      );
+      const newLogo: Logo = {
+        id: 'logo_' + Math.random().toString(36).substr(2, 9),
+        url: res.url,
+        name: file.name,
+        x: 20,
+        y: 20,
+        size: 60
       };
-      reader.readAsDataURL(file);
+      setLogos(prev => [...prev, newLogo]);
+      toast.dismiss(lid);
+      toast.success(res.storedInCloud ? 'Logo tersimpan di Firebase Storage!' : 'Logo berhasil ditambahkan!');
+    } catch {
+      toast.dismiss(lid);
+      toast.error('Gagal mengunggah logo');
+    } finally {
+      e.target.value = '';
     }
   };
 

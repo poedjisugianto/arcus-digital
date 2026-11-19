@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { Archer, CategoryType, RegistrationStatus, TournamentSettings } from '../types';
 import { CATEGORY_LABELS } from '../constants';
-import { compressPhoto, uploadPhotoToStorage } from '../lib/photoService';
+import { uploadImageAsset } from '../lib/photoService';
 import { toast } from 'sonner';
 
 interface ArcherEditModalProps {
@@ -100,23 +100,19 @@ export const ArcherEditModal: React.FC<ArcherEditModalProps> = ({
 
     setIsUploadingPhoto(true);
     try {
-      const { base64, blob } = await compressPhoto(file, 400, 0.8);
-      let finalUrl = base64;
+      const folder = eventId || 'general';
+      const result = await uploadImageAsset(
+        file,
+        `tournaments/${folder}/photos/${Date.now()}_${archer.id}`,
+        { maxDim: 400, quality: 0.8, fallbackMaxDim: 280, fallbackQuality: 0.65 }
+      );
 
-      if (eventId) {
-        try {
-          const downloadUrl = await uploadPhotoToStorage(
-            blob, 
-            `events/${eventId}/photos/${Date.now()}_${archer.id}.jpg`
-          );
-          if (downloadUrl) finalUrl = downloadUrl;
-        } catch (storageErr) {
-          console.warn("Storage upload fallback to base64:", storageErr);
-        }
-      }
-
-      setFormData(prev => ({ ...prev, photoUrl: finalUrl }));
-      toast.success("Foto peserta berhasil diperbarui.");
+      setFormData(prev => ({ ...prev, photoUrl: result.url }));
+      toast.success(
+        result.storedInCloud
+          ? "Foto peserta berhasil diunggah ke Storage."
+          : "Foto peserta berhasil diperbarui."
+      );
     } catch (err: any) {
       console.error("Gagal memproses foto:", err);
       toast.error("Gagal mengunggah foto: " + (err.message || "format tidak didukung"));

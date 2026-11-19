@@ -500,14 +500,48 @@ const FinancePanel: React.FC<Props> = ({ event, globalSettings, onApproveRegistr
 
             {/* Footer Actions */}
             <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-              <a 
-                href={showProofOverlay.url} 
-                target="_blank" 
-                rel="noreferrer"
-                className="text-[10px] font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 shadow-xs"
-              >
-                <ExternalLink className="w-3 h-3" /> Buka Tab Baru
-              </a>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const url = showProofOverlay.url;
+                    if (!url) return;
+                    if (url.startsWith('data:')) {
+                      try {
+                        const [header, base64Data] = url.split(',');
+                        const mimeMatch = header.match(/data:([^;]+);/);
+                        const mime = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                        const byteString = atob(base64Data);
+                        const ab = new ArrayBuffer(byteString.length);
+                        const ia = new Uint8Array(ab);
+                        for (let i = 0; i < byteString.length; i++) {
+                          ia[i] = byteString.charCodeAt(i);
+                        }
+                        const blob = new Blob([ab], { type: mime });
+                        const blobUrl = URL.createObjectURL(blob);
+                        window.open(blobUrl, '_blank', 'noopener,noreferrer');
+                        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+                      } catch {
+                        window.open(url, '_blank', 'noopener,noreferrer');
+                      }
+                    } else {
+                      window.open(url, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
+                  className="text-[10px] font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 shadow-xs"
+                >
+                  <ExternalLink className="w-3 h-3" /> Buka Tab Baru
+                </button>
+                <a
+                  href={showProofOverlay.url}
+                  download={`bukti-transfer-${(showProofOverlay.name || 'peserta').replace(/\s+/g, '-').toLowerCase()}.jpg`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-[10px] font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 shadow-xs"
+                >
+                  Unduh
+                </a>
+              </div>
 
               <div className="flex items-center gap-2">
                 {showProofOverlay.isPending && (
