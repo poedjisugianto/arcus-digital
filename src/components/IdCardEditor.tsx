@@ -416,7 +416,11 @@ const IdCardEditor: React.FC<Props> = ({ eventId, archers, officials: officialsP
         athleteBgUrl: res.url
       }));
       toast.dismiss(lid);
-      toast.success(res.storedInCloud ? 'Desain Atlet tersimpan di Firebase Storage!' : 'Desain Atlet berhasil dipasang!');
+      if (res.storedInCloud) {
+        toast.success('Desain Atlet tersimpan di Firebase Storage!');
+      } else {
+        toast.warning(`Desain Atlet gagal ke Storage (${res.error || 'koneksi/izin'}), memakai versi kompresi mini.`);
+      }
     } catch {
       toast.dismiss(lid);
       toast.error('Gagal memproses gambar desain');
@@ -434,14 +438,18 @@ const IdCardEditor: React.FC<Props> = ({ eventId, archers, officials: officialsP
       const res = await uploadImageAsset(
         file,
         `tournaments/${folder}/idcard_official_bg_${Date.now()}`,
-        { maxDim: 1400, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 900, fallbackQuality: 0.72 }
+        { maxDim: 1400, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 650, fallbackQuality: 0.6 }
       );
       setCustomConfig(prev => ({
         ...prev,
         officialBgUrl: res.url
       }));
       toast.dismiss(lid);
-      toast.success(res.storedInCloud ? 'Desain Official tersimpan di Firebase Storage!' : 'Desain Official berhasil dipasang!');
+      if (res.storedInCloud) {
+        toast.success('Desain Official tersimpan di Firebase Storage!');
+      } else {
+        toast.warning(`Desain Official gagal ke Storage (${res.error || 'koneksi/izin'}), memakai versi kompresi mini.`);
+      }
     } catch {
       toast.dismiss(lid);
       toast.error('Gagal memproses gambar desain');
@@ -459,7 +467,7 @@ const IdCardEditor: React.FC<Props> = ({ eventId, archers, officials: officialsP
       const res = await uploadImageAsset(
         file,
         `tournaments/${folder}/idcard_logo_${Date.now()}`,
-        { maxDim: 600, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 350, fallbackQuality: 0.7 }
+        { maxDim: 600, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 350, fallbackQuality: 0.6 }
       );
       const newLogo: Logo = {
         id: 'logo_' + Math.random().toString(36).substr(2, 9),
@@ -471,7 +479,11 @@ const IdCardEditor: React.FC<Props> = ({ eventId, archers, officials: officialsP
       };
       setLogos(prev => [...prev, newLogo]);
       toast.dismiss(lid);
-      toast.success(res.storedInCloud ? 'Logo tersimpan di Firebase Storage!' : 'Logo berhasil ditambahkan!');
+      if (res.storedInCloud) {
+        toast.success('Logo tersimpan di Firebase Storage!');
+      } else {
+        toast.warning(`Logo gagal ke Storage (${res.error || 'koneksi/izin'}), memakai versi kompresi mini.`);
+      }
     } catch {
       toast.dismiss(lid);
       toast.error('Gagal mengunggah logo');
@@ -774,18 +786,19 @@ const IdCardEditor: React.FC<Props> = ({ eventId, archers, officials: officialsP
                     <span className="text-[7px] font-mono font-bold text-slate-800 mt-1 uppercase">{person.id.substring(0, 8)}</span>
                   </div>
                 ) : (
-                  <div className="flex flex-col items-center w-[130px]">
+                  <div className="flex flex-col items-center w-[168px] max-w-full bg-white px-1 py-0.5 rounded-lg">
                     <Barcode 
                       value={person.id}
-                      width={1.1}
-                      height={34}
+                      width={1.2}
+                      height={36}
                       fontSize={8}
                       displayValue={true}
                       text={person.registrationNo || person.id.substring(0, 10)}
-                      background="transparent"
-                      lineColor="#0f172a"
+                      background="#ffffff"
+                      lineColor="#000000"
+                      margin={8}
                     />
-                    <span className="text-[7px] font-mono font-bold text-slate-600 uppercase tracking-tight">
+                    <span className="text-[7px] font-mono font-bold text-slate-700 uppercase tracking-tight">
                       {person.targetNo ? `T-${person.targetNo}${person.position}` : 'E-ID PASS'}
                     </span>
                   </div>
@@ -1122,17 +1135,18 @@ const IdCardEditor: React.FC<Props> = ({ eventId, archers, officials: officialsP
                      </div>
                   </div>
                 ) : (
-                  <div className={`${isB1 ? 'p-1.5 w-[110px]' : isB2 ? 'p-2 w-[125px]' : 'p-2 w-[140px]'} rounded-xl shadow-md relative group flex flex-col items-center justify-center shrink-0 ${isChampion || isProX ? 'bg-white border-2 border-yellow-500/30' : isStealth || isGlory ? 'bg-white border border-slate-200' : 'bg-white border border-slate-200 shadow-slate-200'}`}>
-                    <div className="w-full flex items-center justify-center overflow-hidden py-0.5">
+                  <div className={`${isB1 ? 'p-1.5 w-[138px]' : isB2 ? 'p-2 w-[155px]' : 'p-2 w-[170px]'} rounded-xl shadow-md relative group flex flex-col items-center justify-center shrink-0 ${isChampion || isProX ? 'bg-white border-2 border-yellow-500/30' : isStealth || isGlory ? 'bg-white border border-slate-200' : 'bg-white border border-slate-200 shadow-slate-200'}`}>
+                    <div className="w-full flex items-center justify-center py-0.5">
                       <Barcode 
                         value={person.id}
-                        width={isB1 ? 0.9 : isB2 ? 1.05 : 1.2}
-                        height={isB1 ? 26 : isB2 ? 32 : 38}
+                        width={isB1 ? 1.0 : isB2 ? 1.15 : 1.3}
+                        height={isB1 ? 28 : isB2 ? 34 : 40}
                         fontSize={isB1 ? 7 : 8}
                         displayValue={true}
                         text={person.registrationNo || person.id.substring(0, 10)}
-                        background="transparent"
-                        lineColor="#0f172a"
+                        background="#ffffff"
+                        lineColor="#000000"
+                        margin={8}
                       />
                     </div>
                     <div className="text-[6px] font-mono font-bold text-slate-700 uppercase tracking-wider text-center mt-0.5">

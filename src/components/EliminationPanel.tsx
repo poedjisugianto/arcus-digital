@@ -1,7 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ArcheryEvent, CategoryType, Match, Archer, TargetType } from '../types';
+import { ArcheryEvent, CategoryType, Match, Archer, TargetType, BracketPairingSystem } from '../types';
 import { CATEGORY_LABELS } from '../constants';
 import { findCategoryConfig } from '../lib/firestoreUtils';
+import {
+  buildRankedArchersForElimination,
+  getSeedPairsForSize,
+  syncMatchesWithRankedArchers
+} from '../lib/bracketSeeding';
 import { Trophy, GitBranch, User, Save, RefreshCw, ChevronRight, Swords, ArrowLeft, Trash2, Settings2, Zap, Medal, Plus, Minus, Check, FileText, X, AlertTriangle, Bell, Volume2, Target, BarChart3, ListOrdered, Award, Scale, Printer, Sliders, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { playShootOffAlarm, playVictorySound } from '../lib/soundAlarm';
 import PrintRoundReportModal from './PrintRoundReportModal';
@@ -86,7 +91,33 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
   
   const [selectedMatchForEnds, setSelectedMatchForEnds] = useState<Match | null>(null);
 
-  const currentMatches = event.matches[activeCategory] || [];
+  // Pilihan Sistem Aduan Khusus 4 Besar (World Archery vs 1v2 & 3v4)
+  const [pairingSystem, setPairingSystemState] = useState<BracketPairingSystem>(() => {
+    try {
+      const saved = localStorage.getItem(`elim_pairing_${event.id}_${activeCategory}`);
+      return saved === 'TOP4_1V2_3V4' ? 'TOP4_1V2_3V4' : 'WORLD_ARCHERY';
+    } catch {
+      return 'WORLD_ARCHERY';
+    }
+  });
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`elim_pairing_${event.id}_${activeCategory}`);
+      setPairingSystemState(saved === 'TOP4_1V2_3V4' ? 'TOP4_1V2_3V4' : 'WORLD_ARCHERY');
+    } catch {
+      setPairingSystemState('WORLD_ARCHERY');
+    }
+  }, [event.id, activeCategory]);
+
+  const setPairingSystem = (val: BracketPairingSystem) => {
+    setPairingSystemState(val);
+    try {
+      localStorage.setItem(`elim_pairing_${event.id}_${activeCategory}`, val);
+    } catch {}
+  };
+
+  const currentMatches = (event.matches && event.matches[activeCategory]) || [];
 
   const triggerFlag = (msg: string) => {
     setFlagMessage(msg);
@@ -95,55 +126,100 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
   };
 
   const archersInCategory = useMemo(() => {
-    return event.archers.filter(a => a.category === activeCategory);
+    return (event.archers || []).filter(a => a.category === activeCategory);
   }, [event.archers, activeCategory]);
 
   const rankedArchers = useMemo(() => {
-    let baseSession = 'QUAL';
-    if (config?.eliminationStages && config.eliminationStages.length > 0) {
-      const smallestStage = Math.min(...config.eliminationStages);
-      const stageSession = `ELIM_${smallestStage}`;
-      const scoresList = event.scores || [];
-      const hasStageScores = archersInCategory.some(archer =>
-        scoresList.some(s => s.archerId === archer.id && s.sessionId === stageSession && !s.isDeleted && (s.total || 0) > 0)
-      );
-      if (hasStageScores) {
-        baseSession = stageSession;
-      }
-    }
-
-    const scoresList = event.scores || [];
-    return archersInCategory.map(archer => {
-      const archerScores = scoresList.filter(s => s.archerId === archer.id && s.sessionId === baseSession);
-      const total = archerScores.reduce((acc, curr) => acc + curr.total, 0);
-      
-      const manualSixes = archerScores.reduce((acc, curr) => acc + (curr.count6 || 0), 0);
-      const manualFives = archerScores.reduce((acc, curr) => acc + (curr.count5 || 0), 0);
-      
-      const isSmallTarget = config?.targetType === TargetType.PUTA || config?.targetType === TargetType.TRADITIONAL_PUTA;
-      const allArrows = archerScores.flatMap(s => s.arrows || []).filter(v => v !== -1);
-      const arrowSixes = allArrows.filter(v => isSmallTarget ? v === 2 : (v === 'X' || v === 6)).length;
-      const arrowFives = allArrows.filter(v => isSmallTarget ? v === 1 : v === 5).length;
-      
-      const hasManual = archerScores.some(s => s.count6 !== undefined);
-      const sixes = hasManual ? manualSixes : arrowSixes;
-      const fives = hasManual ? manualFives : arrowFives;
-
-      return { ...archer, total, sixes, fives };
-    })
-    .filter(a => baseSession === 'QUAL' || a.total > 0)
-    .sort((a, b) => {
-      if (b.total !== a.total) return b.total - a.total;
-      if (b.sixes !== a.sixes) return b.sixes - a.sixes;
-      return b.fives - a.fives;
-    });
+    return buildRankedArchersForElimination(archersInCategory, event.scores || [], config);
   }, [archersInCategory, event.scores, config]);
+
+  // Sinkronisasi otomatis slot seed (seedRankA/seedRankB) dengan ranking atlet terbaru saat skor kualifikasi masuk
+  const lastAutoSyncSignatureRef = useRef<string>('');
+  useEffect(() => {
+    if (currentMatches.length === 0) return;
+    const { updatedMatches, changed } = syncMatchesWithRankedArchers(currentMatches, rankedArchers);
+    if (!changed) return;
+
+    const sig = `${activeCategory}|${updatedMatches
+      .map(m => `${m.id}:${m.archerAId || ''}-${m.archerBId || ''}`)
+      .join(',')}`;
+    if (lastAutoSyncSignatureRef.current === sig) return;
+    lastAutoSyncSignatureRef.current = sig;
+
+    onUpdateMatches({ ...event.matches, [activeCategory]: updatedMatches });
+  }, [currentMatches, rankedArchers, activeCategory]);
+
+  const maxBracketRound = useMemo(() => {
+    if (currentMatches.length === 0) return 0;
+    return Math.max(...currentMatches.map(m => parseInt(m.round) || 0));
+  }, [currentMatches]);
+
+  const activeBracketPairingSystem: BracketPairingSystem = useMemo(() => {
+    const topRoundMatches = currentMatches.filter(m => parseInt(m.round) === maxBracketRound);
+    if (
+      maxBracketRound === 4 &&
+      topRoundMatches.some(
+        m => m.pairingSystem === 'TOP4_1V2_3V4' || (m.matchNo === 1 && m.seedRankA === 1 && m.seedRankB === 2)
+      )
+    ) {
+      return 'TOP4_1V2_3V4';
+    }
+    return 'WORLD_ARCHERY';
+  }, [currentMatches, maxBracketRound]);
+
+  const canModifyTop4Pairing = useMemo(() => {
+    if (maxBracketRound !== 4 || currentMatches.length === 0) return false;
+    return currentMatches.every(m => !m.winnerId && m.scoreA === 0 && m.scoreB === 0 && !m.isShootOff);
+  }, [currentMatches, maxBracketRound]);
+
+  const handleSwitchTop4Pairing = (nextSystem: BracketPairingSystem) => {
+    if (!canModifyTop4Pairing) return;
+    setPairingSystem(nextSystem);
+    const pairs = getSeedPairsForSize(4, nextSystem);
+    const scoredArchers = rankedArchers.filter(a => (a.total || 0) > 0);
+    const updated = currentMatches.map(m => {
+      if (m.round !== '4') return m;
+      const idx = (m.matchNo || 1) - 1;
+      const pair = pairs[idx];
+      if (!pair) return m;
+      return {
+        ...m,
+        seedRankA: pair[0],
+        seedRankB: pair[1],
+        pairingSystem: nextSystem,
+        archerAId: scoredArchers[pair[0] - 1]?.id,
+        archerBId: scoredArchers[pair[1] - 1]?.id
+      };
+    });
+    onUpdateMatches({ ...event.matches, [activeCategory]: updated });
+    triggerFlag(
+      nextSystem === 'TOP4_1V2_3V4'
+        ? 'Sistem 4 Besar Diubah: #1 vs #2 & #3 vs #4 (Semifinal -> Final)'
+        : 'Sistem 4 Besar Diubah: Standar World Archery (#1 vs #4 & #3 vs #2)'
+    );
+  };
+
+  const handleManualSyncSeeds = () => {
+    const scoredCount = rankedArchers.filter(a => (a.total || 0) > 0).length;
+    if (scoredCount === 0) {
+      triggerFlag('Belum ada skor kualifikasi/penyaringan yang masuk untuk mengisi slot peringkat.');
+      return;
+    }
+    const { updatedMatches, changed } = syncMatchesWithRankedArchers(currentMatches, rankedArchers);
+    if (changed) {
+      onUpdateMatches({ ...event.matches, [activeCategory]: updatedMatches });
+      triggerFlag('Nama atlet berhasil disinkronkan ke posisi bagan!');
+    } else {
+      triggerFlag('Seluruh posisi bagan sudah sesuai peringkat terbaru.');
+    }
+  };
 
   const initializeBracket = (size: number, fromQual = false) => {
     const newMatches: Match[] = [];
     let currentRoundSize = size;
     const catConfig = findCategoryConfig(activeCategory, event.settings?.categoryConfigs);
     const numEnds = catConfig?.matchEnds || 5;
+    const effectivePairingSystem: BracketPairingSystem = size === 4 ? pairingSystem : 'WORLD_ARCHERY';
     
     while (currentRoundSize >= 2) {
       const numMatchesInRound = currentRoundSize / 2;
@@ -184,17 +260,34 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
     });
 
     if (fromQual) {
-      const seeds = rankedArchers.slice(0, size);
+      const pairs = getSeedPairsForSize(size, effectivePairingSystem);
+      const scoredArchers = rankedArchers.filter(a => (a.total || 0) > 0);
       const firstRoundMatches = newMatches.filter(m => m.round === size.toString());
       for (let i = 0; i < firstRoundMatches.length; i++) {
         const m = firstRoundMatches[i];
-        m.archerAId = seeds[i]?.id;
-        m.archerBId = seeds[size - 1 - i]?.id;
+        const [seedA, seedB] = pairs[i] || [i + 1, size - i];
+        m.seedRankA = seedA;
+        m.seedRankB = seedB;
+        m.pairingSystem = effectivePairingSystem;
+        m.archerAId = scoredArchers[seedA - 1]?.id;
+        m.archerBId = scoredArchers[seedB - 1]?.id;
       }
+
+      const modeLabel =
+        size === 4 && effectivePairingSystem === 'TOP4_1V2_3V4'
+          ? 'Custom 4 Besar (#1v#2 & #3v#4)'
+          : 'World Archery';
+      onUpdateMatches({ ...event.matches, [activeCategory]: newMatches });
+      triggerFlag(
+        scoredArchers.length === 0
+          ? `Bagan ${size} Besar (${modeLabel}) Disiapkan! Nama atlet akan terisi otomatis saat skor masuk.`
+          : `Bagan ${size} Besar (${modeLabel}) Berhasil Dibuat`
+      );
+      return;
     }
 
     onUpdateMatches({ ...event.matches, [activeCategory]: newMatches });
-    triggerFlag(`Bagan ${size} Besar Berhasil Dibuat`);
+    triggerFlag(`Bagan Manual ${size} Besar Berhasil Dibuat`);
   };
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -573,13 +666,82 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
           <div className="bg-purple-50 p-8 rounded-full inline-block">
             <Zap className="w-16 h-16 text-purple-400" />
           </div>
-          <div className="max-w-xl mx-auto space-y-6">
-            <h3 className="text-2xl font-black font-oswald uppercase italic text-slate-900">Mulai Babak Eliminasi</h3>
-            <p className="text-slate-800 text-xs font-semibold">Pilih ukuran bagan eliminasi yang diinginkan. Hasil kualifikasi otomatis ditempatkan berdasarkan ranking peringkat atlet.</p>
+          <div className="max-w-3xl mx-auto space-y-6">
+            <h3 className="text-2xl font-black font-oswald uppercase italic text-slate-900">Mulai &amp; Atur Sistem Babak Eliminasi</h3>
+            <p className="text-slate-800 text-xs font-semibold">
+              Anda dapat menentukan sistem aduan terlebih dahulu <strong>bahkan sebelum pertandingan dimulai</strong>. Posisi nama atlet akan terisi otomatis begitu skor peringkat masuk.
+            </p>
+
+            {/* Pilihan Sistem Pairing 4 Besar vs World Archery */}
+            <div className="p-5 bg-purple-50/70 rounded-[2rem] border-2 border-purple-200/80 text-left space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-[11px] font-black uppercase text-purple-950 tracking-wider flex items-center gap-1.5">
+                    <Sliders className="w-3.5 h-3.5 text-purple-600" />
+                    Pilihan Sistem Pairing Aduan (Khusus 4 Besar)
+                  </p>
+                  <p className="text-[10px] font-semibold text-slate-600 mt-0.5">
+                    Untuk bagan 8 Besar ke atas (8, 16, 32, 64) tetap mengikuti aturan standar World Archery.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setPairingSystem('WORLD_ARCHERY')}
+                  className={`p-4 rounded-2xl border-2 text-left transition-all ${
+                    pairingSystem === 'WORLD_ARCHERY'
+                      ? 'bg-white border-purple-600 shadow-lg ring-2 ring-purple-200'
+                      : 'bg-white/70 border-slate-200 hover:border-purple-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-purple-700">
+                      Standar World Archery
+                    </span>
+                    <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                      pairingSystem === 'WORLD_ARCHERY' ? 'border-purple-600 bg-purple-600 text-white' : 'border-slate-300'
+                    }`}>
+                      {pairingSystem === 'WORLD_ARCHERY' && <Check className="w-2.5 h-2.5" />}
+                    </span>
+                  </div>
+                  <p className="text-xs font-black text-slate-900">Peringkat #1 vs #4 &amp; #3 vs #2</p>
+                  <p className="text-[10px] font-semibold text-slate-600 mt-1">
+                    Aturan resmi WA (1 vs Terakhir). Semifinal → pemenang masuk Final, kalah ke Perebutan Juara 3.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPairingSystem('TOP4_1V2_3V4')}
+                  className={`p-4 rounded-2xl border-2 text-left transition-all ${
+                    pairingSystem === 'TOP4_1V2_3V4'
+                      ? 'bg-white border-amber-500 shadow-lg ring-2 ring-amber-200'
+                      : 'bg-white/70 border-slate-200 hover:border-amber-300'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-700">
+                      Custom 4 Besar (1 vs 2)
+                    </span>
+                    <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                      pairingSystem === 'TOP4_1V2_3V4' ? 'border-amber-500 bg-amber-500 text-white' : 'border-slate-300'
+                    }`}>
+                      {pairingSystem === 'TOP4_1V2_3V4' && <Check className="w-2.5 h-2.5" />}
+                    </span>
+                  </div>
+                  <p className="text-xs font-black text-slate-900">Peringkat #1 vs #2 &amp; #3 vs #4</p>
+                  <p className="text-[10px] font-semibold text-slate-600 mt-1">
+                    Semifinal: Rank 1 vs 2 &amp; Rank 3 vs 4 → pemenang lanjut ke Final (Juara 1–2), kalah ke Perebutan Juara 3.
+                  </p>
+                </button>
+              </div>
+            </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
               <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 space-y-4">
-                <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest">Auto-Seeding Hasil Peringkat</p>
+                <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest">Auto-Seeding (Otomatis Terisi Peringkat)</p>
                 {config?.h2hStartSize && config.h2hStartSize > 0 && (
                   <div className="flex items-center justify-center gap-2 px-3 py-1 bg-blue-50 border border-blue-100 rounded-lg text-blue-600 mb-1">
                     <Zap className="w-3 h-3 fill-current" />
@@ -589,6 +751,10 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                 <div className="flex flex-wrap justify-center gap-2">
                   {[4, 8, 16, 32, 64].map(s => {
                     const isRecommended = config?.h2hStartSize === s;
+                    const subHint =
+                      s === 4
+                        ? (pairingSystem === 'TOP4_1V2_3V4' ? '#1v#2 | #3v#4' : '#1v#4 | #3v#2')
+                        : (s === 8 ? 'Quarter (WA)' : s === 16 ? '1/8 (WA)' : s === 32 ? '1/16 (WA)' : '1/32 (WA)');
                     return (
                       <button 
                         key={s} 
@@ -598,11 +764,14 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                         }`}
                       >
                         <span>Top {s}</span>
-                        <span className="text-[7px] opacity-80 mt-0.5">{s === 4 ? 'Semi Final' : s === 8 ? 'Quarter' : s === 16 ? '1/8' : s === 32 ? '1/16' : '1/32'}</span>
+                        <span className="text-[7px] opacity-85 mt-0.5">{subHint}</span>
                       </button>
                     );
                   })}
                 </div>
+                <p className="text-[9px] font-semibold text-slate-500">
+                  *Jika lomba belum mulai, slot akan disiapkan sebagai <span className="font-bold text-slate-700">Slot Peringkat</span> dan terisi otomatis saat skor masuk.
+                </p>
               </div>
               <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100 space-y-4">
                 <p className="text-[10px] font-black uppercase text-slate-700 tracking-widest">Bagan Manual Kosong</p>
@@ -610,7 +779,7 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                   {[4, 8, 16, 32, 64].map(s => (
                     <button key={s} onClick={() => initializeBracket(s, false)} className="px-4 py-3 bg-white text-slate-600 border rounded-xl font-black text-[10px] uppercase hover:bg-slate-100 transition-all flex flex-col items-center">
                       <span>{s === 4 ? '4 Besar (Semi)' : `${s} Besar`}</span>
-                      <span className="text-[7px] text-slate-700 mt-0.5">Bagan Kosong</span>
+                      <span className="text-[7px] text-slate-700 mt-0.5">Pilih Atlet Manual</span>
                     </button>
                   ))}
                 </div>
@@ -642,6 +811,52 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                  <span className="w-2.5 h-2.5 bg-amber-500 rounded-full animate-ping" />
                  Kuning/Oranye = Shoot-Off (Seri)
                </div>
+
+               {/* Status Sistem Pairing & Quick Switch untuk 4 Besar sebelum mulai */}
+               <div className={`px-3 py-1.5 rounded-xl border text-[10px] font-black uppercase flex items-center gap-1.5 ${
+                 activeBracketPairingSystem === 'TOP4_1V2_3V4'
+                   ? 'bg-amber-100 border-amber-300 text-amber-950'
+                   : 'bg-purple-50 border-purple-200 text-purple-900'
+               }`}>
+                 <GitBranch className="w-3.5 h-3.5" />
+                 <span>
+                   {activeBracketPairingSystem === 'TOP4_1V2_3V4'
+                     ? 'Sistem 4 Besar: #1 vs #2 & #3 vs #4'
+                     : 'Sistem: Standar World Archery'}
+                 </span>
+               </div>
+
+               {canModifyTop4Pairing && (
+                 <button
+                   type="button"
+                   onClick={() =>
+                     handleSwitchTop4Pairing(
+                       activeBracketPairingSystem === 'TOP4_1V2_3V4' ? 'WORLD_ARCHERY' : 'TOP4_1V2_3V4'
+                     )
+                   }
+                   className="px-3 py-1.5 bg-slate-900 hover:bg-purple-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-xs transition-all"
+                   title="Ganti pola pasangan 4 Besar sebelum pertandingan dimulai"
+                 >
+                   <RefreshCw className="w-3 h-3" />
+                   <span>
+                     {activeBracketPairingSystem === 'TOP4_1V2_3V4'
+                       ? 'Pindah ke World Archery (#1v#4)'
+                       : 'Ubah ke #1 vs #2 & #3 vs #4'}
+                   </span>
+                 </button>
+               )}
+
+               {currentMatches.some(m => m.seedRankA || m.seedRankB) && (
+                 <button
+                   type="button"
+                   onClick={handleManualSyncSeeds}
+                   className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all"
+                   title="Sinkronkan ulang nama atlet dari hasil ranking terbaru (untuk match yang belum dimulai)"
+                 >
+                   <RefreshCw className="w-3 h-3" />
+                   <span>Sinkronkan Peringkat</span>
+                 </button>
+               )}
 
                {/* Physical Elimination Sheet Quick Button */}
                <button
@@ -868,15 +1083,40 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                           <div className={`${isCompact ? 'p-3 gap-2.5' : 'p-6 gap-4'} flex items-center justify-between border-b ${match.winnerId === match.archerAId ? 'bg-purple-50/50' : ''}`}>
                             <div className={`flex items-center ${isCompact ? 'gap-2.5' : 'gap-4'} flex-1 min-w-0`}>
                                <div className={`${isCompact ? 'w-7 h-7 text-[11px] rounded-lg' : 'w-10 h-10 text-xs rounded-xl'} flex items-center justify-center font-black shrink-0 ${match.winnerId === match.archerAId ? 'bg-purple-600 text-white shadow-lg' : match.scoreA > match.scoreB ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}`}>
-                                 {match.winnerId === match.archerAId ? <Check className={isCompact ? 'w-4 h-4' : 'w-5 h-5'} /> : 'A'}
-                                </div>
-                                <div className="min-w-0">
-                                  <span className={`font-black uppercase font-oswald ${isCompact ? 'text-xs leading-tight' : 'text-sm'} italic truncate block ${match.winnerId === match.archerAId ? 'text-purple-700' : 'text-slate-600'}`}>
-                                    {getArcherName(match.archerAId)}
-                                  </span>
+                                 {match.winnerId === match.archerAId ? <Check className={isCompact ? 'w-4 h-4' : 'w-5 h-5'} /> : match.seedRankA ? `#${match.seedRankA}` : 'A'}
+                               </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`font-black uppercase font-oswald ${isCompact ? 'text-xs leading-tight' : 'text-sm'} italic truncate block ${match.winnerId === match.archerAId ? 'text-purple-700' : match.archerAId ? 'text-slate-600' : 'text-slate-400'}`}>
+                                      {match.archerAId ? getArcherName(match.archerAId) : (match.seedRankA ? `Slot Peringkat #${match.seedRankA}` : 'TBA')}
+                                    </span>
+                                    {match.archerAId && match.seedRankA && (
+                                      <span className="px-1.5 py-0.5 bg-purple-100 text-purple-800 rounded text-[8px] font-black shrink-0">
+                                        #{match.seedRankA}
+                                      </span>
+                                    )}
+                                  </div>
                                   <span className={`${isCompact ? 'text-[7.5px]' : 'text-[8px]'} font-bold text-slate-700 uppercase tracking-wider truncate block`}>
-                                    {getArcherClub(match.archerAId)}
+                                    {match.archerAId
+                                      ? getArcherClub(match.archerAId)
+                                      : match.seedRankA
+                                        ? `Otomatis terisi peringkat #${match.seedRankA}`
+                                        : '-'}
                                   </span>
+                                  {!match.seedRankA && !match.winnerId && match.scoreA === 0 && (
+                                    <select
+                                      value={match.archerAId || ''}
+                                      onChange={(e) => updateMatch(match.id, { archerAId: e.target.value || undefined })}
+                                      className="mt-1 w-full max-w-[170px] bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 text-[9px] font-bold text-slate-700 outline-none focus:border-purple-400"
+                                    >
+                                      <option value="">-- Pilih Atlet A --</option>
+                                      {rankedArchers.map((ra, rIdx) => (
+                                        <option key={ra.id} value={ra.id}>
+                                          {ra.total > 0 ? `#${rIdx + 1} (${ra.total}) - ` : ''}{ra.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  )}
                                 </div>
                             </div>
                             
@@ -890,7 +1130,7 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                                      : 'bg-white border-slate-100 text-slate-900'
                                }`}>
                                  {match.scoreA}
-                                </div>
+                               </div>
                                <button onClick={() => updateMatch(match.id, { scoreA: match.scoreA + 1 })} className={`${isCompact ? 'w-6 h-6 rounded-md' : 'w-8 h-8 rounded-lg'} bg-purple-50 border-purple-100 border flex items-center justify-center hover:bg-purple-100 active:scale-90 transition-all text-purple-600`}><Plus className={isCompact ? 'w-3 h-3' : 'w-4 h-4'} /></button>
                             </div>
                           </div>
@@ -899,15 +1139,40 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                           <div className={`${isCompact ? 'p-3 gap-2.5' : 'p-6 gap-4'} flex items-center justify-between ${match.winnerId === match.archerBId ? 'bg-purple-50/50' : ''}`}>
                             <div className={`flex items-center ${isCompact ? 'gap-2.5' : 'gap-4'} flex-1 min-w-0`}>
                                <div className={`${isCompact ? 'w-7 h-7 text-[11px] rounded-lg' : 'w-10 h-10 text-xs rounded-xl'} flex items-center justify-center font-black shrink-0 ${match.winnerId === match.archerBId ? 'bg-purple-600 text-white shadow-lg' : match.scoreB > match.scoreA ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-700'}`}>
-                                 {match.winnerId === match.archerBId ? <Check className={isCompact ? 'w-4 h-4' : 'w-5 h-5'} /> : 'B'}
-                                </div>
-                                <div className="min-w-0">
-                                  <span className={`font-black uppercase font-oswald ${isCompact ? 'text-xs leading-tight' : 'text-sm'} italic truncate block ${match.winnerId === match.archerBId ? 'text-purple-700' : 'text-slate-600'}`}>
-                                    {getArcherName(match.archerBId)}
-                                  </span>
+                                 {match.winnerId === match.archerBId ? <Check className={isCompact ? 'w-4 h-4' : 'w-5 h-5'} /> : match.seedRankB ? `#${match.seedRankB}` : 'B'}
+                               </div>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className={`font-black uppercase font-oswald ${isCompact ? 'text-xs leading-tight' : 'text-sm'} italic truncate block ${match.winnerId === match.archerBId ? 'text-purple-700' : match.archerBId ? 'text-slate-600' : 'text-slate-400'}`}>
+                                      {match.archerBId ? getArcherName(match.archerBId) : (match.seedRankB ? `Slot Peringkat #${match.seedRankB}` : 'TBA')}
+                                    </span>
+                                    {match.archerBId && match.seedRankB && (
+                                      <span className="px-1.5 py-0.5 bg-purple-100 text-purple-800 rounded text-[8px] font-black shrink-0">
+                                        #{match.seedRankB}
+                                      </span>
+                                    )}
+                                  </div>
                                   <span className={`${isCompact ? 'text-[7.5px]' : 'text-[8px]'} font-bold text-slate-700 uppercase tracking-wider truncate block`}>
-                                    {getArcherClub(match.archerBId)}
+                                    {match.archerBId
+                                      ? getArcherClub(match.archerBId)
+                                      : match.seedRankB
+                                        ? `Otomatis terisi peringkat #${match.seedRankB}`
+                                        : '-'}
                                   </span>
+                                  {!match.seedRankB && !match.winnerId && match.scoreB === 0 && (
+                                    <select
+                                      value={match.archerBId || ''}
+                                      onChange={(e) => updateMatch(match.id, { archerBId: e.target.value || undefined })}
+                                      className="mt-1 w-full max-w-[170px] bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 text-[9px] font-bold text-slate-700 outline-none focus:border-purple-400"
+                                    >
+                                      <option value="">-- Pilih Atlet B --</option>
+                                      {rankedArchers.map((ra, rIdx) => (
+                                        <option key={ra.id} value={ra.id}>
+                                          {ra.total > 0 ? `#${rIdx + 1} (${ra.total}) - ` : ''}{ra.name}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  )}
                                 </div>
                             </div>
                             
@@ -921,7 +1186,7 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                                      : 'bg-white border-slate-100 text-slate-900'
                                }`}>
                                  {match.scoreB}
-                                </div>
+                               </div>
                                <button onClick={() => updateMatch(match.id, { scoreB: match.scoreB + 1 })} className={`${isCompact ? 'w-6 h-6 rounded-md' : 'w-8 h-8 rounded-lg'} bg-purple-50 border-purple-100 border flex items-center justify-center hover:bg-purple-100 active:scale-90 transition-all text-purple-600`}><Plus className={isCompact ? 'w-3 h-3' : 'w-4 h-4'} /></button>
                             </div>
                           </div>

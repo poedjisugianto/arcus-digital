@@ -154,21 +154,64 @@ export function mergeCategoryConfigs(
 }
 
 /**
- * Deep merge tournament settings ensuring categoryConfigs and sub-configs are never lost
+ * Deep merge certificate configuration without letting undefined/missing keys wipe existing fields
+ */
+export function mergeCertificateConfig(
+  existing?: TournamentSettings['certificateConfig'] | null,
+  incoming?: TournamentSettings['certificateConfig'] | null
+): TournamentSettings['certificateConfig'] | undefined {
+  if (!existing && !incoming) return undefined;
+  if (!incoming) return existing ? { ...existing } : undefined;
+  if (!existing) return { ...incoming };
+
+  const cleanIncoming: Record<string, any> = {};
+  for (const [key, val] of Object.entries(incoming)) {
+    if (val !== undefined) {
+      cleanIncoming[key] = val;
+    }
+  }
+
+  return {
+    ...existing,
+    ...cleanIncoming,
+    signatories: Array.isArray(cleanIncoming.signatories)
+      ? cleanIncoming.signatories
+      : existing.signatories,
+    manualCertNumbers:
+      cleanIncoming.manualCertNumbers && typeof cleanIncoming.manualCertNumbers === 'object'
+        ? cleanIncoming.manualCertNumbers
+        : existing.manualCertNumbers
+  };
+}
+
+/**
+ * Deep merge tournament settings ensuring categoryConfigs, certificateConfig, and sub-configs are never lost
  */
 export function mergeTournamentSettings(
   existing?: Partial<TournamentSettings> | null,
   incoming?: Partial<TournamentSettings> | null
 ): TournamentSettings {
   const base = { ...(existing || {}) };
-  const next = { ...(incoming || {}) };
+  const rawNext = incoming || {};
+  const next: Record<string, any> = {};
+  for (const [key, val] of Object.entries(rawNext)) {
+    if (val !== undefined) {
+      next[key] = val;
+    }
+  }
 
   const mergedConfigs = mergeCategoryConfigs(base.categoryConfigs, next.categoryConfigs);
+  const mergedCertificateConfig = mergeCertificateConfig(base.certificateConfig, next.certificateConfig);
 
-  return {
+  const result: any = {
     ...base,
     ...next,
     categoryConfigs: mergedConfigs
-  } as TournamentSettings;
-}
+  };
 
+  if (mergedCertificateConfig !== undefined) {
+    result.certificateConfig = mergedCertificateConfig;
+  }
+
+  return result as TournamentSettings;
+}

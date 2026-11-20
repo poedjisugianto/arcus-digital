@@ -87,7 +87,8 @@ import IdCardEditor from './components/IdCardEditor';
 import SelfServiceIdCardPortal from './components/SelfServiceIdCardPortal';
 
 import { auth, db } from './firebase';
-import { sanitizeForFirestore, mergeTournamentSettings, findCategoryConfig } from './lib/firestoreUtils';
+import { sanitizeForFirestore, mergeTournamentSettings, mergeCertificateConfig, findCategoryConfig } from './lib/firestoreUtils';
+import { migrateSettingsImagesToStorage, stripOversizedDataUrls } from './lib/photoService';
 import { getNextTargetSlot } from './lib/targetAllocation';
 const googleProvider = new GoogleAuthProvider();
 
@@ -438,6 +439,9 @@ export default function App() {
   useEffect(() => {
     appStateRef.current = appState;
   }, [appState]);
+
+  // Preserve latest certificateConfig from shard or local save so root doc snapshots never wipe it
+  const latestCertConfigRef = useRef<Record<string, any>>({});
 
   // Keep track of participant IDs we've already seen during the current event session
   const seenRegistrantIdsRef = useRef<Record<string, Set<string>>>({});
@@ -831,6 +835,7 @@ export default function App() {
 
     const eventId = appState.activeEventId;
     let unsubActiveEventDoc = () => {};
+    let unsubCertShard = () => {};
     let unsubSubmissions = () => {};
     let unsubScores = () => {};
     let unsubScoreLogs = () => {};
@@ -936,17 +941,31 @@ export default function App() {
       // Direct fast query to get instant full data
       const directFetchFromFirestore = async () => {
         try {
-          const [eventDocSnap, submissionsSnap, scoresSnap, logsSnap] = await Promise.all([
+          const [eventDocSnap, certShardSnap, submissionsSnap, scoresSnap, logsSnap] = await Promise.all([
             getDoc(doc(db, 'events', eventId)),
+            getDoc(doc(db, 'events', eventId, 'shards', 'certificate')).catch(() => null),
             getDocs(collection(db, 'events', eventId, 'submissions')),
             getDocs(collection(db, 'events', eventId, 'scores')),
             getDocs(collection(db, 'events', eventId, 'scoreLogs'))
           ]);
 
+          const certShardData = certShardSnap?.exists() ? certShardSnap.data() : null;
+          const shardCertConfig = certShardData?.certificateConfig || certShardData?.data?.certificateConfig || null;
+          if (shardCertConfig) {
+            latestCertConfigRef.current[eventId] = mergeCertificateConfig(latestCertConfigRef.current[eventId], shardCertConfig);
+          }
+
           if (eventDocSnap.exists()) {
             const d = eventDocSnap.data();
             const base = d.data || d;
-            const settings = { ...(base.settings || base || {}), ...(d.settings || {}) };
+            const rawSettings = mergeTournamentSettings(base.settings || base, d.settings);
+            const activeShardCert = shardCertConfig || latestCertConfigRef.current[eventId];
+            const settings = activeShardCert
+              ? {
+                  ...rawSettings,
+                  certificateConfig: mergeCertificateConfig(rawSettings.certificateConfig, activeShardCert)
+                }
+              : rawSettings;
             
             const rawSubmissions = submissionsSnap.docs.map(sd => {
               const sdData = sd.data();
@@ -980,12 +999,14 @@ export default function App() {
                     const finalOfficials = Array.from(officialMap.values());
                     const finalRegs = Array.from(regMap.values());
 
+                    const mergedDirectSettings = mergeTournamentSettings(e.settings, settings);
+
                     return {
                       ...base,
                       ...d,
                       ...e,
                       id: eventId,
-                      settings: mergeTournamentSettings(mergeTournamentSettings(base.settings || base, d.settings), e.settings),
+                      settings: mergedDirectSettings,
                       registrations: finalRegs,
                       archers: finalArchers,
                       officials: finalOfficials,
@@ -1023,6 +1044,36 @@ export default function App() {
 
       directFetchFromFirestore();
 
+      unsubCertShard = onSnapshot(doc(db, 'events', eventId, 'shards', 'certificate'), (shardSnap) => {
+        if (!shardSnap.exists()) return;
+        const shardData = shardSnap.data();
+        const shardCert = shardData?.certificateConfig || shardData?.data?.certificateConfig;
+        if (!shardCert) return;
+
+        latestCertConfigRef.current[eventId] = mergeCertificateConfig(latestCertConfigRef.current[eventId], shardCert);
+
+        setAppState(prev => {
+          if (prev.activeEventId !== eventId) return prev;
+          const exists = prev.events.some(e => e.id === eventId);
+          if (!exists) return prev;
+          return {
+            ...prev,
+            events: prev.events.map(e => {
+              if (e.id !== eventId) return e;
+              return {
+                ...e,
+                settings: {
+                  ...e.settings,
+                  certificateConfig: mergeCertificateConfig(e.settings?.certificateConfig, shardCert)
+                }
+              };
+            })
+          };
+        });
+      }, (err) => {
+        console.warn("Certificate shard realtime warning:", err.message);
+      });
+
       unsubActiveEventDoc = onSnapshot(doc(db, 'events', eventId), (snap) => {
         if (!snap.exists()) return;
         const d = snap.data();
@@ -1055,10 +1106,19 @@ export default function App() {
                 (parentEvent.registrations || []).forEach((r: any) => regMap.set(r.id, mergeParticipantPreserveMedia(regMap.get(r.id), r)));
                 const mergedRegistrations = Array.from(regMap.values());
 
+                let nextSettings = mergeTournamentSettings(e.settings, parentEvent.settings);
+                const preservedShardCert = latestCertConfigRef.current[eventId];
+                if (preservedShardCert) {
+                  nextSettings = {
+                    ...nextSettings,
+                    certificateConfig: mergeCertificateConfig(nextSettings.certificateConfig, preservedShardCert)
+                  };
+                }
+
                 return {
                   ...parentEvent,
                   ...e,
-                  settings: mergeTournamentSettings(e.settings, parentEvent.settings),
+                  settings: nextSettings,
                   registrations: mergedRegistrations,
                   archers: mergedArchers,
                   officials: mergedOfficials,
@@ -1243,6 +1303,7 @@ export default function App() {
 
     return () => {
       unsubActiveEventDoc();
+      unsubCertShard();
       unsubSubmissions();
       unsubScores();
       unsubScoreLogs();
@@ -1785,34 +1846,40 @@ export default function App() {
     });
     
     if (isOnline && db) {
+      let firestoreUpdate: any = null;
+      let mergedSettingsForSave: TournamentSettings | null = null;
+      let certShardSaved = false;
+      const isOnlySettingsUpdate = Boolean(updated.settings) && Object.keys(updated).every(k => k === 'settings' || k === 'updatedAt');
+      const isCertOnlyUpdate = isOnlySettingsUpdate && Boolean(updated.settings?.certificateConfig) && Object.keys(updated.settings || {}).every(k => k === 'certificateConfig');
+
       try {
         const { deleteField } = await import('firebase/firestore');
 
         // Create a flattened update object for Firestore to avoid overwriting nested objects
-        const firestoreUpdate: any = {
+        firestoreUpdate = {
           ...updated,
           updatedAt: serverTimestamp()
         };
 
-        // scores and scoreLogs are written to individual subcollections, NEVER in main document
+        // scores, scoreLogs, registrations are stored in subcollections, NEVER duplicated on root event doc
         delete firestoreUpdate.scores;
         delete firestoreUpdate.scoreLogs;
         delete firestoreUpdate["data.scores"];
         delete firestoreUpdate["data.scoreLogs"];
-
-        // Submissions/registrations are strictly stored in 'submissions' subcollection.
-        // Deleting these fields from the root event document prevents exceeding Firestore's 1MB limit.
         delete firestoreUpdate.registrations;
         delete firestoreUpdate["data.registrations"];
+
         firestoreUpdate.registrations = deleteField();
         firestoreUpdate["data.registrations"] = deleteField();
         firestoreUpdate.scores = deleteField();
         firestoreUpdate.scoreLogs = deleteField();
         firestoreUpdate["data.scores"] = deleteField();
         firestoreUpdate["data.scoreLogs"] = deleteField();
+        // Never duplicate settings inside data.settings (halves root doc size immediately!)
+        firestoreUpdate["data.settings"] = deleteField();
+        firestoreUpdate["data.matches"] = deleteField();
 
         // Helper to strip massive base64 images from archers/officials before saving to root event document
-        // while keeping short Firebase Storage HTTPS URLs intact
         const isGiantInlineData = (val: any) => typeof val === 'string' && (val.startsWith('data:') || val.length > 1000);
         const slimParticipantForEventDoc = (item: any) => {
           if (!item || typeof item !== 'object') return item;
@@ -1836,18 +1903,65 @@ export default function App() {
           firestoreUpdate["data.officials"] = firestoreUpdate["data.officials"].map(slimParticipantForEventDoc);
         }
 
-        // If settings are provided, flatten them for Firestore merge
+        // If settings are provided: write certificateConfig shard IMMEDIATELY, then migrate any legacy Base64 images to Storage
         if (updated.settings) {
           delete firestoreUpdate.settings;
-          const currentEv = appState.events.find(e => e.id === id);
-          const fullMergedSettings = mergeTournamentSettings(
+          const currentEv = appStateRef.current.events.find(e => e.id === id) || appState.events.find(e => e.id === id);
+          const rawMergedSettings = mergeTournamentSettings(
             currentEv?.settings,
             updated.settings
           );
+
+          if (rawMergedSettings.certificateConfig) {
+            latestCertConfigRef.current[id] = rawMergedSettings.certificateConfig;
+            try {
+              await setDoc(
+                doc(db, 'events', id, 'shards', 'certificate'),
+                sanitizeForFirestore({
+                  certificateConfig: rawMergedSettings.certificateConfig,
+                  updatedAt: serverTimestamp()
+                }),
+                { merge: true }
+              );
+              certShardSaved = true;
+            } catch (shardErr) {
+              console.warn('[CERT-SHARD] Failed to write shards/certificate:', shardErr);
+            }
+          }
+
+          // Automatically convert any pre-existing data:image/... Base64 fields to Storage HTTPS URLs
+          const migration = await migrateSettingsImagesToStorage(id, rawMergedSettings);
+          const fullMergedSettings = migration.settings;
+          mergedSettingsForSave = fullMergedSettings;
+
+          if (fullMergedSettings.certificateConfig) {
+            latestCertConfigRef.current[id] = fullMergedSettings.certificateConfig;
+          }
+
+          if (migration.migratedCount > 0) {
+            setAppState(prev => ({
+              ...prev,
+              events: prev.events.map(ev => ev.id === id ? { ...ev, settings: fullMergedSettings } : ev)
+            }));
+            if (fullMergedSettings.certificateConfig) {
+              setDoc(
+                doc(db, 'events', id, 'shards', 'certificate'),
+                sanitizeForFirestore({
+                  certificateConfig: fullMergedSettings.certificateConfig,
+                  updatedAt: serverTimestamp()
+                }),
+                { merge: true }
+              ).catch(() => {});
+            }
+          }
+
+          try {
+            localStorage.setItem(`admin_saved_settings_${id}`, JSON.stringify(fullMergedSettings));
+          } catch {}
+
           Object.entries(fullMergedSettings).forEach(([key, val]) => {
             firestoreUpdate[`settings.${key}`] = val;
           });
-          firestoreUpdate["data.settings"] = fullMergedSettings;
         }
 
         // Write scores as individual subcollection docs to prevent lag and delay
@@ -1904,7 +2018,7 @@ export default function App() {
 
         if (isSizeOverflow) {
           try {
-            console.warn("[RECOVERY] Event doc exceeded 1MB limit. Purging bloated fields from root document in Firestore...");
+            console.warn("[RECOVERY] Event doc exceeded 1MB limit. Purging bloated fields (incl. data.settings & data) from root document in Firestore...");
             const { deleteField } = await import('firebase/firestore');
             await updateDoc(doc(db, 'events', id), {
               registrations: deleteField(),
@@ -1917,18 +2031,44 @@ export default function App() {
               "data.archers": deleteField(),
               officials: deleteField(),
               "data.officials": deleteField(),
+              "data.settings": deleteField(),
+              "data.matches": deleteField(),
+              data: deleteField(),
               updatedAt: serverTimestamp()
             });
-            console.log("[RECOVERY] Purged bloated fields successfully. Document size restored to lightweight state.");
-            pushNotification("Optimalisasi Dokumen", "Ukuran data turnamen berhasil dioptimalkan dan disinkronkan kembali.", "SUCCESS");
+            console.log("[RECOVERY] Purged bloated fields successfully. Retrying settings/event update...");
+            if (firestoreUpdate) {
+              const slimmedUpdate = stripOversizedDataUrls(firestoreUpdate, 30000);
+              delete slimmedUpdate.archers;
+              delete slimmedUpdate.officials;
+              delete slimmedUpdate.data;
+              try {
+                await updateDoc(doc(db, 'events', id), sanitizeForFirestore(slimmedUpdate));
+              } catch (retryErr: any) {
+                // If root doc is still tight, offload certificateConfig exclusively to shards/certificate
+                const retryOverflow = String(retryErr?.message || retryErr).includes("exceeds");
+                if (retryOverflow && certShardSaved) {
+                  delete slimmedUpdate["settings.certificateConfig"];
+                  await updateDoc(doc(db, 'events', id), sanitizeForFirestore(slimmedUpdate));
+                } else {
+                  throw retryErr;
+                }
+              }
+            }
+            fetch('/api/cache/invalidate', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ eventId: id })
+            }).catch(() => {});
+            pushNotification("Optimalisasi Dokumen", "Data turnamen berhasil dioptimalkan dan perubahan disimpan.", "SUCCESS");
             setHasPendingChanges(false);
             return;
           } catch (purgeErr) {
-            console.error("[RECOVERY] Purge attempt failed:", purgeErr);
+            console.error("[RECOVERY] Purge/retry attempt failed:", purgeErr);
           }
         }
-        
-        // Re-calculate flattened update explicitly for fallback
+
+        // Fallback without duplicating data.settings and with giant inline data stripped
         const fallbackUpdate: any = { ...updated, updatedAt: serverTimestamp() };
         delete fallbackUpdate.scores;
         delete fallbackUpdate.scoreLogs;
@@ -1936,26 +2076,71 @@ export default function App() {
         delete fallbackUpdate["data.registrations"];
         delete fallbackUpdate["data.scores"];
         delete fallbackUpdate["data.scoreLogs"];
-        
+        delete fallbackUpdate["data.settings"];
+        delete fallbackUpdate.data;
+
         if (updated.settings) {
           delete fallbackUpdate.settings;
-          const currentEv = appState.events.find(e => e.id === id);
-          const fullMergedSettings = mergeTournamentSettings(
-            currentEv?.settings,
-            updated.settings
+          const fullMergedSettings = stripOversizedDataUrls(
+            mergedSettingsForSave ||
+              mergeTournamentSettings(
+                (appStateRef.current.events.find(e => e.id === id) || appState.events.find(e => e.id === id))?.settings,
+                updated.settings
+              ),
+            30000
           );
           Object.entries(fullMergedSettings).forEach(([key, val]) => {
             fallbackUpdate[`settings.${key}`] = val;
           });
-          fallbackUpdate["data.settings"] = fullMergedSettings;
         }
 
         try {
-          const cleanFallback = sanitizeForFirestore(fallbackUpdate);
+          const cleanFallback = sanitizeForFirestore(stripOversizedDataUrls(fallbackUpdate, 30000));
           await setDoc(doc(db, 'events', id), cleanFallback, { merge: true });
+          fetch('/api/cache/invalidate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: id })
+          }).catch(() => {});
           pushNotification("Berhasil (Sync)", "Perubahan disimpan.", "SUCCESS");
           setHasPendingChanges(false);
         } catch (setErr: any) {
+          if (mergedSettingsForSave) {
+            try {
+              const authHeaders = await getApiAuthHeaders();
+              const safePayloadSettings = stripOversizedDataUrls(mergedSettingsForSave, 30000);
+              const apiRes = await fetch(`/api/events/${id}/settings`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  ...authHeaders
+                },
+                body: JSON.stringify({
+                  settings: safePayloadSettings,
+                  authEmail: appStateRef.current.currentUser?.email || auth?.currentUser?.email,
+                  authUid: appStateRef.current.currentUser?.id || auth?.currentUser?.uid
+                })
+              });
+              if (apiRes.ok) {
+                const body = await apiRes.json();
+                if (body?.success) {
+                  pushNotification("Berhasil (Cloud API)", "Pengaturan turnamen berhasil disimpan.", "SUCCESS");
+                  setHasPendingChanges(false);
+                  return;
+                }
+              }
+            } catch (apiErr) {
+              console.warn("API settings fallback failed:", apiErr);
+            }
+          }
+
+          if (isCertOnlyUpdate && certShardSaved) {
+            console.warn("Root event doc update skipped, certificate saved in shard:", setErr?.message);
+            pushNotification("Tersimpan (E-Sertifikat)", "Pengaturan e-sertifikat berhasil disimpan ke cloud.", "SUCCESS");
+            setHasPendingChanges(false);
+            return;
+          }
+
           console.error("Critical Firestore Error:", setErr);
           pushNotification("Gagal Sync", setErr.message || "Network error", "WARNING");
           setHasPendingChanges(true);
@@ -2866,10 +3051,10 @@ export default function App() {
           archers={activeEventArchers}
           officials={activeEventOfficials}
           onSave={async (updatedSettings) => {
-            handleUpdateEvent(activeEvent.id, { settings: updatedSettings });
+            await handleUpdateEvent(activeEvent.id, { settings: updatedSettings });
           }}
           onUpdateScorers={async (scorers) => {
-            handleUpdateEvent(activeEvent.id, { scorerAccess: scorers });
+            await handleUpdateEvent(activeEvent.id, { scorerAccess: scorers });
           }}
           onClear={() => {}}
           onDelete={() => onDeleteEvent(activeEvent.id)}
@@ -2928,6 +3113,9 @@ export default function App() {
           onResetScores={() => {
             handleUpdateEvent(activeEvent.id, { scores: [] });
             pushNotification("Skor Direset", "Seluruh data skor event berhasil direset.", "WARNING");
+          }}
+          onSaveSettings={async (updatedSettings) => {
+            await handleUpdateEvent(activeEvent.id, { settings: updatedSettings });
           }}
           onBack={() => setView('EVENT_ADMIN')}
         />;

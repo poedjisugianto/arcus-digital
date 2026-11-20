@@ -1732,19 +1732,21 @@ const ArcherList: React.FC<Props> = ({
       )}
 
       {/* Participant Scanner & Check-in Modal */}
-      <ParticipantScannerModal
-        isOpen={showScannerModal}
-        onClose={() => {
-          setShowScannerModal(false);
-          setInitialScanQuery("");
-        }}
-        archers={archers}
-        onUpdateParticipant={(updated) => {
-          onUpdate(updated);
-        }}
-        eventTitle={settings.tournamentName}
-        initialQuery={initialScanQuery}
-      />
+      {showScannerModal && (
+        <ParticipantScannerModal
+          isOpen={showScannerModal}
+          onClose={() => {
+            setShowScannerModal(false);
+            setInitialScanQuery("");
+          }}
+          archers={archers}
+          onUpdateParticipant={(updated) => {
+            onUpdate(updated);
+          }}
+          eventTitle={settings.tournamentName}
+          initialQuery={initialScanQuery}
+        />
+      )}
 
       {/* Auto Target Allocation Modal */}
       <AutoTargetAllocationModal

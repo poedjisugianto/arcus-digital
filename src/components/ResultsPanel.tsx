@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Trophy, Medal, Download, Printer, ArrowLeft, Target, Award, Info, Trash2, ChevronRight, BarChart3, FileText, FileSpreadsheet } from 'lucide-react';
-import { ArcheryEvent, CategoryType, Archer, TargetType } from '../types';
+import { ArcheryEvent, CategoryType, Archer, TargetType, TournamentSettings } from '../types';
 import { CATEGORY_LABELS, getCategoryDisplayName } from '../constants';
 import { findCategoryConfig } from '../lib/firestoreUtils';
 import { toast } from 'sonner';
@@ -12,10 +12,11 @@ import { exportToExcel, exportToCSV } from '../lib/excelHelper';
 interface Props {
   state: ArcheryEvent;
   onResetScores: () => void;
+  onSaveSettings?: (settings: TournamentSettings) => void | Promise<void>;
   onBack: () => void;
 }
 
-export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
+export default function ResultsPanel({ state, onResetScores, onSaveSettings, onBack }: Props) {
   const [activeCategory, setActiveCategory] = useState<CategoryType | string>(CategoryType.ADULT_PUTRA);
   const eventCategories = useMemo(() => {
     if (state.settings?.categoryConfigs && Object.keys(state.settings.categoryConfigs).length > 0) {
@@ -589,6 +590,7 @@ export default function ResultsPanel({ state, onResetScores, onBack }: Props) {
           isOpen={showCertificateModal}
           event={state}
           initialCategory={activeCategory as CategoryType}
+          onSaveSettings={onSaveSettings}
           onClose={() => setShowCertificateModal(false)}
         />
       )}

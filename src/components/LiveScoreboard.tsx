@@ -5,6 +5,7 @@ import { CATEGORY_LABELS, getCategoryDisplayName } from '../constants';
 import ArcusLogo from './ArcusLogo';
 import { motion, AnimatePresence } from 'motion/react';
 import { resolveGoogleDriveUrl } from '../lib/photoService';
+import { buildRankedArchersForElimination } from '../lib/bracketSeeding';
 
 interface Props {
   state: ArcheryEvent;
@@ -342,6 +343,19 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
   const matches = useMemo(() => {
     return (state?.matches as any)?.[filterCategory] || [];
   }, [state?.matches, filterCategory]);
+
+  const scoredEliminationSeeds = useMemo(() => {
+    const archersInCat = archersList.filter(a => a.category === filterCategory);
+    return buildRankedArchersForElimination(archersInCat, state?.scores || [], config).filter(a => (a.total || 0) > 0);
+  }, [archersList, state?.scores, filterCategory, config]);
+
+  const resolveBracketArcher = (explicitId?: string, seedRank?: number, match?: Match) => {
+    if (explicitId) return archersList.find(a => a.id === explicitId);
+    if (seedRank && match && !match.winnerId && match.scoreA === 0 && match.scoreB === 0 && !match.isShootOff) {
+      return scoredEliminationSeeds[seedRank - 1];
+    }
+    return undefined;
+  };
 
   const roundsData = useMemo(() => {
     const rounds: Record<string, Match[]> = {};
@@ -1211,8 +1225,8 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
 
                         <div className="flex flex-col h-full justify-around gap-8 min-h-[450px]">
                           {round.matches.map((match) => {
-                            const archerA = archersList.find(a => a.id === match.archerAId);
-                            const archerB = archersList.find(a => a.id === match.archerBId);
+                            const archerA = resolveBracketArcher(match.archerAId, match.seedRankA, match);
+                            const archerB = resolveBracketArcher(match.archerBId, match.seedRankB, match);
                             const isTied = match.archerAId && match.archerBId && match.scoreA === match.scoreB && (match.scoreA > 0 || match.scoreB > 0);
                             const hasShootOffRecord = match.isShootOff || match.shootOffA !== undefined || match.shootOffB !== undefined;
 
@@ -1271,13 +1285,18 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                                   <div className={`p-5 flex items-center justify-between gap-3 border-b ${match.winnerId === match.archerAId ? 'bg-purple-50/30' : ''}`}>
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
                                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${match.winnerId === match.archerAId ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-100 text-slate-700'}`}>
-                                        {match.winnerId === match.archerAId ? <Check className="w-4 h-4" /> : 'A'}
+                                        {match.winnerId === match.archerAId ? <Check className="w-4 h-4" /> : match.seedRankA ? `#${match.seedRankA}` : 'A'}
                                       </div>
                                       <div className="min-w-0">
                                         <div className="flex items-center gap-1.5">
-                                          <span className={`font-black uppercase font-oswald text-xs sm:text-sm italic block truncate leading-tight ${match.winnerId === match.archerAId ? 'text-purple-700' : 'text-slate-900'}`}>
-                                            {archerA?.name || 'BYE'}
+                                          <span className={`font-black uppercase font-oswald text-xs sm:text-sm italic block truncate leading-tight ${match.winnerId === match.archerAId ? 'text-purple-700' : archerA ? 'text-slate-900' : 'text-slate-400'}`}>
+                                            {archerA?.name || (match.seedRankA ? `Slot Peringkat #${match.seedRankA}` : 'BYE')}
                                           </span>
+                                          {archerA && match.seedRankA && (
+                                            <span className="px-1.5 py-0.5 bg-purple-100 text-purple-800 rounded text-[7px] font-black shrink-0">
+                                              #{match.seedRankA}
+                                            </span>
+                                          )}
                                           {match.shootOffA !== undefined && (
                                             <span className="px-1.5 py-0.5 bg-amber-100 border border-amber-300 text-amber-900 rounded text-[7px] font-black shrink-0">
                                               SO: {match.shootOffA}{match.shootOffClosestA ? '★' : ''}
@@ -1285,7 +1304,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                                           )}
                                         </div>
                                         <span className="text-[9px] sm:text-[10px] font-semibold text-slate-600 uppercase tracking-wider mt-1 block truncate">
-                                          {archerA?.club || '-'} {archerA?.targetNo ? `(Bantalan ${archerA.targetNo}${archerA.position || ''})` : ''}
+                                          {archerA ? `${archerA.club || '-'} ${archerA.targetNo ? `(Bantalan ${archerA.targetNo}${archerA.position || ''})` : ''}` : match.seedRankA ? `Menunggu peringkat #${match.seedRankA}` : '-'}
                                         </span>
                                       </div>
                                     </div>
@@ -1304,13 +1323,18 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                                   <div className={`p-5 flex items-center justify-between gap-3 ${match.winnerId === match.archerBId ? 'bg-purple-50/30' : ''}`}>
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
                                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-black ${match.winnerId === match.archerBId ? 'bg-purple-600 text-white shadow-md' : 'bg-slate-100 text-slate-700'}`}>
-                                        {match.winnerId === match.archerBId ? <Check className="w-4 h-4" /> : 'B'}
+                                        {match.winnerId === match.archerBId ? <Check className="w-4 h-4" /> : match.seedRankB ? `#${match.seedRankB}` : 'B'}
                                       </div>
                                       <div className="min-w-0">
                                         <div className="flex items-center gap-1.5">
-                                          <span className={`font-black uppercase font-oswald text-xs sm:text-sm italic block truncate leading-tight ${match.winnerId === match.archerBId ? 'text-purple-700' : 'text-slate-900'}`}>
-                                            {archerB?.name || 'BYE'}
+                                          <span className={`font-black uppercase font-oswald text-xs sm:text-sm italic block truncate leading-tight ${match.winnerId === match.archerBId ? 'text-purple-700' : archerB ? 'text-slate-900' : 'text-slate-400'}`}>
+                                            {archerB?.name || (match.seedRankB ? `Slot Peringkat #${match.seedRankB}` : 'BYE')}
                                           </span>
+                                          {archerB && match.seedRankB && (
+                                            <span className="px-1.5 py-0.5 bg-purple-100 text-purple-800 rounded text-[7px] font-black shrink-0">
+                                              #{match.seedRankB}
+                                            </span>
+                                          )}
                                           {match.shootOffB !== undefined && (
                                             <span className="px-1.5 py-0.5 bg-amber-100 border border-amber-300 text-amber-900 rounded text-[7px] font-black shrink-0">
                                               SO: {match.shootOffB}{match.shootOffClosestB ? '★' : ''}
@@ -1318,7 +1342,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                                           )}
                                         </div>
                                         <span className="text-[9px] sm:text-[10px] font-semibold text-slate-600 uppercase tracking-wider mt-1 block truncate">
-                                          {archerB?.club || '-'} {archerB?.targetNo ? `(Bantalan ${archerB.targetNo}${archerB.position || ''})` : ''}
+                                          {archerB ? `${archerB.club || '-'} ${archerB.targetNo ? `(Bantalan ${archerB.targetNo}${archerB.position || ''})` : ''}` : match.seedRankB ? `Menunggu peringkat #${match.seedRankB}` : '-'}
                                         </span>
                                       </div>
                                     </div>
@@ -1348,8 +1372,8 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                  ) : (
                   <div className={`${isTVMode ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-2'} grid gap-4 sm:gap-10`}>
                     {matches.map((match) => {
-                    const archerA = archersList.find(a => a.id === match.archerAId);
-                    const archerB = archersList.find(a => a.id === match.archerBId);
+                    const archerA = resolveBracketArcher(match.archerAId, match.seedRankA, match);
+                    const archerB = resolveBracketArcher(match.archerBId, match.seedRankB, match);
                     
                     const isTied = match.archerAId && match.archerBId && match.scoreA === match.scoreB && (match.scoreA > 0 || match.scoreB > 0);
                     const hasShootOffRecord = match.isShootOff || match.shootOffA !== undefined || match.shootOffB !== undefined;
@@ -1419,14 +1443,23 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                                   </div>
                                   <div>
                                      <div className="flex items-center gap-2">
-                                       <p className={`font-black font-oswald uppercase italic leading-tight tracking-tight ${isTVMode ? 'text-7xl text-white' : 'text-base sm:text-xl md:text-2xl text-slate-900'}`}>{archerA?.name || 'BYE'}</p>
+                                       <p className={`font-black font-oswald uppercase italic leading-tight tracking-tight ${isTVMode ? 'text-7xl text-white' : 'text-base sm:text-xl md:text-2xl text-slate-900'}`}>
+                                         {archerA?.name || (match.seedRankA ? `Slot Peringkat #${match.seedRankA}` : 'BYE')}
+                                       </p>
+                                       {archerA && match.seedRankA && (
+                                         <span className="px-2 py-0.5 bg-purple-100 text-purple-800 text-[10px] sm:text-xs font-black rounded uppercase">
+                                           #{match.seedRankA}
+                                         </span>
+                                       )}
                                        {match.shootOffA !== undefined && (
                                          <span className="px-2 py-0.5 bg-amber-400 text-slate-950 text-[10px] sm:text-xs font-black rounded uppercase">
                                            SO: {match.shootOffA}{match.shootOffClosestA ? ' (X)' : ''}
                                          </span>
                                        )}
                                      </div>
-                                     <p className={`font-bold uppercase tracking-wider ${isTVMode ? 'text-xl text-white/70 mt-4' : 'text-xs sm:text-sm text-slate-600 mt-1 sm:mt-2'}`}>{archerA?.club || '-'}</p>
+                                     <p className={`font-bold uppercase tracking-wider ${isTVMode ? 'text-xl text-white/70 mt-4' : 'text-xs sm:text-sm text-slate-600 mt-1 sm:mt-2'}`}>
+                                       {archerA?.club || (match.seedRankA ? `Menunggu Peringkat #${match.seedRankA}` : '-')}
+                                     </p>
                                   </div>
                                 </div>
                                 <div className={`font-black font-oswald italic tracking-tighter tabular-nums ${isTVMode ? 'text-[10rem]' : 'text-3xl sm:text-6xl'} ${match.winnerId === match.archerAId ? 'text-emerald-500' : 'text-white/80'}`}>
@@ -1445,8 +1478,19 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                                      {archerB?.targetNo || '-'}{archerB?.position || ''}
                                   </div>
                                   <div>
-                                     <p className={`font-black font-oswald uppercase italic leading-tight tracking-tight ${isTVMode ? 'text-7xl text-white' : 'text-base sm:text-xl md:text-2xl text-slate-900'}`}>{archerB?.name || 'BYE'}</p>
-                                     <p className={`font-bold uppercase tracking-wider ${isTVMode ? 'text-xl text-white/70 mt-4' : 'text-xs sm:text-sm text-slate-600 mt-1 sm:mt-2'}`}>{archerB?.club || '-'}</p>
+                                     <div className="flex items-center gap-2">
+                                       <p className={`font-black font-oswald uppercase italic leading-tight tracking-tight ${isTVMode ? 'text-7xl text-white' : 'text-base sm:text-xl md:text-2xl text-slate-900'}`}>
+                                         {archerB?.name || (match.seedRankB ? `Slot Peringkat #${match.seedRankB}` : 'BYE')}
+                                       </p>
+                                       {archerB && match.seedRankB && (
+                                         <span className="px-2 py-0.5 bg-purple-100 text-purple-800 text-[10px] sm:text-xs font-black rounded uppercase">
+                                           #{match.seedRankB}
+                                         </span>
+                                       )}
+                                     </div>
+                                     <p className={`font-bold uppercase tracking-wider ${isTVMode ? 'text-xl text-white/70 mt-4' : 'text-xs sm:text-sm text-slate-600 mt-1 sm:mt-2'}`}>
+                                       {archerB?.club || (match.seedRankB ? `Menunggu Peringkat #${match.seedRankB}` : '-')}
+                                     </p>
                                   </div>
                                </div>
                                <div className={`font-black font-oswald italic tracking-tighter tabular-nums ${isTVMode ? 'text-[10rem]' : 'text-3xl sm:text-6xl'} ${match.winnerId === match.archerBId ? 'text-emerald-500' : 'text-white/80'}`}>

@@ -38,6 +38,31 @@ export interface CertificateRecipient {
   certificateNumber: string;
 }
 
+const DEFAULT_CERT_TITLE = 'SERTIFIKAT PENGHARGAAN';
+const DEFAULT_CERT_SUBTITLE = 'Diberikan dengan penuh kehormatan dan apresiasi kepada:';
+const DEFAULT_BODY_TEMPLATE =
+  'Atas dedikasi, sportivitas, dan partisipasi gemilang dalam kejuaraan {TOURNAMENT_NAME} Kategori {CATEGORY}, yang diselenggarakan pada {DATE} di {LOCATION}.';
+
+const getDefaultSignatories = (): CertificateSignatory[] => [
+  {
+    id: '1',
+    name: 'Ketua Panitia Pelaksana',
+    role: 'Ketua Panitia',
+    signatureUrl: ''
+  },
+  {
+    id: '2',
+    name: 'Technical Delegate / Wasit',
+    role: 'Technical Delegate',
+    signatureUrl: ''
+  }
+];
+
+const normalizeParticipantLabel = (raw?: string) => {
+  if (raw && /resmi/i.test(raw)) return 'Peserta';
+  return raw || 'Peserta';
+};
+
 export default function PrintCertificateModal({
   isOpen = true,
   onClose,
@@ -45,8 +70,6 @@ export default function PrintCertificateModal({
   initialCategory = CategoryType.ADULT_PUTRA,
   onSaveSettings
 }: Props) {
-  if (!isOpen) return null;
-
   const [selectedCategory, setSelectedCategory] = useState<CategoryType | 'ALL'>(initialCategory);
   const [recipientFilter, setRecipientFilter] = useState<'WINNERS_ONLY' | 'ALL_PARTICIPANTS' | 'CUSTOM_SELECTION'>('WINNERS_ONLY');
   const [selectedArcherIds, setSelectedArcherIds] = useState<string[]>([]);
@@ -54,6 +77,7 @@ export default function PrintCertificateModal({
   const [activeTab, setActiveTab] = useState<'PREVIEW' | 'SETTINGS'>('PREVIEW');
   const [isPrintingNow, setIsPrintingNow] = useState(false);
   const [printScope, setPrintScope] = useState<'ALL' | 'SINGLE'>('ALL');
+  const [saveStatus, setSaveStatus] = useState<'IDLE' | 'SAVING' | 'SAVED'>('IDLE');
 
   // Load existing certificate config or establish robust defaults
   const existingConfig = event.settings?.certificateConfig;
@@ -61,11 +85,9 @@ export default function PrintCertificateModal({
   const [customBgUrl, setCustomBgUrl] = useState<string>(existingConfig?.customBackgroundUrl || '');
   const [useCustomBgOnly, setUseCustomBgOnly] = useState<boolean>(existingConfig?.useCustomBackgroundOnly || false);
   const [printTextOnlyMode, setPrintTextOnlyMode] = useState<boolean>(existingConfig?.printTextOnlyMode || false);
-  const [certTitle, setCertTitle] = useState<string>(existingConfig?.title || 'SERTIFIKAT PENGHARGAAN');
-  const [certSubtitle, setCertSubtitle] = useState<string>(existingConfig?.subtitle || 'Diberikan dengan penuh kehormatan dan apresiasi kepada:');
-  const [bodyTemplate, setBodyTemplate] = useState<string>(
-    existingConfig?.bodyTextTemplate || 'Atas dedikasi, sportivitas, dan partisipasi gemilang dalam kejuaraan {TOURNAMENT_NAME} Kategori {CATEGORY}, yang diselenggarakan pada {DATE} di {LOCATION}.'
-  );
+  const [certTitle, setCertTitle] = useState<string>(existingConfig?.title || DEFAULT_CERT_TITLE);
+  const [certSubtitle, setCertSubtitle] = useState<string>(existingConfig?.subtitle || DEFAULT_CERT_SUBTITLE);
+  const [bodyTemplate, setBodyTemplate] = useState<string>(existingConfig?.bodyTextTemplate || DEFAULT_BODY_TEMPLATE);
   const [showTournamentLogo, setShowTournamentLogo] = useState<boolean>(existingConfig?.showTournamentLogo ?? true);
   const [showClubLogo, setShowClubLogo] = useState<boolean>(existingConfig?.showClubLogo ?? true);
   const [showSecondaryLogo, setShowSecondaryLogo] = useState<boolean>(existingConfig?.showSecondaryLogo ?? true);
@@ -96,16 +118,18 @@ export default function PrintCertificateModal({
   const [participantPredicateStyle, setParticipantPredicateStyle] = useState<'PESERTA_ONLY' | 'WITH_RANK'>(
     existingConfig?.participantPredicateStyle || 'PESERTA_ONLY'
   );
-  const [participantCustomLabel, setParticipantCustomLabel] = useState<string>(() => {
-    const raw = existingConfig?.participantCustomLabel;
-    if (raw && /resmi/i.test(raw)) return 'Peserta';
-    return raw || 'Peserta';
-  });
+  const [participantCustomLabel, setParticipantCustomLabel] = useState<string>(() =>
+    normalizeParticipantLabel(existingConfig?.participantCustomLabel)
+  );
   const [centerOffsetY, setCenterOffsetY] = useState<number>(existingConfig?.centerOffsetY ?? 0);
   const [allowParticipantDownload, setAllowParticipantDownload] = useState<boolean>(
     Boolean(existingConfig?.allowParticipantDownload)
   );
   const [isUploadingBg, setIsUploadingBg] = useState<boolean>(false);
+  const [isUploadingStamp, setIsUploadingStamp] = useState<boolean>(false);
+  const [uploadingSigIndex, setUploadingSigIndex] = useState<number | null>(null);
+  const isUploadingAnyRef = useRef<boolean>(false);
+  isUploadingAnyRef.current = isUploadingBg || isUploadingStamp || uploadingSigIndex !== null;
   const [bgRetryStage, setBgRetryStage] = useState<number>(0);
   const [bgLoadError, setBgLoadError] = useState<boolean>(false);
   const [bgLoaded, setBgLoaded] = useState<boolean>(false);
@@ -194,26 +218,191 @@ export default function PrintCertificateModal({
   // Signatories
   const [signatories, setSignatories] = useState<CertificateSignatory[]>(() => {
     if (existingConfig?.signatories && existingConfig.signatories.length > 0) {
-      return existingConfig.signatories;
+      return existingConfig.signatories.map(s => ({ ...s }));
     }
-    return [
-      {
-        id: '1',
-        name: 'Ketua Panitia Pelaksana',
-        role: 'Ketua Panitia',
-        signatureUrl: ''
-      },
-      {
-        id: '2',
-        name: 'Technical Delegate / Wasit',
-        role: 'Technical Delegate',
-        signatureUrl: ''
-      }
-    ];
+    return getDefaultSignatories();
   });
 
   const fileBgInputRef = useRef<HTMLInputElement>(null);
   const fileStampInputRef = useRef<HTMLInputElement>(null);
+
+  const normalizeCertificateConfig = (cfg?: CertificateConfig): CertificateConfig => ({
+    templateStyle: cfg?.templateStyle || 'ROYAL_GOLD',
+    customBackgroundUrl: (cfg?.customBackgroundUrl || '').trim(),
+    useCustomBackgroundOnly: Boolean(cfg?.useCustomBackgroundOnly),
+    printTextOnlyMode: Boolean(cfg?.printTextOnlyMode),
+    title: cfg?.title || DEFAULT_CERT_TITLE,
+    subtitle: cfg?.subtitle || DEFAULT_CERT_SUBTITLE,
+    bodyTextTemplate: cfg?.bodyTextTemplate || DEFAULT_BODY_TEMPLATE,
+    showTournamentLogo: cfg?.showTournamentLogo ?? true,
+    showClubLogo: cfg?.showClubLogo ?? true,
+    showSecondaryLogo: cfg?.showSecondaryLogo ?? true,
+    showMedalBadge: cfg?.showMedalBadge ?? true,
+    showQrVerification: cfg?.showQrVerification ?? true,
+    showDateLocation: cfg?.showDateLocation ?? true,
+    signatories:
+      cfg?.signatories && cfg.signatories.length > 0
+        ? cfg.signatories.map(s => ({ ...s }))
+        : getDefaultSignatories(),
+    customStampUrl: cfg?.customStampUrl || '',
+    nameOffsetY: cfg?.nameOffsetY ?? 0,
+    nameFontSize: cfg?.nameFontSize || 'lg',
+    titleFontSize: cfg?.titleFontSize || 'lg',
+    bodyFontSize: cfg?.bodyFontSize || 'lg',
+    logoSize: (cfg?.logoSize as any) || 'lg',
+    qrCodeSize: cfg?.qrCodeSize || 'lg',
+    fontFamily: cfg?.fontFamily || 'PLAYFAIR',
+    sectionSpacing: cfg?.sectionSpacing || 'COMPACT',
+    sectionGap: cfg?.sectionGap ?? 14,
+    manualCertNumbers: cfg?.manualCertNumbers || {},
+    manualCertNumberFormat: cfg?.manualCertNumberFormat || '',
+    primaryTextColor: cfg?.primaryTextColor || '#0f172a',
+    participantPredicateStyle: cfg?.participantPredicateStyle || 'PESERTA_ONLY',
+    participantCustomLabel: normalizeParticipantLabel(cfg?.participantCustomLabel),
+    centerOffsetY: cfg?.centerOffsetY ?? 0,
+    allowParticipantDownload: Boolean(cfg?.allowParticipantDownload)
+  });
+
+  const currentConfig: CertificateConfig = useMemo(
+    () => ({
+      templateStyle,
+      customBackgroundUrl: customBgUrl.trim(),
+      useCustomBackgroundOnly: useCustomBgOnly,
+      printTextOnlyMode,
+      title: certTitle,
+      subtitle: certSubtitle,
+      bodyTextTemplate: bodyTemplate,
+      showTournamentLogo,
+      showClubLogo,
+      showSecondaryLogo,
+      showMedalBadge,
+      showQrVerification,
+      showDateLocation,
+      signatories,
+      customStampUrl,
+      nameOffsetY,
+      nameFontSize,
+      titleFontSize,
+      bodyFontSize,
+      logoSize,
+      qrCodeSize,
+      fontFamily,
+      sectionSpacing,
+      sectionGap,
+      manualCertNumbers,
+      manualCertNumberFormat,
+      primaryTextColor,
+      participantPredicateStyle,
+      participantCustomLabel,
+      centerOffsetY,
+      allowParticipantDownload
+    }),
+    [
+      templateStyle,
+      customBgUrl,
+      useCustomBgOnly,
+      printTextOnlyMode,
+      certTitle,
+      certSubtitle,
+      bodyTemplate,
+      showTournamentLogo,
+      showClubLogo,
+      showSecondaryLogo,
+      showMedalBadge,
+      showQrVerification,
+      showDateLocation,
+      signatories,
+      customStampUrl,
+      nameOffsetY,
+      nameFontSize,
+      titleFontSize,
+      bodyFontSize,
+      logoSize,
+      qrCodeSize,
+      fontFamily,
+      sectionSpacing,
+      sectionGap,
+      manualCertNumbers,
+      manualCertNumberFormat,
+      primaryTextColor,
+      participantPredicateStyle,
+      participantCustomLabel,
+      centerOffsetY,
+      allowParticipantDownload
+    ]
+  );
+
+  const currentConfigJson = useMemo(() => JSON.stringify(currentConfig), [currentConfig]);
+
+  const onSaveSettingsRef = useRef(onSaveSettings);
+  onSaveSettingsRef.current = onSaveSettings;
+  const eventRef = useRef(event);
+  eventRef.current = event;
+  const latestConfigRef = useRef<CertificateConfig>(currentConfig);
+  latestConfigRef.current = currentConfig;
+
+  const isSyncingFromPropsRef = useRef(false);
+  const isDirtyRef = useRef(false);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastEventIdRef = useRef<string>(event.id);
+  const lastSyncedJsonRef = useRef<string>(
+    JSON.stringify(normalizeCertificateConfig(event.settings?.certificateConfig))
+  );
+
+  // Sync local state whenever event.id changes or cloud certificateConfig loads externally
+  useEffect(() => {
+    const incomingNormalized = normalizeCertificateConfig(event.settings?.certificateConfig);
+    const incomingJson = JSON.stringify(incomingNormalized);
+    const eventChanged = event.id !== lastEventIdRef.current;
+
+    if (eventChanged) {
+      lastEventIdRef.current = event.id;
+      isDirtyRef.current = false;
+    }
+
+    if (incomingJson !== lastSyncedJsonRef.current && (!isDirtyRef.current || eventChanged) && !isUploadingAnyRef.current) {
+      isSyncingFromPropsRef.current = true;
+      lastSyncedJsonRef.current = incomingJson;
+      isDirtyRef.current = false;
+
+      setTemplateStyle(incomingNormalized.templateStyle || 'ROYAL_GOLD');
+      setCustomBgUrl(incomingNormalized.customBackgroundUrl || '');
+      setUseCustomBgOnly(Boolean(incomingNormalized.useCustomBackgroundOnly));
+      setPrintTextOnlyMode(Boolean(incomingNormalized.printTextOnlyMode));
+      setCertTitle(incomingNormalized.title || DEFAULT_CERT_TITLE);
+      setCertSubtitle(incomingNormalized.subtitle || DEFAULT_CERT_SUBTITLE);
+      setBodyTemplate(incomingNormalized.bodyTextTemplate || DEFAULT_BODY_TEMPLATE);
+      setShowTournamentLogo(incomingNormalized.showTournamentLogo ?? true);
+      setShowClubLogo(incomingNormalized.showClubLogo ?? true);
+      setShowSecondaryLogo(incomingNormalized.showSecondaryLogo ?? true);
+      setShowMedalBadge(incomingNormalized.showMedalBadge ?? true);
+      setShowQrVerification(incomingNormalized.showQrVerification ?? true);
+      setShowDateLocation(incomingNormalized.showDateLocation ?? true);
+      setNameOffsetY(incomingNormalized.nameOffsetY ?? 0);
+      setNameFontSize(incomingNormalized.nameFontSize || 'lg');
+      setTitleFontSize(incomingNormalized.titleFontSize || 'lg');
+      setBodyFontSize(incomingNormalized.bodyFontSize || 'lg');
+      setLogoSize((incomingNormalized.logoSize as any) || 'lg');
+      setQrCodeSize(incomingNormalized.qrCodeSize || 'lg');
+      setFontFamily(incomingNormalized.fontFamily || 'PLAYFAIR');
+      setSectionSpacing(incomingNormalized.sectionSpacing || 'COMPACT');
+      setSectionGap(incomingNormalized.sectionGap ?? 14);
+      setManualCertNumbers(incomingNormalized.manualCertNumbers || {});
+      setManualCertNumberFormat(incomingNormalized.manualCertNumberFormat || '');
+      setPrimaryTextColor(incomingNormalized.primaryTextColor || '#0f172a');
+      setCustomStampUrl(incomingNormalized.customStampUrl || '');
+      setParticipantPredicateStyle(incomingNormalized.participantPredicateStyle || 'PESERTA_ONLY');
+      setParticipantCustomLabel(normalizeParticipantLabel(incomingNormalized.participantCustomLabel));
+      setCenterOffsetY(incomingNormalized.centerOffsetY ?? 0);
+      setAllowParticipantDownload(Boolean(incomingNormalized.allowParticipantDownload));
+      setSignatories(
+        incomingNormalized.signatories && incomingNormalized.signatories.length > 0
+          ? incomingNormalized.signatories.map(s => ({ ...s }))
+          : getDefaultSignatories()
+      );
+      setSaveStatus(event.settings?.certificateConfig ? 'SAVED' : 'IDLE');
+    }
+  }, [event.id, event.settings?.certificateConfig, isOpen]);
 
   // Sync category if initialCategory changes
   useEffect(() => {
@@ -394,48 +583,103 @@ export default function PrintCertificateModal({
   const currentRecipient = recipients[currentPreviewIndex] || null;
 
   // Handle Save Settings
-  const saveCertificateConfig = (overrides?: Partial<CertificateConfig>) => {
-    if (!onSaveSettings) return;
-    const newConfig: CertificateConfig = {
-      templateStyle,
-      customBackgroundUrl: customBgUrl.trim(),
-      useCustomBackgroundOnly: useCustomBgOnly,
-      printTextOnlyMode,
-      title: certTitle,
-      subtitle: certSubtitle,
-      bodyTextTemplate: bodyTemplate,
-      showTournamentLogo,
-      showClubLogo,
-      showSecondaryLogo,
-      showMedalBadge,
-      showQrVerification,
-      showDateLocation,
-      signatories,
-      customStampUrl,
-      nameOffsetY,
-      nameFontSize,
-      titleFontSize,
-      bodyFontSize,
-      logoSize,
-      qrCodeSize,
-      fontFamily,
-      sectionSpacing,
-      sectionGap,
-      manualCertNumbers,
-      manualCertNumberFormat,
-      primaryTextColor,
-      participantPredicateStyle,
-      participantCustomLabel,
-      centerOffsetY,
-      allowParticipantDownload,
-      ...overrides
-    };
+  const saveCertificateConfig = (
+    overrides?: Partial<CertificateConfig>,
+    options: { silent?: boolean } = {}
+  ) => {
+    const saveFn = onSaveSettingsRef.current;
+    if (!saveFn) return;
 
-    onSaveSettings({
-      ...event.settings,
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+
+    const baseConfig = latestConfigRef.current;
+    const newConfig: CertificateConfig = normalizeCertificateConfig({
+      ...baseConfig,
+      ...overrides,
+      customBackgroundUrl: (overrides?.customBackgroundUrl ?? baseConfig.customBackgroundUrl ?? '').trim()
+    });
+
+    latestConfigRef.current = newConfig;
+    lastSyncedJsonRef.current = JSON.stringify(newConfig);
+    isDirtyRef.current = false;
+    setSaveStatus('SAVED');
+
+    saveFn({
+      ...eventRef.current.settings,
       certificateConfig: newConfig
     });
-    toast.success('Pengaturan & desain sertifikat berhasil disimpan!');
+
+    if (!options.silent) {
+      toast.success('Pengaturan & desain sertifikat berhasil disimpan!');
+    }
+  };
+
+  // Debounced auto-save when any certificate setting or signatory changes
+  useEffect(() => {
+    if (!isOpen || !onSaveSettingsRef.current) return;
+
+    if (isSyncingFromPropsRef.current) {
+      isSyncingFromPropsRef.current = false;
+      return;
+    }
+
+    if (currentConfigJson === lastSyncedJsonRef.current) {
+      isDirtyRef.current = false;
+      return;
+    }
+
+    isDirtyRef.current = true;
+    setSaveStatus('SAVING');
+
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+
+    autoSaveTimerRef.current = setTimeout(() => {
+      autoSaveTimerRef.current = null;
+      saveCertificateConfig(undefined, { silent: true });
+    }, 600);
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+    };
+  }, [currentConfigJson, isOpen]);
+
+  // Flush pending edits automatically if component unmounts or browser refreshes/navigates
+  useEffect(() => {
+    const flushIfDirty = () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+        autoSaveTimerRef.current = null;
+      }
+      if (isDirtyRef.current && onSaveSettingsRef.current) {
+        saveCertificateConfig(undefined, { silent: true });
+      }
+    };
+    window.addEventListener('beforeunload', flushIfDirty);
+    window.addEventListener('pagehide', flushIfDirty);
+    return () => {
+      window.removeEventListener('beforeunload', flushIfDirty);
+      window.removeEventListener('pagehide', flushIfDirty);
+      flushIfDirty();
+    };
+  }, []);
+
+  const handleCloseModal = () => {
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+    if (isDirtyRef.current && onSaveSettingsRef.current) {
+      saveCertificateConfig(undefined, { silent: true });
+    }
+    onClose();
   };
 
   const handleSaveCertificateConfig = () => saveCertificateConfig();
@@ -475,21 +719,32 @@ export default function PrintCertificateModal({
 
     try {
       const folder = event.id || 'temp';
-      const { url, storedInCloud } = await uploadImageAsset(
+      const { url, storedInCloud, error } = await uploadImageAsset(
         file,
         `tournaments/${folder}/cert_blanko_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        { maxDim: 1600, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 1200, fallbackQuality: 0.72 }
+        { maxDim: 1600, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 650, fallbackQuality: 0.6 }
       );
 
       setCustomBgUrl(url);
       setUseCustomBgOnly(true);
       setPrintTextOnlyMode(false);
       setTemplateStyle('CUSTOM_BACKGROUND');
-      toast.success(
-        storedInCloud
-          ? 'Desain blanko diunggah ke Firebase Storage! Klik "Simpan Desain" agar tersimpan permanen.'
-          : 'Desain blanko berhasil dipasang! Klik "Simpan Desain" agar tersimpan permanen.'
-      );
+      if (onSaveSettingsRef.current) {
+        saveCertificateConfig(
+          {
+            customBackgroundUrl: url,
+            useCustomBackgroundOnly: true,
+            printTextOnlyMode: false,
+            templateStyle: 'CUSTOM_BACKGROUND'
+          },
+          { silent: true }
+        );
+      }
+      if (storedInCloud) {
+        toast.success('Desain blanko diunggah ke Firebase Storage & otomatis tersimpan!');
+      } else {
+        toast.warning(`Upload ke Storage gagal (${error || 'koneksi/izin'}), memakai versi kompresi mini sementara.`);
+      }
     } catch (err: any) {
       console.error('Upload custom blanko error:', err);
       toast.error('Gagal memproses file desain: ' + (err?.message || 'format tidak didukung'));
@@ -503,22 +758,28 @@ export default function PrintCertificateModal({
   const handleStampUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const toastId = toast.loading('Mengunggah stempel resmi ke Storage...');
+    setIsUploadingStamp(true);
+    const toastId = toast.loading('Mengunggah stempel resmi...');
     try {
       const folder = event.id || 'temp';
-      const { url, storedInCloud } = await uploadImageAsset(
+      const { url, storedInCloud, error } = await uploadImageAsset(
         file,
         `tournaments/${folder}/cert_stamp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        { maxDim: 600, quality: 0.88, preserveAlpha: true, fallbackMaxDim: 400, fallbackQuality: 0.75 }
+        { maxDim: 500, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 360, fallbackQuality: 0.65 }
       );
       setCustomStampUrl(url);
-      toast.success(
-        storedInCloud ? 'Stempel resmi berhasil diunggah ke Storage!' : 'Stempel resmi panitia berhasil dipasang!',
-        { id: toastId }
-      );
+      if (onSaveSettingsRef.current) {
+        saveCertificateConfig({ customStampUrl: url }, { silent: true });
+      }
+      if (storedInCloud) {
+        toast.success('Stempel resmi diunggah ke Storage & otomatis tersimpan!', { id: toastId });
+      } else {
+        toast.warning(`Stempel dipasang & disimpan (kompresi lokal: ${error || 'Storage belum aktif'})`, { id: toastId });
+      }
     } catch (err: any) {
       toast.error('Gagal mengunggah stempel: ' + (err?.message || 'error'), { id: toastId });
     } finally {
+      setIsUploadingStamp(false);
       e.target.value = '';
     }
   };
@@ -527,28 +788,38 @@ export default function PrintCertificateModal({
   const handleSignatureUpload = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const toastId = toast.loading('Mengunggah tanda tangan ke Storage...');
+    setUploadingSigIndex(index);
+    const toastId = toast.loading('Memproses & mengunggah tanda tangan...');
     try {
       const folder = event.id || 'temp';
-      const { url, storedInCloud } = await uploadImageAsset(
+      const { url, storedInCloud, error } = await uploadImageAsset(
         file,
         `tournaments/${folder}/cert_sig_${index}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        { maxDim: 600, quality: 0.88, preserveAlpha: true, fallbackMaxDim: 400, fallbackQuality: 0.75 }
+        { maxDim: 500, quality: 0.82, preserveAlpha: true, fallbackMaxDim: 360, fallbackQuality: 0.65 }
       );
-      setSignatories(prev => {
-        const next = [...prev];
-        if (next[index]) {
-          next[index] = { ...next[index], signatureUrl: url };
+      if (!url) {
+        throw new Error('Hasil gambar tanda tangan kosong.');
+      }
+      const currentList = latestConfigRef.current.signatories || signatories;
+      const nextSignatories = currentList.map((item, i) =>
+        i === index ? { ...item, signatureUrl: url } : item
+      );
+      setSignatories(nextSignatories);
+      if (onSaveSettingsRef.current) {
+        saveCertificateConfig({ signatories: nextSignatories }, { silent: true });
+      }
+      if (storedInCloud) {
+        toast.success('Tanda tangan berhasil diunggah ke Storage & disimpan!', { id: toastId });
+      } else {
+        toast.success('Tanda tangan berhasil dipasang & disimpan!', { id: toastId });
+        if (error) {
+          console.info('[Signature Upload] Stored via compact fallback:', error);
         }
-        return next;
-      });
-      toast.success(
-        storedInCloud ? 'Tanda tangan berhasil diunggah ke Storage!' : 'Tanda tangan berhasil dipasang!',
-        { id: toastId }
-      );
+      }
     } catch (err: any) {
-      toast.error('Gagal mengunggah tanda tangan: ' + (err?.message || 'error'), { id: toastId });
+      toast.error('Gagal mengunggah tanda tangan: ' + (err?.message || 'format tidak didukung'), { id: toastId });
     } finally {
+      setUploadingSigIndex(null);
       e.target.value = '';
     }
   };
@@ -997,6 +1268,8 @@ export default function PrintCertificateModal({
     );
   };
 
+  if (!isOpen) return null;
+
   return (
     <>
       {/* 1. INTERACTIVE MODAL (Screen Display) */}
@@ -1074,7 +1347,7 @@ export default function PrintCertificateModal({
 
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleCloseModal}
                 className="p-2 hover:bg-white/10 rounded-xl transition-colors text-slate-400 hover:text-white"
               >
                 <X className="w-5 h-5" />
@@ -1362,14 +1635,28 @@ export default function PrintCertificateModal({
                       </p>
                     </div>
                     {onSaveSettings && (
-                      <button
-                        type="button"
-                        onClick={handleSaveCertificateConfig}
-                        className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-1.5"
-                      >
-                        <Check className="w-4 h-4" />
-                        <span>Simpan Desain</span>
-                      </button>
+                      <div className="flex items-center gap-2.5">
+                        {saveStatus === 'SAVING' && (
+                          <span className="text-[11px] font-bold text-amber-300 flex items-center gap-1">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Menyimpan...</span>
+                          </span>
+                        )}
+                        {saveStatus === 'SAVED' && (
+                          <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Tersimpan</span>
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={handleSaveCertificateConfig}
+                          className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition-all shadow-md active:scale-95 flex items-center gap-1.5"
+                        >
+                          <Check className="w-4 h-4" />
+                          <span>Simpan Desain</span>
+                        </button>
+                      </div>
                     )}
                   </div>
 
@@ -1555,6 +1842,16 @@ export default function PrintCertificateModal({
                               setBgLoadError(false);
                               setBgLoaded(false);
                               setTemplateStyle('ROYAL_GOLD');
+                              if (onSaveSettingsRef.current) {
+                                saveCertificateConfig(
+                                  {
+                                    customBackgroundUrl: '',
+                                    useCustomBackgroundOnly: false,
+                                    templateStyle: 'ROYAL_GOLD'
+                                  },
+                                  { silent: true }
+                                );
+                              }
                             }}
                             className="text-xs font-bold text-red-400 hover:text-red-300 px-2.5 py-1 rounded-lg hover:bg-red-400/10 transition-colors shrink-0"
                           >
@@ -2189,7 +2486,12 @@ export default function PrintCertificateModal({
                         </div>
                         <button
                           type="button"
-                          onClick={() => setCustomStampUrl('')}
+                          onClick={() => {
+                            setCustomStampUrl('');
+                            if (onSaveSettingsRef.current) {
+                              saveCertificateConfig({ customStampUrl: '' }, { silent: true });
+                            }
+                          }}
                           className="text-[10px] text-red-400 font-bold hover:underline"
                         >
                           Hapus Stempel
@@ -2205,13 +2507,27 @@ export default function PrintCertificateModal({
                             <span className="text-xs font-black uppercase text-amber-400 font-mono">
                               Penandatangan #{idx + 1}
                             </span>
-                            <label className="cursor-pointer text-[10px] font-bold text-amber-300 hover:underline flex items-center gap-1">
-                              <Upload className="w-3 h-3" />
-                              <span>Upload TTD</span>
+                            <label className={`cursor-pointer text-[10px] font-bold px-2.5 py-1 rounded-lg border transition-all flex items-center gap-1.5 ${
+                              uploadingSigIndex === idx
+                                ? 'bg-amber-500/20 border-amber-400/40 text-amber-200 pointer-events-none'
+                                : 'bg-amber-500/10 border-amber-400/30 text-amber-300 hover:bg-amber-500/20'
+                            }`}>
+                              {uploadingSigIndex === idx ? (
+                                <>
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  <span>Mengunggah...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="w-3 h-3" />
+                                  <span>{sig.signatureUrl ? 'Ganti TTD' : 'Upload TTD'}</span>
+                                </>
+                              )}
                               <input 
                                 type="file"
                                 accept="image/*"
                                 className="hidden"
+                                disabled={uploadingSigIndex !== null}
                                 onChange={e => handleSignatureUpload(idx, e)}
                               />
                             </label>
@@ -2223,9 +2539,8 @@ export default function PrintCertificateModal({
                               type="text"
                               value={sig.role}
                               onChange={e => {
-                                const next = [...signatories];
-                                next[idx].role = e.target.value;
-                                setSignatories(next);
+                                const val = e.target.value;
+                                setSignatories(prev => prev.map((item, i) => (i === idx ? { ...item, role: val } : item)));
                               }}
                               className="w-full bg-slate-900 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white"
                               placeholder="e.g. Ketua Panitia Pelaksana"
@@ -2238,9 +2553,8 @@ export default function PrintCertificateModal({
                               type="text"
                               value={sig.name}
                               onChange={e => {
-                                const next = [...signatories];
-                                next[idx].name = e.target.value;
-                                setSignatories(next);
+                                const val = e.target.value;
+                                setSignatories(prev => prev.map((item, i) => (i === idx ? { ...item, name: val } : item)));
                               }}
                               className="w-full bg-slate-900 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-bold text-white"
                               placeholder="e.g. Ir. Fulan, S.T."
@@ -2248,19 +2562,35 @@ export default function PrintCertificateModal({
                           </div>
 
                           {sig.signatureUrl && (
-                            <div className="flex items-center justify-between text-[10px] text-emerald-400 pt-1">
-                              <span>✓ File TTD Terpasang</span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const next = [...signatories];
-                                  next[idx].signatureUrl = '';
-                                  setSignatories(next);
-                                }}
-                                className="text-red-400 hover:underline"
-                              >
-                                Hapus
-                              </button>
+                            <div className="space-y-2 pt-1">
+                              <div className="bg-white rounded-lg p-2 h-14 flex items-center justify-center border border-white/20 overflow-hidden">
+                                <img
+                                  src={resolveGoogleDriveUrl(sig.signatureUrl)}
+                                  alt={`Preview TTD ${sig.name}`}
+                                  className="max-h-11 max-w-full object-contain"
+                                  referrerPolicy="no-referrer"
+                                />
+                              </div>
+                              <div className="flex items-center justify-between text-[10px] text-emerald-400">
+                                <span>
+                                  ✓ TTD Terpasang {sig.signatureUrl.startsWith('http') ? '(Cloud Storage)' : '(Tersimpan)'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const nextSignatories = signatories.map((item, i) =>
+                                      i === idx ? { ...item, signatureUrl: '' } : item
+                                    );
+                                    setSignatories(nextSignatories);
+                                    if (onSaveSettingsRef.current) {
+                                      saveCertificateConfig({ signatories: nextSignatories }, { silent: true });
+                                    }
+                                  }}
+                                  className="text-red-400 hover:underline font-bold"
+                                >
+                                  Hapus
+                                </button>
+                              </div>
                             </div>
                           )}
                         </div>

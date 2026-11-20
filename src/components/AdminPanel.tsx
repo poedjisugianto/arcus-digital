@@ -131,12 +131,6 @@ const AdminPanel: React.FC<Props> = ({
   }, [eventId]);
 
   const [localSettings, setLocalSettings] = useState<TournamentSettings>(() => {
-    if (initialDraft) {
-      return {
-        ...initialDraft,
-        categoryConfigs: initialDraft.categoryConfigs || {}
-      } as TournamentSettings;
-    }
     const savedBackup = localStorage.getItem(`admin_saved_settings_${eventId}`);
     let backupSettings = null;
     if (savedBackup) {
@@ -145,6 +139,18 @@ const AdminPanel: React.FC<Props> = ({
       } catch (e) {}
     }
     const baseSettings = (settings || {}) as TournamentSettings;
+    if (initialDraft) {
+      const draftWithCert = mergeTournamentSettings(
+        {
+          certificateConfig: baseSettings?.certificateConfig || backupSettings?.certificateConfig
+        },
+        initialDraft
+      );
+      return {
+        ...draftWithCert,
+        categoryConfigs: draftWithCert.categoryConfigs || {}
+      } as TournamentSettings;
+    }
     const merged = mergeTournamentSettings(backupSettings, baseSettings);
     return {
       ...merged,
@@ -2002,7 +2008,11 @@ const AdminPanel: React.FC<Props> = ({
                                 );
                                 updateSettings({ pamphletUrl: result.url });
                                 toast.dismiss(loadingId);
-                                toast.success(result.storedInCloud ? 'Pamflet tersimpan di Firebase Storage!' : 'Pamflet berhasil dipasang!');
+                                if (result.storedInCloud) {
+                                  toast.success('Pamflet tersimpan di Firebase Storage!');
+                                } else {
+                                  toast.warning(`Upload Pamflet ke Storage gagal (${result.error || 'koneksi/izin'}), memakai versi kompresi mini.`);
+                                }
                               } catch (err: any) {
                                 toast.dismiss(loadingId);
                                 console.error('Gagal memproses gambar pamflet:', err);
@@ -2127,7 +2137,11 @@ const AdminPanel: React.FC<Props> = ({
                               const res = await uploadImageAsset(file, `tournaments/${eventId || 'general'}/logo_event_${Date.now()}`, { maxDim: 600, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 350, fallbackQuality: 0.7 });
                               updateSettings({ logoUrl: res.url });
                               toast.dismiss(lid);
-                              toast.success(res.storedInCloud ? 'Logo Event tersimpan di Storage!' : 'Logo Event dipasang!');
+                              if (res.storedInCloud) {
+                                toast.success('Logo Event tersimpan di Storage!');
+                              } else {
+                                toast.warning(`Logo Event gagal ke Storage (${res.error || 'koneksi/izin'}), memakai versi kompresi mini.`);
+                              }
                             } catch {
                               toast.dismiss(lid);
                               toast.error('Gagal mengunggah logo');
@@ -2188,7 +2202,11 @@ const AdminPanel: React.FC<Props> = ({
                               const res = await uploadImageAsset(file, `tournaments/${eventId || 'general'}/logo_inorga_${Date.now()}`, { maxDim: 600, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 350, fallbackQuality: 0.7 });
                               updateSettings({ secondaryLogoUrl: res.url });
                               toast.dismiss(lid);
-                              toast.success(res.storedInCloud ? 'Logo INORGA tersimpan di Storage!' : 'Logo INORGA dipasang!');
+                              if (res.storedInCloud) {
+                                toast.success('Logo INORGA tersimpan di Storage!');
+                              } else {
+                                toast.warning(`Logo INORGA gagal ke Storage (${res.error || 'koneksi/izin'}), memakai versi kompresi mini.`);
+                              }
                             } catch {
                               toast.dismiss(lid);
                               toast.error('Gagal mengunggah logo');
@@ -2249,7 +2267,11 @@ const AdminPanel: React.FC<Props> = ({
                               const res = await uploadImageAsset(file, `tournaments/${eventId || 'general'}/logo_club_${Date.now()}`, { maxDim: 600, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 350, fallbackQuality: 0.7 });
                               updateSettings({ clubLogoUrl: res.url });
                               toast.dismiss(lid);
-                              toast.success(res.storedInCloud ? 'Logo Klub tersimpan di Storage!' : 'Logo Klub dipasang!');
+                              if (res.storedInCloud) {
+                                toast.success('Logo Klub tersimpan di Storage!');
+                              } else {
+                                toast.warning(`Logo Klub gagal ke Storage (${res.error || 'koneksi/izin'}), memakai versi kompresi mini.`);
+                              }
                             } catch {
                               toast.dismiss(lid);
                               toast.error('Gagal mengunggah logo');
@@ -3268,7 +3290,11 @@ const AdminPanel: React.FC<Props> = ({
                                   );
                                   updateSponsorship(sponsor.id, 'logoUrl', res.url);
                                   toast.dismiss(lid);
-                                  toast.success(res.storedInCloud ? 'Logo Sponsor tersimpan di Storage!' : 'Logo Sponsor dipasang!');
+                                  if (res.storedInCloud) {
+                                    toast.success('Logo Sponsor tersimpan di Storage!');
+                                  } else {
+                                    toast.warning(`Logo Sponsor gagal ke Storage (${res.error || 'koneksi/izin'}), memakai versi kompresi mini.`);
+                                  }
                                 } catch (err: any) {
                                   toast.dismiss(lid);
                                   console.error('Gagal mengunggah logo sponsor:', err);
@@ -3786,9 +3812,16 @@ const AdminPanel: React.FC<Props> = ({
             scoreLogs: event?.scoreLogs || []
           } as any)}
           onClose={() => setShowPrintCertificateModal(false)}
-          onSaveSettings={(updatedSettings) => {
-            setLocalSettings(updatedSettings);
-            onSave(updatedSettings);
+          onSaveSettings={async (updatedSettings) => {
+            const merged = mergeTournamentSettings(localSettings, updatedSettings);
+            setLocalSettings(merged);
+            try {
+              localStorage.setItem(`admin_saved_settings_${eventId}`, JSON.stringify(merged));
+              if (localStorage.getItem(`admin_draft_${eventId}`) || isDirty) {
+                localStorage.setItem(`admin_draft_${eventId}`, JSON.stringify(merged));
+              }
+            } catch (e) {}
+            await Promise.resolve(onSave(merged));
           }}
         />
       )}

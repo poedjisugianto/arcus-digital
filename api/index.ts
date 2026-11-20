@@ -5,6 +5,7 @@ import nodemailer from "nodemailer";
 import midtransClient from "midtrans-client";
 import { initializeApp, getApps } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getStorage } from "firebase-admin/storage";
 import fs from "fs";
 import path from "path";
 import dotenv from "dotenv";
@@ -193,7 +194,7 @@ async function restGetDoc(collectionPath: string, docId: string, authHeader?: st
 }
 
 // REST helper to write/merge a document
-async function restWriteDoc(collectionPath: string, docId: string, data: any, useUpdateMask: boolean = true) {
+async function restWriteDoc(collectionPath: string, docId: string, data: any, useUpdateMask: boolean = true, authHeader?: string) {
   const pid = firebaseConfig.projectId || process.env.VITE_FIREBASE_PROJECT_ID;
   const dbId = firebaseConfig.firestoreDatabaseId || process.env.VITE_FIREBASE_FIRESTORE_DATABASE_ID || "(default)";
   const apiKey = firebaseConfig.apiKey || process.env.VITE_FIREBASE_API_KEY;
@@ -208,7 +209,14 @@ async function restWriteDoc(collectionPath: string, docId: string, data: any, us
       const maskParams = keys.map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
       url += `&${maskParams}`;
     }
-    await axios.patch(url, { fields }, { timeout: 8000 });
+    await axios.patch(
+      url,
+      { fields },
+      {
+        timeout: 8000,
+        headers: authHeader ? { Authorization: authHeader } : undefined
+      }
+    );
     return true;
   } catch (err: any) {
     console.error(`[REST-API] Write ${collectionPath}/${docId} failed:`, err.response?.data || err.message);
@@ -1960,6 +1968,28 @@ app.get("/api/event-details/:id", async (req, res) => {
         }
       }
 
+      // 5. Fetch Certificate Shard (if exists) so certificateConfig survives even if root doc was trimmed
+      let shardCertConfig: any = null;
+      try {
+        const certShardSnap = await eventRef.collection('shards').doc('certificate').get();
+        if (certShardSnap.exists) {
+          const shardData = certShardSnap.data() || {};
+          shardCertConfig = shardData.certificateConfig || shardData.data?.certificateConfig || null;
+        }
+      } catch {
+        const restCertShard = await restGetDoc(`events/${eventId}/shards`, 'certificate', authHeader);
+        if (restCertShard) {
+          shardCertConfig = restCertShard.certificateConfig || restCertShard.data?.certificateConfig || null;
+        }
+      }
+
+      if (shardCertConfig) {
+        settings.certificateConfig = {
+          ...(settings.certificateConfig || {}),
+          ...shardCertConfig
+        };
+      }
+
       const isPartialFallback = submissionsPartial || scoresPartial || scoreLogsPartial;
       const responseData = {
         ...base,
@@ -2004,11 +2034,20 @@ app.get("/api/event-details/:id", async (req, res) => {
         };
         const status = (transformedData.status || base.status || 'DRAFT').toString().toUpperCase();
 
-        const [subRes, scoresRes, logsRes] = await Promise.all([
+        const [subRes, scoresRes, logsRes, certShard] = await Promise.all([
           restListDocsSafe(`events/${eventId}/submissions`, 500, authHeader),
           restListDocsSafe(`events/${eventId}/scores`, 500, authHeader),
-          restListDocsSafe(`events/${eventId}/scoreLogs`, 500, authHeader)
+          restListDocsSafe(`events/${eventId}/scoreLogs`, 500, authHeader),
+          restGetDoc(`events/${eventId}/shards`, 'certificate', authHeader)
         ]);
+
+        const shardCertConfig = certShard?.certificateConfig || certShard?.data?.certificateConfig || null;
+        if (shardCertConfig) {
+          settings.certificateConfig = {
+            ...(settings.certificateConfig || {}),
+            ...shardCertConfig
+          };
+        }
 
         const submissionsPartial = subRes.forbidden || subRes.failed;
         const scoresPartial = scoresRes.forbidden || scoresRes.failed;
@@ -2056,6 +2095,287 @@ app.get("/api/event-details/:id", async (req, res) => {
     return res.json({ success: true, data: eventDetailsCache[eventId].data, source: 'error-fallback' });
   }
   return res.json({ success: false, message: "Event detail tidak tersedia di cloud", data: null });
+});
+
+app.post("/api/events/:eventId/settings", async (req, res) => {
+  const { eventId } = req.params;
+  const { settings, authEmail, authUid } = req.body || {};
+  const authHeader = typeof req.headers.authorization === 'string' && req.headers.authorization.startsWith('Bearer ')
+    ? req.headers.authorization
+    : undefined;
+
+  if (!eventId || !settings || typeof settings !== 'object') {
+    return res.status(400).json({ success: false, message: "Missing eventId or settings payload" });
+  }
+
+  const cleanSettings = JSON.parse(JSON.stringify(settings));
+  const currentDb = getAdminDB();
+
+  const superAdmins = [
+    'poedji.sugianto@gmail.com',
+    'poedjisugianto@gmail.com',
+    'admin@arcus.id',
+    'arcus.id@gmail.com',
+    'user@arcus.id'
+  ];
+
+  const isCallerAuthorized = (docData: any) => {
+    const ownerId = (docData?.ownerId || docData?.data?.ownerId || '').toString().toLowerCase();
+    const organizerId = (docData?.settings?.organizerId || docData?.data?.settings?.organizerId || '').toString().toLowerCase();
+    const cleanEmail = (authEmail || '').toString().toLowerCase();
+    const cleanUid = (authUid || '').toString().toLowerCase();
+
+    if (cleanEmail && superAdmins.includes(cleanEmail)) return true;
+    if (cleanEmail && (cleanEmail === ownerId || cleanEmail === organizerId)) return true;
+    if (cleanUid && (cleanUid === ownerId || cleanUid === organizerId)) return true;
+    return false;
+  };
+
+  const mergeEventSettings = (baseObj: any, incomingObj: any) => {
+    const mergedCategoryConfigs = {
+      ...(baseObj?.categoryConfigs || {}),
+      ...(incomingObj?.categoryConfigs || {})
+    };
+    const mergedCertificateConfig =
+      baseObj?.certificateConfig || incomingObj?.certificateConfig
+        ? {
+            ...(baseObj?.certificateConfig || {}),
+            ...(incomingObj?.certificateConfig || {})
+          }
+        : undefined;
+    const out: any = {
+      ...(baseObj || {}),
+      ...(incomingObj || {}),
+      categoryConfigs: mergedCategoryConfigs
+    };
+    if (mergedCertificateConfig !== undefined) {
+      out.certificateConfig = mergedCertificateConfig;
+    }
+    return out;
+  };
+
+  if (currentDb) {
+    try {
+      const eventRef = currentDb.collection('events').doc(eventId);
+      const snap = await eventRef.get();
+      if (!snap.exists) {
+        return res.status(404).json({ success: false, message: "Event tidak ditemukan" });
+      }
+      const existingData = snap.data() || {};
+      if (!isCallerAuthorized(existingData) && !authHeader) {
+        return res.status(403).json({ success: false, message: "Unauthorized settings update" });
+      }
+
+      const existingBaseSettings = existingData.settings || existingData.data?.settings || {};
+      const mergedSettings = mergeEventSettings(existingBaseSettings, cleanSettings);
+
+      if (mergedSettings.certificateConfig) {
+        await eventRef.collection('shards').doc('certificate').set({
+          certificateConfig: mergedSettings.certificateConfig,
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true }).catch(() => {});
+      }
+
+      const updatePayload: Record<string, any> = {
+        settings: mergedSettings,
+        "data.settings": FieldValue.delete(),
+        "data.registrations": FieldValue.delete(),
+        "data.scores": FieldValue.delete(),
+        "data.scoreLogs": FieldValue.delete(),
+        "data.archers": FieldValue.delete(),
+        "data.officials": FieldValue.delete(),
+        registrations: FieldValue.delete(),
+        scores: FieldValue.delete(),
+        scoreLogs: FieldValue.delete(),
+        updatedAt: FieldValue.serverTimestamp()
+      };
+
+      await eventRef.update(updatePayload);
+      publicEventsCache = null;
+      if (eventDetailsCache[eventId]) delete eventDetailsCache[eventId];
+      return res.json({ success: true, settings: mergedSettings, source: 'admin-sdk' });
+    } catch (sdkErr: any) {
+      console.warn(`[API/EVENT-SETTINGS] Admin SDK failed for ${eventId}, trying REST fallback:`, sdkErr.message);
+    }
+  }
+
+  try {
+    const existingData = await restGetDoc('events', eventId, authHeader);
+    if (!existingData) {
+      return res.status(404).json({ success: false, message: "Event tidak ditemukan via REST" });
+    }
+    if (!isCallerAuthorized(existingData) && !authHeader) {
+      return res.status(403).json({ success: false, message: "Unauthorized settings update" });
+    }
+
+    const existingBaseSettings = existingData.settings || existingData.data?.settings || {};
+    const mergedSettings = mergeEventSettings(existingBaseSettings, cleanSettings);
+
+    if (mergedSettings.certificateConfig) {
+      await restWriteDoc(
+        `events/${eventId}/shards`,
+        'certificate',
+        {
+          certificateConfig: mergedSettings.certificateConfig,
+          updatedAt: new Date().toISOString()
+        },
+        true,
+        authHeader
+      ).catch(() => {});
+    }
+
+    const restPayload: Record<string, any> = {
+      settings: mergedSettings,
+      updatedAt: new Date().toISOString()
+    };
+
+    const ok = await restWriteDoc('events', eventId, restPayload, true, authHeader);
+    if (!ok) {
+      return res.status(500).json({ success: false, message: "Gagal menyimpan settings via REST fallback" });
+    }
+    publicEventsCache = null;
+    if (eventDetailsCache[eventId]) delete eventDetailsCache[eventId];
+    return res.json({ success: true, settings: mergedSettings, source: 'rest-fallback' });
+  } catch (err: any) {
+    console.error("[API/EVENT-SETTINGS] Error:", err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+let isStorageAdminAvailable: boolean | null = null;
+
+function extractConciseErrorMessage(err: any): string {
+  const raw = String(err?.response?.data?.error?.message || err?.message || err || 'Storage upload failed').trim();
+  if (raw.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed?.error?.message) {
+        return String(parsed.error.message).replace(/\s+/g, ' ').trim();
+      }
+    } catch {}
+  }
+  return raw.replace(/\s+/g, ' ').slice(0, 240);
+}
+
+app.post("/api/storage/upload", async (req, res) => {
+  const { path: storagePath, contentType, dataUrl, bucket: clientBucket } = req.body || {};
+  if (!storagePath || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) {
+    return res.status(400).json({ success: false, message: "Invalid storage upload payload" });
+  }
+
+  const projectId =
+    firebaseConfig.projectId ||
+    process.env.VITE_FIREBASE_PROJECT_ID ||
+    process.env.FIREBASE_PROJECT_ID ||
+    process.env.GOOGLE_CLOUD_PROJECT ||
+    process.env.GCLOUD_PROJECT ||
+    "";
+
+  const rawBuckets = [
+    clientBucket,
+    firebaseConfig.storageBucket,
+    process.env.VITE_FIREBASE_STORAGE_BUCKET,
+    projectId ? `${projectId}.firebasestorage.app` : "",
+    projectId ? `${projectId}.appspot.com` : "",
+  ]
+    .map((b) => String(b || '').replace(/^gs:\/\//i, '').trim())
+    .filter(Boolean);
+
+  const candidateBuckets = Array.from(new Set(rawBuckets));
+
+  if (candidateBuckets.length === 0) {
+    return res.json({ success: false, storageUnavailable: true, message: "Storage bucket is not configured" });
+  }
+
+  const commaIdx = dataUrl.indexOf(',');
+  if (commaIdx === -1) {
+    return res.status(400).json({ success: false, message: "Invalid dataUrl format" });
+  }
+
+  const base64Data = dataUrl.slice(commaIdx + 1);
+  const buffer = Buffer.from(base64Data, 'base64');
+  const cleanPath = String(storagePath).replace(/^\/+/, '');
+  const candidatePaths = cleanPath.startsWith('registrations/')
+    ? [cleanPath]
+    : [cleanPath, `registrations/public_assets/${cleanPath}`];
+  const authHeader = typeof req.headers.authorization === 'string' ? req.headers.authorization : '';
+  const resolvedContentType = contentType || 'image/jpeg';
+
+  let lastConciseError = "Storage upload unavailable";
+
+  // 1. Try Firebase Storage Upload REST API (works with client Firebase Auth token or public storage.rules, bypassing Admin IAM limits)
+  for (const targetBucket of candidateBuckets) {
+    for (const targetPath of candidatePaths) {
+      try {
+        const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(targetBucket)}/o?uploadType=media&name=${encodeURIComponent(targetPath)}`;
+        const headers: Record<string, string> = {
+          'Content-Type': resolvedContentType,
+        };
+        if (authHeader) {
+          headers['Authorization'] = authHeader;
+        }
+        const restRes = await axios.post(uploadUrl, buffer, {
+          headers,
+          timeout: 15000,
+          maxBodyLength: Infinity,
+        });
+        const data = restRes.data || {};
+        const resultBucket = data.bucket || targetBucket;
+        const resultName = data.name || targetPath;
+        const rawTokens = String(data.downloadTokens || data.metadata?.firebaseStorageDownloadTokens || '');
+        const firstToken = rawTokens.split(',')[0]?.trim();
+        const url = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(resultBucket)}/o/${encodeURIComponent(resultName)}?alt=media${firstToken ? `&token=${encodeURIComponent(firstToken)}` : ''}`;
+        return res.json({ success: true, url, source: 'storage-rest' });
+      } catch (restErr: any) {
+        lastConciseError = extractConciseErrorMessage(restErr);
+      }
+    }
+  }
+
+  // 2. Try Admin Storage SDK only if IAM credentials are known/potentially available
+  if (isAdminSdkAvailable !== false && isStorageAdminAvailable !== false) {
+    try {
+      getAdminDB();
+      const apps = getApps();
+      if (apps.length > 0) {
+        const token = `${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+        for (const targetBucket of candidateBuckets) {
+          try {
+            const bucket = getStorage(apps[0]).bucket(targetBucket);
+            const file = bucket.file(cleanPath);
+            await file.save(buffer, {
+              metadata: {
+                contentType: resolvedContentType,
+                cacheControl: 'public,max-age=31536000',
+                metadata: {
+                  firebaseStorageDownloadTokens: token
+                }
+              }
+            });
+            isStorageAdminAvailable = true;
+            const url = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(targetBucket)}/o/${encodeURIComponent(cleanPath)}?alt=media&token=${token}`;
+            return res.json({ success: true, url, source: 'storage-admin' });
+          } catch (sdkErr: any) {
+            const msg = extractConciseErrorMessage(sdkErr);
+            lastConciseError = msg;
+            if (msg.toLowerCase().includes('permission') || msg.toLowerCase().includes('forbidden') || msg.includes('403')) {
+              isStorageAdminAvailable = false;
+              break;
+            }
+          }
+        }
+      }
+    } catch (outerErr: any) {
+      lastConciseError = extractConciseErrorMessage(outerErr);
+    }
+  }
+
+  console.info(`[API/STORAGE/UPLOAD] Falling back to compact client encoding (${lastConciseError})`);
+  return res.json({
+    success: false,
+    storageUnavailable: true,
+    message: lastConciseError,
+  });
 });
 
 app.post("/api/optimize-event/:id", async (req, res) => {

@@ -523,14 +523,16 @@ export default function SelfServiceIdCardPortal({
                       {/* Barcode Preview Mini */}
                       <div className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200">
                         <div className="flex items-center gap-2 overflow-hidden flex-1">
-                          <div className="p-1 bg-slate-50 rounded-lg shrink-0 max-w-[120px] overflow-hidden border border-slate-100">
+                          <div className="p-1 bg-white rounded-lg shrink-0 max-w-[155px] overflow-hidden border border-slate-100">
                             <Barcode 
                               value={p.id} 
-                              width={1} 
-                              height={24} 
+                              width={1.1} 
+                              height={26} 
                               fontSize={8} 
                               displayValue={false} 
-                              margin={0}
+                              background="#ffffff"
+                              lineColor="#000000"
+                              margin={6}
                             />
                           </div>
                           <div className="truncate">
@@ -615,17 +617,17 @@ export default function SelfServiceIdCardPortal({
                       <User className="w-8 h-8 text-white/50" />
                     )}
                   </div>
-                  <div className="px-3 py-1.5 bg-white rounded-xl shadow-md shrink-0 w-full max-w-[210px] flex flex-col items-center">
+                  <div className="px-3 py-1.5 bg-white rounded-xl shadow-md shrink-0 w-full max-w-[230px] flex flex-col items-center">
                     <Barcode 
                       value={selectedParticipant.id} 
-                      width={1.2} 
-                      height={32} 
+                      width={1.3} 
+                      height={34} 
                       fontSize={8} 
                       displayValue={true} 
                       text={selectedParticipant.registrationNo || selectedParticipant.id.substring(0, 10)}
-                      background="transparent"
-                      lineColor="#0f172a"
-                      margin={0}
+                      background="#ffffff"
+                      lineColor="#000000"
+                      margin={8}
                     />
                   </div>
                 </div>
@@ -758,17 +760,17 @@ export default function SelfServiceIdCardPortal({
                       </div>
                     )}
                   </div>
-                  <div className="p-2 border-2 border-black rounded-xl flex flex-col items-center justify-center bg-white w-[42mm] shrink-0">
+                  <div className="p-2 border-2 border-black rounded-xl flex flex-col items-center justify-center bg-white w-[46mm] shrink-0">
                     <Barcode 
                       value={person.id} 
-                      width={1.2} 
-                      height={36} 
+                      width={1.3} 
+                      height={38} 
                       fontSize={8} 
                       displayValue={true} 
                       text={person.registrationNo || person.id.substring(0, 10)}
-                      background="transparent"
+                      background="#ffffff"
                       lineColor="#000000"
-                      margin={0}
+                      margin={8}
                     />
                     <span className="text-[7px] font-mono font-bold mt-0.5 text-center">
                       {person.targetNo && person.targetNo > 0 ? `T-${person.targetNo}${person.position || ''}` : 'E-ID'}

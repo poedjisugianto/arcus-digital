@@ -34,8 +34,6 @@ export const ParticipantScannerModal: React.FC<Props> = ({
   isOpen = true,
   initialQuery = ''
 }) => {
-  if (!isOpen) return null;
-
   const archers = propArchers || event?.archers || [];
   const eventTitle = propEventTitle || event?.settings?.tournamentName || 'Turnamen Panahan';
   const updateArcher = (a: Archer) => {
@@ -56,6 +54,33 @@ export const ParticipantScannerModal: React.FC<Props> = ({
   const qrCodeInstanceRef = useRef<Html5Qrcode | null>(null);
   const scannerRegionId = 'barcode-camera-reader';
 
+  // Refs for global hardware POS/cashier barcode scanner capture
+  const scanBufferRef = useRef<string>('');
+  const lastKeyTimeRef = useRef<number>(0);
+  const burstFastCountRef = useRef<number>(0);
+  const burstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scanInputRef = useRef<string>(scanInput);
+  scanInputRef.current = scanInput;
+
+  // Sync initialQuery if modal opens with a prefilled query
+  useEffect(() => {
+    if (isOpen) {
+      setScanInput(initialQuery || '');
+      setTimeout(() => {
+        if (!isCameraActive && inputRef.current) {
+          inputRef.current.focus();
+          if (initialQuery) inputRef.current.select();
+        }
+      }, 80);
+    } else {
+      scanBufferRef.current = '';
+      if (burstTimerRef.current) {
+        clearTimeout(burstTimerRef.current);
+        burstTimerRef.current = null;
+      }
+    }
+  }, [isOpen, initialQuery, isCameraActive]);
+
   // Realistic Barcode Laser Scanner Audio Synthesizer (Web Audio API)
   const playScannerBeep = (type: 'SUCCESS' | 'ALREADY_CHECKED_IN' | 'ERROR' = 'SUCCESS') => {
     if (!soundEnabled) return;
@@ -69,7 +94,6 @@ export const ParticipantScannerModal: React.FC<Props> = ({
       const now = ctx.currentTime;
 
       if (type === 'SUCCESS') {
-        // Classic POS Laser Barcode Scanner "BIB!" (1950Hz pure sine, punchy 0.11s envelope)
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
@@ -81,7 +105,6 @@ export const ParticipantScannerModal: React.FC<Props> = ({
         osc.start(now);
         osc.stop(now + 0.11);
       } else if (type === 'ALREADY_CHECKED_IN') {
-        // Distinct double high-pitched chirp "BIB-BIB!"
         [0, 0.08].forEach((delay, idx) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
@@ -95,7 +118,6 @@ export const ParticipantScannerModal: React.FC<Props> = ({
           osc.stop(now + delay + 0.06);
         });
       } else {
-        // Error warning buzzer
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sawtooth';
@@ -122,28 +144,32 @@ export const ParticipantScannerModal: React.FC<Props> = ({
 
   // Keep input focused for handheld barcode scanners
   useEffect(() => {
-    if (!isCameraActive && inputRef.current) {
+    if (isOpen && !isCameraActive && inputRef.current) {
       inputRef.current.focus();
     }
-  }, [isCameraActive, selectedArcher]);
+  }, [isOpen, isCameraActive, selectedArcher, autoCheckIn]);
 
-  // Global scanner listener for fast keystrokes & escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  // Sanitize raw hardware scanner string (strip AIM prefixes, Code39 *, whitespace/control chars)
+  const normalizeScannedCode = (raw: string): string => {
+    let cleaned = raw.replace(/[\r\n\t\x00-\x1F\x7F]/g, '').trim();
+    // Strip common POS scanner AIM symbology prefixes like ]C1, ]C0, ]E0, ]A0, ]Q3
+    cleaned = cleaned.replace(/^\][A-Za-z][0-9]/, '');
+    // Strip Code39 start/stop '*' wrappers if scanner transmits them
+    if (cleaned.length > 2 && cleaned.startsWith('*') && cleaned.endsWith('*')) {
+      cleaned = cleaned.slice(1, -1);
+    }
+    return cleaned.trim();
+  };
 
   // Lookup archer by barcode / ID / query
-  const findArcher = (query: string): Archer | undefined => {
-    if (!query || !query.trim()) return undefined;
-    const clean = query.trim().toLowerCase();
+  const findArcher = (rawQuery: string): Archer | undefined => {
+    const cleaned = normalizeScannedCode(rawQuery);
+    if (!cleaned) return undefined;
+    const clean = cleaned.toLowerCase();
+    // Normalized alphanumeric + underscore-insensitive form (handles scanner shift/caps quirks on _ vs -)
+    const looseClean = clean.replace(/[\s_-]+/g, '');
 
-    // 1. Exact ID match (e.g. m-arc-xxxx or full id)
+    // 1. Exact ID match (e.g. reg_1793710944038_0)
     let found = (archers || []).find(a => a.id.toLowerCase() === clean);
     if (found) return found;
 
@@ -151,43 +177,83 @@ export const ParticipantScannerModal: React.FC<Props> = ({
     found = (archers || []).find(a => (a.registrationNo || '').toLowerCase() === clean);
     if (found) return found;
 
-    // 3. Exact PIN match
-    found = (archers || []).find(a => a.pin && a.pin.toLowerCase() === clean);
+    // 3. Exact PIN or KTA match
+    found = (archers || []).find(
+      a => (a.pin && a.pin.toLowerCase() === clean) || (a.ktaNumber && a.ktaNumber.toLowerCase() === clean)
+    );
     if (found) return found;
 
-    // 4. Target code match (e.g. "14A", "1B", "target-14A")
+    // 4. Loose separator-insensitive match on ID or registrationNo (e.g. scanner turns '_' into '-' or drops separator)
+    if (looseClean.length >= 4) {
+      found = (archers || []).find(
+        a =>
+          a.id.toLowerCase().replace(/[\s_-]+/g, '') === looseClean ||
+          (a.registrationNo || '').toLowerCase().replace(/[\s_-]+/g, '') === looseClean
+      );
+      if (found) return found;
+    }
+
+    // 5. Scoring Sheet barcode format: e.g. "14A-9f2a" (targetNo+position + '-' + last 4 of archerId)
+    const sheetMatch = clean.match(/^(\d+[a-z]?)-([a-z0-9]{3,8})$/i);
+    if (sheetMatch) {
+      const targetPart = sheetMatch[1].toLowerCase();
+      const idSuffix = sheetMatch[2].toLowerCase();
+      found = (archers || []).find(
+        a => `${a.targetNo || ''}${a.position || ''}`.toLowerCase() === targetPart && a.id.toLowerCase().endsWith(idSuffix)
+      );
+      if (found) return found;
+    }
+
+    // 6. Target code match (e.g. "14A", "1B", "target-14A")
     const targetMatch = clean.replace('target-', '').replace('bantalan-', '');
-    found = (archers || []).find(a => `${a.targetNo}${a.position}`.toLowerCase() === targetMatch);
+    found = (archers || []).find(a => a.targetNo && `${a.targetNo}${a.position || ''}`.toLowerCase() === targetMatch);
     if (found) return found;
 
-    // 5. Partial name / club match
-    found = (archers || []).find(a => 
-      a.name.toLowerCase().includes(clean) || 
-      a.club.toLowerCase().includes(clean)
+    // 7. ID suffix / prefix match (e.g. last 6 chars printed on card)
+    if (clean.length >= 5) {
+      found = (archers || []).find(a => a.id.toLowerCase().endsWith(clean) || a.id.toLowerCase().startsWith(clean));
+      if (found) return found;
+    }
+
+    // 8. Partial name / club match (for manual search)
+    found = (archers || []).find(a =>
+      a.name.toLowerCase().includes(clean) ||
+      (a.club || '').toLowerCase().includes(clean)
     );
 
     return found;
   };
 
-  const handleScanSubmit = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!scanInput.trim()) return;
-
-    processBarcode(scanInput.trim());
-    setScanInput('');
-  };
-
   // Main Barcode Processing Logic
   const processBarcode = (scannedText: string) => {
-    let targetQuery = scannedText.trim();
+    let targetQuery = normalizeScannedCode(scannedText);
+    if (!targetQuery) return;
+
+    // Parse JSON QR payloads
     try {
       if (targetQuery.startsWith('{') && targetQuery.endsWith('}')) {
         const parsed = JSON.parse(targetQuery);
-        if (parsed.archerId) targetQuery = parsed.archerId;
-        else if (parsed.id) targetQuery = parsed.id;
+        if (parsed.archerId) targetQuery = String(parsed.archerId);
+        else if (parsed.id) targetQuery = String(parsed.id);
+        else if (parsed.registrationNo) targetQuery = String(parsed.registrationNo);
       }
-    } catch (err) {
-      // not JSON, keep as is
+    } catch {
+      // not JSON
+    }
+
+    // Parse URL QR payloads (e.g. ?archerId=... or ?id=... or ?reg=...)
+    if (/^https?:\/\//i.test(targetQuery) || targetQuery.includes('archerId=') || targetQuery.includes('reg=')) {
+      try {
+        const urlObj = new URL(targetQuery.startsWith('http') ? targetQuery : `https://arcus.id/?${targetQuery}`);
+        const paramId =
+          urlObj.searchParams.get('archerId') ||
+          urlObj.searchParams.get('id') ||
+          urlObj.searchParams.get('reg') ||
+          urlObj.searchParams.get('registrationNo');
+        if (paramId) targetQuery = paramId;
+      } catch {
+        // keep original string
+      }
     }
 
     const archer = findArcher(targetQuery);
@@ -247,12 +313,134 @@ export const ParticipantScannerModal: React.FC<Props> = ({
 
     // Auto re-focus input for uninterrupted continuous laser scanning
     setTimeout(() => {
-      if (inputRef.current) {
+      if (inputRef.current && !isCameraActive) {
         inputRef.current.focus();
-        inputRef.current.select();
       }
     }, 60);
   };
+
+  const processBarcodeRef = useRef(processBarcode);
+  processBarcodeRef.current = processBarcode;
+
+  const handleScanSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (burstTimerRef.current) {
+      clearTimeout(burstTimerRef.current);
+      burstTimerRef.current = null;
+    }
+    scanBufferRef.current = '';
+    const val = scanInputRef.current.trim();
+    if (!val) return;
+
+    processBarcodeRef.current(val);
+    setScanInput('');
+  };
+
+  // Global HID Cashier Barcode Scanner Listener (handles focus loss, Enter, Tab suffix, AND no-suffix burst scans!)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      const activeEl = document.activeElement as HTMLElement | null;
+      const isOurInputFocused = activeEl === inputRef.current;
+      const isOtherFieldFocused =
+        activeEl &&
+        !isOurInputFocused &&
+        (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT' || activeEl.isContentEditable);
+
+      if (isOtherFieldFocused) return;
+
+      const now = Date.now();
+      const delta = now - lastKeyTimeRef.current;
+      lastKeyTimeRef.current = now;
+
+      // Reset burst buffer if pause between keys is human typing (> 120ms)
+      if (delta > 120) {
+        scanBufferRef.current = '';
+        burstFastCountRef.current = 0;
+      }
+
+      // Handle Enter or Tab suffix sent by POS cashier scanners
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        const liveInputVal = inputRef.current?.value ?? scanInputRef.current;
+        const candidate = isOurInputFocused
+          ? liveInputVal.trim()
+          : (scanBufferRef.current.trim() || liveInputVal.trim());
+
+        if (candidate) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (burstTimerRef.current) {
+            clearTimeout(burstTimerRef.current);
+            burstTimerRef.current = null;
+          }
+          scanBufferRef.current = '';
+          burstFastCountRef.current = 0;
+          if (inputRef.current) inputRef.current.value = '';
+          setScanInput('');
+          processBarcodeRef.current(candidate);
+          return;
+        }
+      }
+
+      // Capture printable characters for both unfocused HID scans and no-suffix burst detection
+      if (e.key.length === 1) {
+        if (delta <= 65) {
+          burstFastCountRef.current += 1;
+        }
+
+        if (!isOurInputFocused) {
+          // Focus was elsewhere (e.g. user clicked a button) -> redirect keystrokes straight into scanner buffer & input synchronously!
+          e.preventDefault();
+          scanBufferRef.current += e.key;
+          if (inputRef.current) {
+            inputRef.current.value = scanBufferRef.current;
+            if (!isCameraActive) inputRef.current.focus();
+          }
+          setScanInput(scanBufferRef.current);
+        } else {
+          const liveInputVal = inputRef.current?.value ?? scanInputRef.current;
+          scanBufferRef.current = liveInputVal + e.key;
+        }
+
+        // Auto-submit fallback for POS scanners configured with NO Enter/Tab suffix:
+        // triggers only if >= 5 chars arrived at rapid machine speed (<= 65ms inter-key)
+        if (burstTimerRef.current) {
+          clearTimeout(burstTimerRef.current);
+        }
+        if (burstFastCountRef.current >= 4 && scanBufferRef.current.length >= 5) {
+          burstTimerRef.current = setTimeout(() => {
+            burstTimerRef.current = null;
+            const liveVal = inputRef.current?.value ?? scanInputRef.current;
+            const buffered = (isOurInputFocused ? liveVal : scanBufferRef.current).trim();
+            if (buffered.length >= 5 && burstFastCountRef.current >= 4) {
+              scanBufferRef.current = '';
+              burstFastCountRef.current = 0;
+              if (inputRef.current) inputRef.current.value = '';
+              setScanInput('');
+              processBarcodeRef.current(buffered);
+            }
+          }, 220);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown, true);
+      if (burstTimerRef.current) {
+        clearTimeout(burstTimerRef.current);
+        burstTimerRef.current = null;
+      }
+    };
+  }, [isOpen, isCameraActive, onClose]);
 
   // Toggle Check-In status manually
   const handleToggleCheckIn = (archer: Archer) => {
@@ -305,7 +493,7 @@ export const ParticipantScannerModal: React.FC<Props> = ({
             aspectRatio: 1.777778
           },
           (decodedText) => {
-            processBarcode(decodedText);
+            processBarcodeRef.current(decodedText);
           },
           () => {}
         );
@@ -337,6 +525,8 @@ export const ParticipantScannerModal: React.FC<Props> = ({
     };
   }, []);
 
+  if (!isOpen) return null;
+
   return (
     <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[250] flex flex-col items-center justify-center p-3 md:p-6 overflow-y-auto animate-in fade-in duration-200">
       <div className="bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[94vh]">
@@ -365,9 +555,11 @@ export const ParticipantScannerModal: React.FC<Props> = ({
           <div className="flex items-center gap-2 self-end sm:self-auto">
             {/* Sound Toggle & Test Button */}
             <button
+              type="button"
               onClick={() => {
                 playScannerBeep('SUCCESS');
                 toast.success('Tes Suara: BIB!');
+                if (inputRef.current && !isCameraActive) inputRef.current.focus();
               }}
               title="Tes Suara Barcode BIB"
               className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95 border border-white/10"
@@ -377,7 +569,11 @@ export const ParticipantScannerModal: React.FC<Props> = ({
             </button>
 
             <button
-              onClick={() => setSoundEnabled(!soundEnabled)}
+              type="button"
+              onClick={() => {
+                setSoundEnabled(!soundEnabled);
+                if (inputRef.current && !isCameraActive) inputRef.current.focus();
+              }}
               title={soundEnabled ? 'Matikan Suara BIB' : 'Aktifkan Suara BIB'}
               className={`p-2 rounded-xl transition-all border ${
                 soundEnabled 
@@ -389,6 +585,7 @@ export const ParticipantScannerModal: React.FC<Props> = ({
             </button>
 
             <button
+              type="button"
               onClick={onClose}
               className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl transition-all active:scale-95"
             >
@@ -437,7 +634,11 @@ export const ParticipantScannerModal: React.FC<Props> = ({
             </div>
 
             <button
-              onClick={() => setAutoCheckIn(!autoCheckIn)}
+              type="button"
+              onClick={() => {
+                setAutoCheckIn(!autoCheckIn);
+                if (inputRef.current && !isCameraActive) inputRef.current.focus();
+              }}
               className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all shrink-0 ${
                 autoCheckIn 
                   ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20' 
@@ -460,6 +661,10 @@ export const ParticipantScannerModal: React.FC<Props> = ({
                 type="text"
                 value={scanInput}
                 onChange={(e) => setScanInput(e.target.value)}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 placeholder="Scan barcode batang kartu / ketik ID, Nama, No Bantalan (Contoh: 14A)..."
                 className="w-full pl-12 pr-28 py-4 bg-slate-50 border-2 border-emerald-200 focus:border-emerald-600 focus:bg-white rounded-2xl text-sm font-bold text-slate-900 outline-none transition-all placeholder:text-slate-500 shadow-inner"
                 autoFocus
@@ -633,7 +838,7 @@ export const ParticipantScannerModal: React.FC<Props> = ({
               </div>
 
               {/* Barcode Batang 1D Display */}
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col items-center justify-center">
+              <div className="p-4 bg-white rounded-2xl border border-slate-200 flex flex-col items-center justify-center">
                 <Barcode 
                   value={selectedArcher.id}
                   width={1.6}
@@ -641,8 +846,9 @@ export const ParticipantScannerModal: React.FC<Props> = ({
                   fontSize={10}
                   displayValue={true}
                   text={`ID: ${selectedArcher.registrationNo || selectedArcher.id.substring(0, 12)} • Target: ${selectedArcher.targetNo || '-'}${selectedArcher.position || ''}`}
-                  background="transparent"
-                  lineColor="#0f172a"
+                  background="#ffffff"
+                  lineColor="#000000"
+                  margin={8}
                 />
               </div>
 
@@ -746,6 +952,7 @@ export const ParticipantScannerModal: React.FC<Props> = ({
         <div className="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wider shrink-0">
           <span>Tekan <kbd className="px-1.5 py-0.5 bg-slate-200 rounded text-slate-700">ESC</kbd> untuk menutup</span>
           <button
+            type="button"
             onClick={onClose}
             className="px-5 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl font-black uppercase text-[9px] transition-all"
           >

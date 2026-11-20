@@ -35,7 +35,7 @@ export const Barcode: React.FC<Props> = ({
   fontSize = 10,
   background = 'transparent',
   lineColor = '#000000',
-  margin = 0,
+  margin = 8,
   className = ''
 }) => {
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -86,8 +86,9 @@ export const Barcode: React.FC<Props> = ({
   return (
     <svg 
       ref={svgRef} 
+      preserveAspectRatio="xMidYMid meet"
       className={`barcode-svg max-w-full inline-block ${className}`}
-      style={{ display: 'block', margin: '0 auto' }}
+      style={{ display: 'block', margin: '0 auto', shapeRendering: 'crispEdges' }}
     />
   );
 };

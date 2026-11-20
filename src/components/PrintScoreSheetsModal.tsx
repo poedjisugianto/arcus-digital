@@ -407,7 +407,9 @@ export const PrintScoreSheetsModal: React.FC<Props> = ({
                                   width={1.2} 
                                   height={26} 
                                   fontSize={8} 
-                                  margin={0}
+                                  background="#ffffff"
+                                  lineColor="#000000"
+                                  margin={6}
                                 />
                                 <span className="text-[6.5px] font-black uppercase text-slate-500 font-mono mt-0.5">
                                   SCAN SCORER
@@ -430,10 +432,12 @@ export const PrintScoreSheetsModal: React.FC<Props> = ({
                                 <div className="flex flex-col items-center">
                                   <Barcode 
                                     value={`${sheet.targetNo || 1}${sheet.position || 'A'}`} 
-                                    width={0.9} 
-                                    height={22} 
+                                    width={1.0} 
+                                    height={24} 
                                     fontSize={7} 
-                                    margin={0}
+                                    background="#ffffff"
+                                    lineColor="#000000"
+                                    margin={6}
                                   />
                                   <span className="text-[6.5px] font-black uppercase text-slate-600 font-mono">
                                     {sheet.targetNo}{sheet.position || ''}

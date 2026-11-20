@@ -219,7 +219,13 @@ export interface Match {
   countbackTotal_A?: number; // Total skor akumulasi / kualifikasi A
   countbackTotal_B?: number; // Total skor akumulasi / kualifikasi B
   tieBreakWinnerReason?: string; // Keterangan pemenang tie break (cth: "Menang Shoot-Off (10 vs 9)", "Menang Countback Jumlah Angka 6 (4 vs 2)")
+  // Pengaturan & target seed peringkat otomatis sebelum pertandingan dimulai
+  seedRankA?: number;
+  seedRankB?: number;
+  pairingSystem?: BracketPairingSystem;
 }
+
+export type BracketPairingSystem = 'WORLD_ARCHERY' | 'TOP4_1V2_3V4';
 
 export type TournamentFlowMode = 'RANKING_POINTS_STAGE' | 'DIRECT_SHOOT_OFF';
 
