@@ -1986,53 +1986,18 @@ const AdminPanel: React.FC<Props> = ({
                         />
                       </div>
 
-                      {/* Direct Upload button from local device / gallery */}
-                      <div className="flex items-center gap-2 pt-1">
-                        <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-sm active:scale-95">
-                          <Upload className="w-3.5 h-3.5 text-amber-400" />
-                          <span>Pilih Foto dari Galeri / HP</span>
-                          <input 
-                            type="file" 
-                            accept="image/*" 
-                            className="hidden" 
-                            onChange={async (e) => {
-                              const file = e.target.files?.[0];
-                              if (!file) return;
-                              const loadingId = toast.loading('Mengunggah pamflet ke Storage...');
-                              try {
-                                const folder = eventId || 'general';
-                                const result = await uploadImageAsset(
-                                  file,
-                                  `tournaments/${folder}/pamphlet_${Date.now()}`,
-                                  { maxDim: 1400, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 900, fallbackQuality: 0.7 }
-                                );
-                                updateSettings({ pamphletUrl: result.url });
-                                toast.dismiss(loadingId);
-                                if (result.storedInCloud) {
-                                  toast.success('Pamflet tersimpan di Firebase Storage!');
-                                } else {
-                                  toast.warning(`Upload Pamflet ke Storage gagal (${result.error || 'koneksi/izin'}), memakai versi kompresi mini.`);
-                                }
-                              } catch (err: any) {
-                                toast.dismiss(loadingId);
-                                console.error('Gagal memproses gambar pamflet:', err);
-                                toast.error('Gagal memproses gambar pamflet');
-                              } finally {
-                                e.target.value = '';
-                              }
-                            }} 
-                          />
-                        </label>
-                        {localSettings.pamphletUrl && (
+                      {/* Clear Pamphlet URL button */}
+                      {localSettings.pamphletUrl && (
+                        <div className="flex items-center justify-end pt-1">
                           <button
                             type="button"
                             onClick={() => updateSettings({ pamphletUrl: '' })}
-                            className="px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                            className="px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-xl transition-all"
                           >
                             Hapus Pamflet
                           </button>
-                        )}
-                      </div>
+                        </div>
+                      )}
 
                       <p className="text-[10px] text-slate-500 italic leading-relaxed pt-1">
                         *Gambar pamflet ini akan otomatis dimuat sebagai cover banner dan preview card di WhatsApp saat Anda membagikan link turnamen.
@@ -2121,40 +2086,11 @@ const AdminPanel: React.FC<Props> = ({
                       onChange={e => updateSettings({ logoUrl: resolveGoogleDriveUrl(e.target.value) })} 
                       className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs outline-none focus:border-arcus-red transition-all" 
                     />
-                    <div className="flex items-center justify-between gap-2">
-                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all">
-                        <Upload className="w-3 h-3 text-amber-400" />
-                        <span>Upload ke Storage</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            const lid = toast.loading('Mengunggah Logo Event...');
-                            try {
-                              const res = await uploadImageAsset(file, `tournaments/${eventId || 'general'}/logo_event_${Date.now()}`, { maxDim: 600, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 350, fallbackQuality: 0.7 });
-                              updateSettings({ logoUrl: res.url });
-                              toast.dismiss(lid);
-                              if (res.storedInCloud) {
-                                toast.success('Logo Event tersimpan di Storage!');
-                              } else {
-                                toast.warning(`Logo Event gagal ke Storage (${res.error || 'koneksi/izin'}), memakai versi kompresi mini.`);
-                              }
-                            } catch {
-                              toast.dismiss(lid);
-                              toast.error('Gagal mengunggah logo');
-                            } finally {
-                              e.target.value = '';
-                            }
-                          }}
-                        />
-                      </label>
-                      {localSettings.logoUrl && (
+                    {localSettings.logoUrl && (
+                      <div className="flex items-center justify-end">
                         <button type="button" onClick={() => updateSettings({ logoUrl: '' })} className="text-[9px] font-bold text-red-600 hover:underline">Hapus</button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                     <div className="h-16 bg-white rounded-xl border border-dashed border-slate-300 flex items-center justify-center p-2">
                       {localSettings.logoUrl ? (
                         <img 
@@ -2186,40 +2122,11 @@ const AdminPanel: React.FC<Props> = ({
                       onChange={e => updateSettings({ secondaryLogoUrl: resolveGoogleDriveUrl(e.target.value) })} 
                       className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs outline-none focus:border-blue-600 transition-all" 
                     />
-                    <div className="flex items-center justify-between gap-2">
-                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all">
-                        <Upload className="w-3 h-3 text-amber-400" />
-                        <span>Upload ke Storage</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            const lid = toast.loading('Mengunggah Logo INORGA...');
-                            try {
-                              const res = await uploadImageAsset(file, `tournaments/${eventId || 'general'}/logo_inorga_${Date.now()}`, { maxDim: 600, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 350, fallbackQuality: 0.7 });
-                              updateSettings({ secondaryLogoUrl: res.url });
-                              toast.dismiss(lid);
-                              if (res.storedInCloud) {
-                                toast.success('Logo INORGA tersimpan di Storage!');
-                              } else {
-                                toast.warning(`Logo INORGA gagal ke Storage (${res.error || 'koneksi/izin'}), memakai versi kompresi mini.`);
-                              }
-                            } catch {
-                              toast.dismiss(lid);
-                              toast.error('Gagal mengunggah logo');
-                            } finally {
-                              e.target.value = '';
-                            }
-                          }}
-                        />
-                      </label>
-                      {localSettings.secondaryLogoUrl && (
+                    {localSettings.secondaryLogoUrl && (
+                      <div className="flex items-center justify-end">
                         <button type="button" onClick={() => updateSettings({ secondaryLogoUrl: '' })} className="text-[9px] font-bold text-red-600 hover:underline">Hapus</button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                     <div className="h-16 bg-white rounded-xl border border-dashed border-slate-300 flex items-center justify-center p-2">
                       {localSettings.secondaryLogoUrl ? (
                         <img 
@@ -2251,40 +2158,11 @@ const AdminPanel: React.FC<Props> = ({
                       onChange={e => updateSettings({ clubLogoUrl: resolveGoogleDriveUrl(e.target.value) })} 
                       className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-xs outline-none focus:border-emerald-600 transition-all" 
                     />
-                    <div className="flex items-center justify-between gap-2">
-                      <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all">
-                        <Upload className="w-3 h-3 text-amber-400" />
-                        <span>Upload ke Storage</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            const lid = toast.loading('Mengunggah Logo Klub...');
-                            try {
-                              const res = await uploadImageAsset(file, `tournaments/${eventId || 'general'}/logo_club_${Date.now()}`, { maxDim: 600, quality: 0.85, preserveAlpha: true, fallbackMaxDim: 350, fallbackQuality: 0.7 });
-                              updateSettings({ clubLogoUrl: res.url });
-                              toast.dismiss(lid);
-                              if (res.storedInCloud) {
-                                toast.success('Logo Klub tersimpan di Storage!');
-                              } else {
-                                toast.warning(`Logo Klub gagal ke Storage (${res.error || 'koneksi/izin'}), memakai versi kompresi mini.`);
-                              }
-                            } catch {
-                              toast.dismiss(lid);
-                              toast.error('Gagal mengunggah logo');
-                            } finally {
-                              e.target.value = '';
-                            }
-                          }}
-                        />
-                      </label>
-                      {localSettings.clubLogoUrl && (
+                    {localSettings.clubLogoUrl && (
+                      <div className="flex items-center justify-end">
                         <button type="button" onClick={() => updateSettings({ clubLogoUrl: '' })} className="text-[9px] font-bold text-red-600 hover:underline">Hapus</button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                     <div className="h-16 bg-white rounded-xl border border-dashed border-slate-300 flex items-center justify-center p-2">
                       {localSettings.clubLogoUrl ? (
                         <img 

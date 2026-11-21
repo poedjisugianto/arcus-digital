@@ -37,7 +37,7 @@ import {
   RegistrationStatus,
   ArcheryEvent
 } from "../types";
-import { CATEGORY_LABELS, getCategoryDisplayName } from "../constants";
+import { getCategoryDisplayName } from "../constants";
 import { uploadImageAsset } from "../lib/photoService";
 import { exportToExcel, exportToCSV } from "../lib/excelHelper";
 import ScoringSheet from "./ScoringSheet";
@@ -85,11 +85,18 @@ const ArcherList: React.FC<Props> = ({
 }) => {
   const [isShuffling, setIsShuffling] = useState(false);
   const eventCategories = useMemo(() => {
-    if (settings?.categoryConfigs && Object.keys(settings.categoryConfigs).length > 0) {
-      return Object.keys(settings.categoryConfigs).filter(cat => cat !== CategoryType.OFFICIAL);
+    const fromConfig = settings?.categoryConfigs
+      ? Object.keys(settings.categoryConfigs).filter(cat => cat !== CategoryType.OFFICIAL)
+      : [];
+    const fromArchers = Array.from(
+      new Set((archers || []).map(a => a.category).filter((cat): cat is string => Boolean(cat) && cat !== CategoryType.OFFICIAL))
+    );
+    if (fromConfig.length > 0) {
+      return Array.from(new Set([...fromConfig, ...fromArchers]));
     }
-    return (Object.keys(CategoryType) as CategoryType[]).filter(cat => cat !== CategoryType.OFFICIAL);
-  }, [settings?.categoryConfigs]);
+    const fromEnum = (Object.keys(CategoryType) as CategoryType[]).filter(cat => cat !== CategoryType.OFFICIAL);
+    return Array.from(new Set([...fromEnum, ...fromArchers]));
+  }, [settings?.categoryConfigs, archers]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeCategory, setActiveCategory] = useState<CategoryType | string | "ALL">(
     "ALL",
@@ -120,7 +127,7 @@ const ArcherList: React.FC<Props> = ({
     email: "",
     phone: "",
     club: "",
-    category: CategoryType.ADULT_PUTRA,
+    category: (eventCategories[0] || CategoryType.ADULT_PUTRA) as string,
     targetNo: 1,
     position: "A" as "A" | "B" | "C" | "D",
     wave: 1,
@@ -219,7 +226,7 @@ const ArcherList: React.FC<Props> = ({
       email: "",
       phone: "",
       club: "",
-      category: CategoryType.ADULT_PUTRA,
+      category: eventCategories[0] || CategoryType.ADULT_PUTRA,
       targetNo: 1,
       position: "A",
       wave: 1,
@@ -544,7 +551,13 @@ const ArcherList: React.FC<Props> = ({
           {/* Baris 1: Aksi Utama Peserta (Tambah Peserta, Import Peserta, Alokasi, Acak) */}
           <div className="flex flex-wrap items-center justify-start xl:justify-end gap-2">
             <button
-              onClick={() => setShowAddForm(true)}
+              onClick={() => {
+                setNewArcher(prev => ({
+                  ...prev,
+                  category: eventCategories.includes(prev.category) ? prev.category : (eventCategories[0] || CategoryType.ADULT_PUTRA)
+                }));
+                setShowAddForm(true);
+              }}
               className="bg-arcus-red text-white px-4 py-2.5 rounded-xl text-[11px] font-black flex items-center gap-2 hover:bg-red-700 transition-all active:scale-95 shadow-md shadow-arcus-red/25 border border-red-600"
               title="Tambah Peserta Manual"
             >
@@ -1023,17 +1036,15 @@ const ArcherList: React.FC<Props> = ({
         >
           Semua Kategori
         </button>
-        {(Object.keys(CategoryType) as CategoryType[])
-          .filter((cat) => cat !== CategoryType.OFFICIAL)
-          .map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${activeCategory === cat ? "bg-arcus-red border-arcus-red text-white shadow-sm" : "bg-white border-slate-100 text-slate-900 hover:text-arcus-red hover:border-arcus-red"}`}
-            >
-              {CATEGORY_LABELS[cat]}
-            </button>
-          ))}
+        {eventCategories.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setActiveCategory(cat)}
+            className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${activeCategory === cat ? "bg-arcus-red border-arcus-red text-white shadow-sm" : "bg-white border-slate-100 text-slate-900 hover:text-arcus-red hover:border-arcus-red"}`}
+          >
+            {getCategoryDisplayName(cat, settings?.categoryConfigs)}
+          </button>
+        ))}
       </div>
 
       {/* Printable Area (Hidden in UI, visible in Print) */}
@@ -1161,7 +1172,7 @@ const ArcherList: React.FC<Props> = ({
                   Daftar Peserta & Penempatan Bantalan
                 </h2>
                 <p className="text-lg font-bold uppercase mt-2 bg-slate-100 inline-block px-4 py-1 rounded">
-                  Kategori: {getCategoryDisplayName(activeCategory, settings?.categoryConfigs)}
+                  Kategori: {(activeCategory as any) === "ALL" ? "SEMUA KATEGORI" : getCategoryDisplayName(activeCategory, settings?.categoryConfigs)}
                 </p>
               </div>
 

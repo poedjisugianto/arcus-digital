@@ -6,7 +6,7 @@ import {
   AlertCircle, ShieldCheck, Check
 } from 'lucide-react';
 import { Archer, CategoryType, RegistrationStatus, TournamentSettings } from '../types';
-import { CATEGORY_LABELS } from '../constants';
+import { getCategoryDisplayName } from '../constants';
 import { uploadImageAsset } from '../lib/photoService';
 import { toast } from 'sonner';
 
@@ -86,10 +86,10 @@ export const ArcherEditModal: React.FC<ArcherEditModalProps> = ({
   const availableCategories = (() => {
     const fromConfig = settings?.categoryConfigs ? Object.keys(settings.categoryConfigs) : [];
     const fromEnum = (Object.keys(CategoryType) as CategoryType[]).filter(c => c !== CategoryType.OFFICIAL);
-    const combined = Array.from(new Set([...fromConfig, ...fromEnum]));
+    const combined = Array.from(new Set([...fromConfig, ...fromEnum])).filter(c => c !== CategoryType.OFFICIAL);
     return combined.map(catKey => ({
       key: catKey,
-      label: CATEGORY_LABELS[catKey as CategoryType] || catKey.replace(/_/g, ' ')
+      label: getCategoryDisplayName(catKey, settings?.categoryConfigs)
     }));
   })();
 
