@@ -1,10 +1,10 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, Target, QrCode, X, User, Delete, CheckCircle2, 
-  ChevronRight, ChevronLeft, Trash2, ScanLine, ShieldCheck, Lock, LogOut
+  ChevronRight, ChevronLeft, Trash2, ScanLine, ShieldCheck, Lock, LogOut, Eye
 } from 'lucide-react';
 import { ArcheryEvent, ScoreEntry, Archer, TargetType, ScoreLog, CategoryType, ScorerAccess } from '../types';
-import { CATEGORY_LABELS } from '../constants';
+import { getCategoryDisplayName } from '../constants';
 import QRScanner from './QRScanner';
 
 interface Props {
@@ -16,7 +16,13 @@ interface Props {
 }
 
 const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBack, onLogoutScorer }) => {
-  const [selectedCategory, setSelectedCategory] = useState<CategoryType | 'ALL'>('ALL');
+  const [selectedCategory, setSelectedCategory] = useState<string | 'ALL'>('ALL');
+  const [showAllFallback, setShowAllFallback] = useState(false);
+
+  const activeWaves = state.settings?.scorerActiveFilter?.activeWaves || [];
+  const activeCategories = state.settings?.scorerActiveFilter?.activeCategories || [];
+  const hasAdminActiveFilter = activeWaves.length > 0 || activeCategories.length > 0;
+  const isFocusedFilterActive = hasAdminActiveFilter && !showAllFallback;
   
   const allowedTargets = useMemo(() => {
     const total = state.settings?.totalTargets || 1;
@@ -44,31 +50,72 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
   const [showScanner, setShowScanner] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
 
-  // Keep selectedTarget inside allowedTargets if props change
-  useEffect(() => {
-    if (!allowedTargets.includes(selectedTarget)) {
-      setSelectedTarget(allowedTargets[0] || 1);
-    }
-  }, [allowedTargets, selectedTarget]);
+  // Archers scoped to this scorer's assigned targets + active tournament wave/category focus filter
+  const scopedArchers = useMemo(() => {
+    return (state.archers || []).filter(a => {
+      if (!a || a.category === CategoryType.OFFICIAL) return false;
+      if (allowedTargets.length > 0 && !allowedTargets.includes(Number(a.targetNo))) {
+        return false;
+      }
+      if (isFocusedFilterActive) {
+        if (activeWaves.length > 0 && !activeWaves.includes(Number(a.wave) || 1)) {
+          return false;
+        }
+        if (activeCategories.length > 0 && !activeCategories.includes(a.category)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [state.archers, allowedTargets, isFocusedFilterActive, activeWaves, activeCategories]);
 
   const availableCategories = useMemo(() => {
     return Array.from(
       new Set(
-        (state.archers || [])
+        scopedArchers
           .map(a => a.category)
-          .filter((cat): cat is CategoryType => Boolean(cat))
+          .filter((cat): cat is string => Boolean(cat))
       )
     );
-  }, [state.archers]);
+  }, [scopedArchers]);
+
+  // Keep selectedTarget inside allowedTargets and auto-jump to first target with active archers if current target is empty
+  useEffect(() => {
+    if (!allowedTargets.includes(selectedTarget)) {
+      setSelectedTarget(allowedTargets[0] || 1);
+      return;
+    }
+    if (!isDirty && scopedArchers.length > 0) {
+      const hasOnCurrent = scopedArchers.some(a => Number(a.targetNo) === selectedTarget);
+      if (!hasOnCurrent) {
+        const firstActiveTarget = allowedTargets.find(t => scopedArchers.some(a => Number(a.targetNo) === t));
+        if (firstActiveTarget !== undefined && firstActiveTarget !== selectedTarget) {
+          setSelectedTarget(firstActiveTarget);
+          setSelectedArcherId(null);
+        }
+      }
+    }
+  }, [allowedTargets, selectedTarget, scopedArchers, isDirty]);
+
+  // Auto-select single active category, or reset if selected category is no longer available
+  useEffect(() => {
+    if (availableCategories.length === 1) {
+      if (selectedCategory !== availableCategories[0]) {
+        setSelectedCategory(availableCategories[0]);
+      }
+    } else if (selectedCategory !== 'ALL' && !availableCategories.includes(selectedCategory)) {
+      setSelectedCategory('ALL');
+    }
+  }, [availableCategories, selectedCategory]);
 
   const archersAtTarget = useMemo(() => {
-    return (state.archers || [])
+    return scopedArchers
       .filter(a => 
-        a.targetNo === selectedTarget && 
+        Number(a.targetNo) === selectedTarget && 
         (selectedCategory === 'ALL' || a.category === selectedCategory)
       )
       .sort((a, b) => (a.position || "").localeCompare(b.position || ""));
-  }, [state.archers, selectedTarget, selectedCategory]);
+  }, [scopedArchers, selectedTarget, selectedCategory]);
 
   const selectedArcher = useMemo(() => {
     return (state.archers || []).find(a => a.id === selectedArcherId);
@@ -414,6 +461,14 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
         if (actualTarget) {
           setSelectedTarget(actualTarget);
         }
+        if (archer && isFocusedFilterActive) {
+          const outsideWave = activeWaves.length > 0 && !activeWaves.includes(Number(archer.wave) || 1);
+          const outsideCat = activeCategories.length > 0 && !activeCategories.includes(archer.category);
+          if (outsideWave || outsideCat) {
+            setShowAllFallback(true);
+            setSelectedCategory('ALL');
+          }
+        }
         setSelectedArcherId(archerId);
         setShowScanner(false);
         const nameDisplay = archer ? ` (${archer.name})` : '';
@@ -517,9 +572,10 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
           <div className="flex items-center gap-1.5 font-sans">
              <button onClick={() => setShowScanner(true)} className="p-3 bg-arcus-red text-white rounded-lg active:scale-90 transition-all shadow-md"><ScanLine className="w-5 h-5" /></button>
              <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-[200px] px-2 bg-slate-50 border border-slate-100 p-1 rounded-lg">
-                {allowedTargets.map((targetNum, idx) => (
+                {allowedTargets.map((targetNum) => (
                   <button 
-                    key={`target-${targetNum}-${idx}`} 
+                    key={targetNum} 
+                    type="button"
                     onClick={() => setSelectedTarget(targetNum)}
                     className={`shrink-0 w-8 h-8 rounded-lg font-black text-[10px] transition-all border ${selectedTarget === targetNum ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-transparent border-transparent text-slate-900 opacity-60'}`}
                   >
@@ -530,23 +586,53 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
           </div>
         </div>
         
-        {/* Category Filter */}
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-          <button 
-            onClick={() => setSelectedCategory('ALL')}
-            className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all ${selectedCategory === 'ALL' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white border-slate-200 text-slate-600'}`}
-          >
-            ALL
-          </button>
-          {availableCategories.map((cat, idx) => (
-            <button 
-              key={`cat-${String(cat)}-${idx}`}
-              onClick={() => setSelectedCategory(cat as CategoryType)}
-              className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border whitespace-nowrap transition-all ${selectedCategory === cat ? 'bg-slate-900 text-white border-slate-900' : 'bg-white border-slate-200 text-slate-600'}`}
+        {/* Category Filter + Backup Tampilkan Semua Toggle */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 flex-1 min-w-0">
+            {(availableCategories.length > 1 || showAllFallback) && (
+              <button 
+                type="button"
+                onClick={() => setSelectedCategory('ALL')}
+                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-all shrink-0 ${selectedCategory === 'ALL' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white border-slate-200 text-slate-600'}`}
+              >
+                ALL
+              </button>
+            )}
+            {availableCategories.map((cat) => (
+              <button 
+                key={cat}
+                type="button"
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border whitespace-nowrap transition-all shrink-0 ${selectedCategory === cat ? 'bg-slate-900 text-white border-slate-900' : 'bg-white border-slate-200 text-slate-600'}`}
+              >
+                {getCategoryDisplayName(cat, state.settings?.categoryConfigs)}
+              </button>
+            ))}
+            {availableCategories.length === 0 && (
+              <span className="text-[10px] font-bold text-slate-500 italic py-1.5">
+                Tidak ada peserta aktif pada filter sesi/kategori saat ini
+              </span>
+            )}
+          </div>
+
+          {hasAdminActiveFilter && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowAllFallback(prev => !prev);
+                setSelectedCategory('ALL');
+              }}
+              className={`shrink-0 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider border flex items-center gap-1.5 transition-all active:scale-95 ${
+                showAllFallback
+                  ? 'bg-amber-500 text-slate-950 border-amber-600 shadow-xs'
+                  : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
+              }`}
+              title={showAllFallback ? 'Kembali ke mode fokus sesi/kategori aktif dari panitia' : 'Tombol cadangan: tampilkan seluruh kategori & sesi di bantalan tugas Anda'}
             >
-              {CATEGORY_LABELS[cat] || String(cat)}
+              <Eye className="w-3.5 h-3.5" />
+              <span>{showAllFallback ? 'Kembali Fokus' : 'Tampilkan Semua'}</span>
             </button>
-          ))}
+          )}
         </div>
       </div>
 
@@ -555,13 +641,14 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
         <div className="w-full md:w-64 bg-[#FBFBFD] border-r border-slate-200 p-2 overflow-x-auto no-scrollbar flex md:flex-col gap-2 shrink-0">
           {archersAtTarget.map((a, idx) => (
             <button 
-              key={`archer-${a.id || 'noid'}-${idx}`} 
+              key={a.id || `archer-${idx}`} 
+              type="button"
               onClick={() => setSelectedArcherId(a.id)}
               className={`flex-1 md:flex-none p-4 rounded-lg text-left border transition-all duration-200 ${selectedArcherId === a.id ? 'bg-arcus-sun border-yellow-500 text-black shadow-md' : 'bg-white border-slate-200 text-slate-900'}`}
             >
               <div className="flex items-center justify-between">
                 <p className="text-[10px] font-black uppercase tracking-widest">
-                  {a.targetNo}{a.position}
+                  <span>{a.targetNo}{a.position}</span>
                   {(a.sessionName || a.wave > 1) && (
                     <span className="ml-1 text-[8px] font-semibold text-slate-500">
                       • {a.sessionName || `Sesi ${a.wave}`}
@@ -609,7 +696,7 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
                       {selectedArcher.name}
                     </h3>
                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
-                      {selectedArcher.club || 'Independen'} • {CATEGORY_LABELS[selectedArcher.category as CategoryType]}
+                      {selectedArcher.club || 'Independen'} • {getCategoryDisplayName(selectedArcher.category, state.settings?.categoryConfigs)}
                     </p>
                   </div>
                 </div>

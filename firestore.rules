@@ -22,18 +22,29 @@ service cloud.firestore {
     function isAdmin() {
       let hardcoded = ['poedji.sugianto@gmail.com', 'admin@arcus.id', 'arcus.id@gmail.com', 'user@arcus.id', 'poedjisugianto@gmail.com'];
       return isSignedIn() && (
-        request.auth.token.email.lower() in hardcoded ||
-        (exists(/databases/$(database)/documents/profiles/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role in ['SUPERADMIN', 'ADMIN', 'MASTER_ADMIN', 'superadmin', 'admin'])
+        ('email' in request.auth.token && request.auth.token.email is string && request.auth.token.email.lower() in hardcoded) ||
+        (exists(/databases/$(database)/documents/profiles/$(request.auth.uid)) && (
+          get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.get('role', '') in ['SUPERADMIN', 'ADMIN', 'MASTER_ADMIN', 'superadmin', 'admin'] ||
+          get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.get('data', {}).get('role', '') in ['SUPERADMIN', 'ADMIN', 'MASTER_ADMIN', 'superadmin', 'admin']
+        ))
       );
     }
 
     function isDocOwner(ownerId) {
-      return isSignedIn() && (
-        request.auth.uid == ownerId || 
-        request.auth.token.email == ownerId || 
-        request.auth.token.email.lower() == ownerId.lower()
+      return isSignedIn() && ownerId is string && ownerId != '' && (
+        request.auth.uid == ownerId ||
+        ('email' in request.auth.token && request.auth.token.email is string && (
+          request.auth.token.email == ownerId ||
+          request.auth.token.email.lower() == ownerId.lower()
+        ))
       );
+    }
+
+    function isEventOwner(evData) {
+      return isDocOwner(evData.get('ownerId', ''))
+        || isDocOwner(evData.get('settings', {}).get('organizerId', ''))
+        || isDocOwner(evData.get('data', {}).get('ownerId', ''))
+        || isDocOwner(evData.get('data', {}).get('settings', {}).get('organizerId', ''));
     }
 
     // --- 1. Profiles ---
@@ -55,16 +66,15 @@ service cloud.firestore {
       
       // Management restricted to owners or admins, or updating registration rosters/metadata
       allow update: if isAdmin() 
-        || isDocOwner(resource.data.ownerId) 
-        || isDocOwner(resource.data.settings.organizerId)
+        || isEventOwner(resource.data)
         || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['archers', 'officials', 'registrationCount', 'lastRegistrationAt', 'updatedAt', 'data']);
-      allow delete: if isAdmin() || isDocOwner(resource.data.ownerId) || isDocOwner(resource.data.settings.organizerId);
+      allow delete: if isAdmin() || isEventOwner(resource.data);
 
       // Participant Registrations
       match /submissions/{subId} {
         allow read: if true;
         allow create, update: if true; // Registration is public
-        allow delete: if isAdmin() || isDocOwner(get(/databases/$(database)/documents/events/$(eventId)).data.ownerId);
+        allow delete: if isAdmin() || isEventOwner(get(/databases/$(database)/documents/events/$(eventId)).data);
       }
 
       // Scores

@@ -127,6 +127,53 @@ const mergeParticipantPreserveMedia = <T extends Record<string, any>>(existing: 
   };
 };
 
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  };
+}
+
+const logFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth?.currentUser?.uid,
+      email: auth?.currentUser?.email,
+      emailVerified: auth?.currentUser?.emailVerified,
+      isAnonymous: auth?.currentUser?.isAnonymous,
+      tenantId: auth?.currentUser?.tenantId,
+      providerInfo: auth?.currentUser?.providerData?.map(provider => ({
+        providerId: provider.providerId,
+        email: provider.email,
+      })) || []
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  return errInfo;
+};
+
 const getApiAuthHeaders = async (): Promise<Record<string, string>> => {
   try {
     if (auth) {
@@ -1666,7 +1713,10 @@ export default function App() {
       // 2. Sync User Profile
       if (state.currentUser) {
         await setDoc(doc(db, 'profiles', state.currentUser.id), { 
-          id: state.currentUser.id, 
+          id: state.currentUser.id,
+          email: state.currentUser.email || '',
+          name: state.currentUser.name || '',
+          role: state.currentUser.role,
           data: state.currentUser, 
           updatedAt: serverTimestamp() 
         }, { merge: true });
@@ -2001,6 +2051,24 @@ export default function App() {
           await batch.commit();
         }
 
+        const hasRootEventChanges = Object.keys(updated).some(
+          k => k !== 'scores' && k !== 'scoreLogs'
+        );
+
+        if (!hasRootEventChanges) {
+          if (auth?.currentUser) {
+            updateDoc(doc(db, 'events', id), { updatedAt: serverTimestamp() }).catch(() => {});
+          }
+          fetch('/api/cache/invalidate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId: id })
+          }).catch(() => {});
+          pushNotification("Berhasil", "Perubahan disimpan.", "SUCCESS");
+          setHasPendingChanges(false);
+          return;
+        }
+
         const cleanFirestoreUpdate = sanitizeForFirestore(firestoreUpdate);
         await updateDoc(doc(db, 'events', id), cleanFirestoreUpdate);
         fetch('/api/cache/invalidate', {
@@ -2105,10 +2173,15 @@ export default function App() {
           pushNotification("Berhasil (Sync)", "Perubahan disimpan.", "SUCCESS");
           setHasPendingChanges(false);
         } catch (setErr: any) {
-          if (mergedSettingsForSave) {
+          const hasFallbackFields = Boolean(
+            mergedSettingsForSave ||
+            updated.scorerAccess !== undefined ||
+            updated.matches !== undefined
+          );
+          if (hasFallbackFields) {
             try {
               const authHeaders = await getApiAuthHeaders();
-              const safePayloadSettings = stripOversizedDataUrls(mergedSettingsForSave, 30000);
+              const safePayloadSettings = mergedSettingsForSave ? stripOversizedDataUrls(mergedSettingsForSave, 30000) : undefined;
               const apiRes = await fetch(`/api/events/${id}/settings`, {
                 method: 'POST',
                 headers: {
@@ -2116,7 +2189,9 @@ export default function App() {
                   ...authHeaders
                 },
                 body: JSON.stringify({
-                  settings: safePayloadSettings,
+                  ...(safePayloadSettings ? { settings: safePayloadSettings } : {}),
+                  ...(updated.scorerAccess !== undefined ? { scorerAccess: updated.scorerAccess } : {}),
+                  ...(updated.matches !== undefined ? { matches: updated.matches } : {}),
                   authEmail: appStateRef.current.currentUser?.email || auth?.currentUser?.email,
                   authUid: appStateRef.current.currentUser?.id || auth?.currentUser?.uid
                 })
@@ -2141,8 +2216,12 @@ export default function App() {
             return;
           }
 
-          console.error("Critical Firestore Error:", setErr);
-          pushNotification("Gagal Sync", setErr.message || "Network error", "WARNING");
+          logFirestoreError(setErr, OperationType.UPDATE, `events/${id}`);
+          const isPermissionDenied = setErr?.code === 'permission-denied' || String(setErr?.message || '').includes('Missing or insufficient permissions');
+          const notifMessage = isPermissionDenied && !auth?.currentUser
+            ? "Sesi login Anda tidak aktif. Silakan login ulang untuk menyimpan ke cloud."
+            : (isPermissionDenied ? "Izin akses ditolak oleh aturan keamanan database. Pastikan Anda login dengan akun pemilik event atau admin." : (setErr.message || "Network error"));
+          pushNotification("Gagal Sync", notifMessage, "WARNING");
           setHasPendingChanges(true);
         }
       }

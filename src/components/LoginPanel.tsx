@@ -57,7 +57,8 @@ export default function LoginPanel({ users, onLogin, onRegister, onUpdateUser, o
             try {
               const profileSnap = await getDoc(doc(db, 'profiles', user.uid));
               if (profileSnap.exists()) {
-                profileData = profileSnap.data().data;
+                const rawProfile = profileSnap.data();
+                profileData = rawProfile?.data || rawProfile;
               }
             } catch (profileErr) {
               console.warn("Could not fetch profile document from Firestore:", profileErr);
@@ -109,6 +110,9 @@ export default function LoginPanel({ users, onLogin, onRegister, onUpdateUser, o
             try {
               await setDoc(doc(db, 'profiles', user.uid), {
                 id: user.uid,
+                email: newUser.email,
+                name: newUser.name,
+                role: newUser.role,
                 data: newUser,
                 updatedAt: new Date().toISOString()
               }, { merge: true });
@@ -173,7 +177,8 @@ export default function LoginPanel({ users, onLogin, onRegister, onUpdateUser, o
           const profileSnap = await getDoc(doc(db, 'profiles', user.uid));
           exists = profileSnap.exists();
           if (exists) {
-            profileData = profileSnap.data().data;
+            const rawProfile = profileSnap.data();
+            profileData = rawProfile?.data || rawProfile;
           }
         } catch (pErr) {
           console.warn("Google login: could not fetch profile document:", pErr);
@@ -201,6 +206,9 @@ export default function LoginPanel({ users, onLogin, onRegister, onUpdateUser, o
         try {
           await setDoc(doc(db, 'profiles', user.uid), {
             id: user.uid,
+            email: loggedInUser.email,
+            name: loggedInUser.name,
+            role: loggedInUser.role,
             data: loggedInUser,
             updatedAt: new Date().toISOString()
           }, { merge: true });

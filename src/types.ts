@@ -389,6 +389,10 @@ export interface TournamentSettings {
   technicalSupport?: TechnicalSupportAccess;
   certificateConfig?: CertificateConfig;
   autoTargetConfig?: AutoTargetConfig;
+  scorerActiveFilter?: {
+    activeWaves?: number[];
+    activeCategories?: string[];
+  };
 }
 
 export interface DisbursementRequest {

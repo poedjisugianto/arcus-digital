@@ -2099,16 +2099,22 @@ app.get("/api/event-details/:id", async (req, res) => {
 
 app.post("/api/events/:eventId/settings", async (req, res) => {
   const { eventId } = req.params;
-  const { settings, authEmail, authUid } = req.body || {};
+  const { settings, scorerAccess, matches, authEmail, authUid } = req.body || {};
   const authHeader = typeof req.headers.authorization === 'string' && req.headers.authorization.startsWith('Bearer ')
     ? req.headers.authorization
     : undefined;
 
-  if (!eventId || !settings || typeof settings !== 'object') {
+  const hasSettings = Boolean(settings && typeof settings === 'object');
+  const hasScorerAccess = Array.isArray(scorerAccess);
+  const hasMatches = Boolean(matches && typeof matches === 'object');
+
+  if (!eventId || (!hasSettings && !hasScorerAccess && !hasMatches)) {
     return res.status(400).json({ success: false, message: "Missing eventId or settings payload" });
   }
 
-  const cleanSettings = JSON.parse(JSON.stringify(settings));
+  const cleanSettings = hasSettings ? JSON.parse(JSON.stringify(settings)) : null;
+  const cleanScorerAccess = hasScorerAccess ? JSON.parse(JSON.stringify(scorerAccess)) : null;
+  const cleanMatches = hasMatches ? JSON.parse(JSON.stringify(matches)) : null;
   const currentDb = getAdminDB();
 
   const superAdmins = [
@@ -2166,18 +2172,7 @@ app.post("/api/events/:eventId/settings", async (req, res) => {
         return res.status(403).json({ success: false, message: "Unauthorized settings update" });
       }
 
-      const existingBaseSettings = existingData.settings || existingData.data?.settings || {};
-      const mergedSettings = mergeEventSettings(existingBaseSettings, cleanSettings);
-
-      if (mergedSettings.certificateConfig) {
-        await eventRef.collection('shards').doc('certificate').set({
-          certificateConfig: mergedSettings.certificateConfig,
-          updatedAt: FieldValue.serverTimestamp()
-        }, { merge: true }).catch(() => {});
-      }
-
       const updatePayload: Record<string, any> = {
-        settings: mergedSettings,
         "data.settings": FieldValue.delete(),
         "data.registrations": FieldValue.delete(),
         "data.scores": FieldValue.delete(),
@@ -2190,10 +2185,31 @@ app.post("/api/events/:eventId/settings", async (req, res) => {
         updatedAt: FieldValue.serverTimestamp()
       };
 
+      let mergedSettings: any = undefined;
+      if (cleanSettings) {
+        const existingBaseSettings = existingData.settings || existingData.data?.settings || {};
+        mergedSettings = mergeEventSettings(existingBaseSettings, cleanSettings);
+        updatePayload.settings = mergedSettings;
+
+        if (mergedSettings.certificateConfig) {
+          await eventRef.collection('shards').doc('certificate').set({
+            certificateConfig: mergedSettings.certificateConfig,
+            updatedAt: FieldValue.serverTimestamp()
+          }, { merge: true }).catch(() => {});
+        }
+      }
+
+      if (cleanScorerAccess !== null) {
+        updatePayload.scorerAccess = cleanScorerAccess;
+      }
+      if (cleanMatches !== null) {
+        updatePayload.matches = cleanMatches;
+      }
+
       await eventRef.update(updatePayload);
       publicEventsCache = null;
       if (eventDetailsCache[eventId]) delete eventDetailsCache[eventId];
-      return res.json({ success: true, settings: mergedSettings, source: 'admin-sdk' });
+      return res.json({ success: true, ...(mergedSettings ? { settings: mergedSettings } : {}), source: 'admin-sdk' });
     } catch (sdkErr: any) {
       console.warn(`[API/EVENT-SETTINGS] Admin SDK failed for ${eventId}, trying REST fallback:`, sdkErr.message);
     }
@@ -2208,26 +2224,36 @@ app.post("/api/events/:eventId/settings", async (req, res) => {
       return res.status(403).json({ success: false, message: "Unauthorized settings update" });
     }
 
-    const existingBaseSettings = existingData.settings || existingData.data?.settings || {};
-    const mergedSettings = mergeEventSettings(existingBaseSettings, cleanSettings);
-
-    if (mergedSettings.certificateConfig) {
-      await restWriteDoc(
-        `events/${eventId}/shards`,
-        'certificate',
-        {
-          certificateConfig: mergedSettings.certificateConfig,
-          updatedAt: new Date().toISOString()
-        },
-        true,
-        authHeader
-      ).catch(() => {});
-    }
-
     const restPayload: Record<string, any> = {
-      settings: mergedSettings,
       updatedAt: new Date().toISOString()
     };
+
+    let mergedSettings: any = undefined;
+    if (cleanSettings) {
+      const existingBaseSettings = existingData.settings || existingData.data?.settings || {};
+      mergedSettings = mergeEventSettings(existingBaseSettings, cleanSettings);
+      restPayload.settings = mergedSettings;
+
+      if (mergedSettings.certificateConfig) {
+        await restWriteDoc(
+          `events/${eventId}/shards`,
+          'certificate',
+          {
+            certificateConfig: mergedSettings.certificateConfig,
+            updatedAt: new Date().toISOString()
+          },
+          true,
+          authHeader
+        ).catch(() => {});
+      }
+    }
+
+    if (cleanScorerAccess !== null) {
+      restPayload.scorerAccess = cleanScorerAccess;
+    }
+    if (cleanMatches !== null) {
+      restPayload.matches = cleanMatches;
+    }
 
     const ok = await restWriteDoc('events', eventId, restPayload, true, authHeader);
     if (!ok) {
@@ -2235,7 +2261,7 @@ app.post("/api/events/:eventId/settings", async (req, res) => {
     }
     publicEventsCache = null;
     if (eventDetailsCache[eventId]) delete eventDetailsCache[eventId];
-    return res.json({ success: true, settings: mergedSettings, source: 'rest-fallback' });
+    return res.json({ success: true, ...(mergedSettings ? { settings: mergedSettings } : {}), source: 'rest-fallback' });
   } catch (err: any) {
     console.error("[API/EVENT-SETTINGS] Error:", err);
     return res.status(500).json({ success: false, message: err.message });

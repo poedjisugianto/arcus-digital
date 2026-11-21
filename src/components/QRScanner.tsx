@@ -80,13 +80,17 @@ const QRScanner: React.FC<Props> = ({ onScan, onClose }) => {
   };
 
   const stopScanner = async () => {
-    if (qrCodeInstanceRef.current && qrCodeInstanceRef.current.isScanning) {
+    const instance = qrCodeInstanceRef.current;
+    if (instance) {
       try {
-        await qrCodeInstanceRef.current.stop();
-        await qrCodeInstanceRef.current.clear();
+        if (instance.isScanning) {
+          await instance.stop();
+        }
+        instance.clear();
       } catch (err) {
-        console.error("Failed to stop scanner", err);
+        console.warn("Scanner stop/clear warning:", err);
       }
+      qrCodeInstanceRef.current = null;
     }
     setIsScanning(false);
   };
@@ -122,45 +126,44 @@ const QRScanner: React.FC<Props> = ({ onScan, onClose }) => {
         
         {/* Scanner Area */}
         <div className="p-8">
-          <div className="relative group">
-            <div 
-              id={scannerRegionId} 
-              className="overflow-hidden rounded-[2rem] border-4 border-slate-50 bg-slate-100 aspect-square flex items-center justify-center relative"
-            >
-              {!isScanning && !error && (
-                <div className="flex flex-col items-center gap-4 text-slate-700">
-                  <RefreshCw className="w-12 h-12 animate-spin" />
-                  <p className="text-[10px] font-black uppercase tracking-widest">Menyiapkan Kamera...</p>
-                </div>
-              )}
-              
-              {error && (
-                <div className="p-8 text-center space-y-4">
-                  <div className="w-16 h-16 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mx-auto">
-                    <AlertCircle className="w-8 h-8" />
-                  </div>
-                  <p className="text-xs font-bold text-slate-600 leading-relaxed max-w-[200px] mx-auto uppercase italic">
-                    {error}
-                  </p>
-                  <button 
-                    onClick={() => selectedCamera && startScanner(selectedCamera)}
-                    className="px-6 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all"
-                  >
-                    Coba Lagi
-                  </button>
-                </div>
-              )}
+          <div className="relative group overflow-hidden rounded-[2rem] border-4 border-slate-50 bg-slate-100 aspect-square flex items-center justify-center">
+            {/* Dedicated empty mount target for Html5Qrcode (must have NO React children) */}
+            <div id={scannerRegionId} className="w-full h-full" />
 
-              {/* Decorative corners for scanner */}
-              {isScanning && (
-                <>
-                  <div className="absolute top-8 left-8 w-12 h-12 border-t-4 border-l-4 border-arcus-red rounded-tl-xl z-10" />
-                  <div className="absolute top-8 right-8 w-12 h-12 border-t-4 border-r-4 border-arcus-red rounded-tr-xl z-10" />
-                  <div className="absolute bottom-8 left-8 w-12 h-12 border-b-4 border-l-4 border-arcus-red rounded-bl-xl z-10" />
-                  <div className="absolute bottom-8 right-8 w-12 h-12 border-b-4 border-r-4 border-arcus-red rounded-br-xl z-10" />
-                </>
-              )}
-            </div>
+            {!isScanning && !error && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-slate-700 bg-slate-100 pointer-events-none">
+                <RefreshCw className="w-12 h-12 animate-spin" />
+                <p className="text-[10px] font-black uppercase tracking-widest">Menyiapkan Kamera...</p>
+              </div>
+            )}
+            
+            {error && (
+              <div className="absolute inset-0 p-8 text-center flex flex-col items-center justify-center space-y-4 bg-slate-100">
+                <div className="w-16 h-16 bg-red-50 text-red-500 rounded-3xl flex items-center justify-center mx-auto">
+                  <AlertCircle className="w-8 h-8" />
+                </div>
+                <p className="text-xs font-bold text-slate-600 leading-relaxed max-w-[200px] mx-auto uppercase italic">
+                  {error}
+                </p>
+                <button 
+                  type="button"
+                  onClick={() => selectedCamera && startScanner(selectedCamera)}
+                  className="px-6 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all"
+                >
+                  Coba Lagi
+                </button>
+              </div>
+            )}
+
+            {/* Decorative corners for scanner */}
+            {isScanning && (
+              <div className="absolute inset-0 pointer-events-none z-10">
+                <div className="absolute top-8 left-8 w-12 h-12 border-t-4 border-l-4 border-arcus-red rounded-tl-xl" />
+                <div className="absolute top-8 right-8 w-12 h-12 border-t-4 border-r-4 border-arcus-red rounded-tr-xl" />
+                <div className="absolute bottom-8 left-8 w-12 h-12 border-b-4 border-l-4 border-arcus-red rounded-bl-xl" />
+                <div className="absolute bottom-8 right-8 w-12 h-12 border-b-4 border-r-4 border-arcus-red rounded-br-xl" />
+              </div>
+            )}
           </div>
 
           {/* Camera Selection Dropdown */}

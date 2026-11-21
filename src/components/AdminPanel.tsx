@@ -1,6 +1,5 @@
 
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
 import { 
   Save, Calendar, ImageIcon, FileText, Trophy, Target as TargetIcon, 
   Upload, Trash2, Plus, Landmark, CreditCard, X, MapPin, 
@@ -401,6 +400,9 @@ const AdminPanel: React.FC<Props> = ({
   };
 
   const executeFinalSave = async () => {
+    setShowConfirmModal(false);
+    setShowDraftConfirm(false);
+
     try {
       localStorage.setItem(`admin_saved_settings_${eventId}`, JSON.stringify(localSettings));
       localStorage.removeItem(`admin_draft_${eventId}`);
@@ -408,26 +410,18 @@ const AdminPanel: React.FC<Props> = ({
       console.warn("Storage save error:", e);
     }
 
-    if (onSave) {
-      try {
-        await Promise.resolve(onSave(localSettings));
-      } catch (err) {
-        console.error("onSave error:", err);
-      }
-    }
-    if (onUpdateScorers) {
-      try {
-        await Promise.resolve(onUpdateScorers(localScorers));
-      } catch (err) {
-        console.error("onUpdateScorers error:", err);
-      }
-    }
-    
-    setShowConfirmModal(false);
-    setShowDraftConfirm(false);
-    setShowSavedFlag(true);
+    const savePromise = onSave
+      ? Promise.resolve(onSave(localSettings)).catch(err => console.error("onSave error:", err))
+      : Promise.resolve();
+    const scorersPromise = onUpdateScorers
+      ? Promise.resolve(onUpdateScorers(localScorers)).catch(err => console.error("onUpdateScorers error:", err))
+      : Promise.resolve();
+
     setIsDirty(false);
+    setShowSavedFlag(true);
     setTimeout(() => setShowSavedFlag(false), 3000);
+
+    await Promise.all([savePromise, scorersPromise]);
   };
 
   const addScorer = () => {
@@ -640,7 +634,7 @@ const AdminPanel: React.FC<Props> = ({
               disabled={!isDirty}
               className={`flex-1 md:flex-none px-6 md:px-8 py-2.5 md:py-3 rounded-xl text-[8px] md:text-[9px] font-black uppercase tracking-widest flex items-center justify-center gap-2 md:gap-3 transition-all active:scale-95 ${isDirty ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 cursor-not-allowed'}`}
             >
-              <Save className="w-3.5 h-3.5 md:w-4 md:h-4" /> SIMPAN <span className="hidden sm:inline">KONFIGURASI</span>
+              <Save className="w-3.5 h-3.5 md:w-4 md:h-4" /> <span>SIMPAN</span> <span className="hidden sm:inline">KONFIGURASI</span>
             </button>
           </div>
         </div>
@@ -652,32 +646,32 @@ const AdminPanel: React.FC<Props> = ({
               onClick={() => setActiveTab('GENERAL')}
               className={`px-4 md:px-6 py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 whitespace-nowrap relative ${activeTab === 'GENERAL' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
             >
-              <Trophy className={`w-3.5 h-3.5 ${activeTab === 'GENERAL' ? 'text-arcus-red' : ''}`} /> INFO & KATEGORI
-              {activeTab === 'GENERAL' && <motion.div layoutId="admTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
+              <Trophy className={`w-3.5 h-3.5 ${activeTab === 'GENERAL' ? 'text-arcus-red' : ''}`} /> <span>INFO &amp; KATEGORI</span>
+              {activeTab === 'GENERAL' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
             </button>
             <button 
               type="button"
               onClick={() => setActiveTab('RUNDOWN')}
               className={`px-4 md:px-6 py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 whitespace-nowrap relative ${activeTab === 'RUNDOWN' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
             >
-              <Clock className={`w-3.5 h-3.5 ${activeTab === 'RUNDOWN' ? 'text-arcus-red' : ''}`} /> RUNDOWN ACARA
-              {activeTab === 'RUNDOWN' && <motion.div layoutId="admTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
+              <Clock className={`w-3.5 h-3.5 ${activeTab === 'RUNDOWN' ? 'text-arcus-red' : ''}`} /> <span>RUNDOWN ACARA</span>
+              {activeTab === 'RUNDOWN' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
             </button>
             <button 
               type="button"
               onClick={() => setActiveTab('PARTICIPANTS')}
               className={`px-4 md:px-6 py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 whitespace-nowrap relative ${activeTab === 'PARTICIPANTS' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
             >
-              <UsersIcon className={`w-3.5 h-3.5 ${activeTab === 'PARTICIPANTS' ? 'text-arcus-red' : ''}`} /> PESERTA
-              {activeTab === 'PARTICIPANTS' && <motion.div layoutId="admTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
+              <UsersIcon className={`w-3.5 h-3.5 ${activeTab === 'PARTICIPANTS' ? 'text-arcus-red' : ''}`} /> <span>PESERTA</span>
+              {activeTab === 'PARTICIPANTS' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
             </button>
             <button 
               type="button"
               onClick={() => setActiveTab('SCORING')}
               className={`px-4 md:px-6 py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 whitespace-nowrap relative ${activeTab === 'SCORING' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
             >
-              <TargetIcon className={`w-3.5 h-3.5 ${activeTab === 'SCORING' ? 'text-arcus-red' : ''}`} /> INPUT SKOR
-              {activeTab === 'SCORING' && <motion.div layoutId="admTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
+              <TargetIcon className={`w-3.5 h-3.5 ${activeTab === 'SCORING' ? 'text-arcus-red' : ''}`} /> <span>INPUT SKOR</span>
+              {activeTab === 'SCORING' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
             </button>
             {!isPractice && (
               <button 
@@ -685,8 +679,8 @@ const AdminPanel: React.FC<Props> = ({
                 onClick={() => setActiveTab('PAYMENT')}
                 className={`px-4 md:px-6 py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 whitespace-nowrap relative ${activeTab === 'PAYMENT' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
               >
-                <Landmark className={`w-3.5 h-3.5 ${activeTab === 'PAYMENT' ? 'text-arcus-red' : ''}`} /> PEMBAYARAN
-                {activeTab === 'PAYMENT' && <motion.div layoutId="admTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
+                <Landmark className={`w-3.5 h-3.5 ${activeTab === 'PAYMENT' ? 'text-arcus-red' : ''}`} /> <span>PEMBAYARAN</span>
+                {activeTab === 'PAYMENT' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
               </button>
             )}
             {!isPractice && onManageFinance && (
@@ -695,7 +689,7 @@ const AdminPanel: React.FC<Props> = ({
                 onClick={onManageFinance}
                 className="px-4 md:px-6 py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 whitespace-nowrap text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50/50 rounded-t-xl"
               >
-                <Receipt className="w-3.5 h-3.5 text-emerald-600" /> BUKTI BAYAR & KEUANGAN
+                <Receipt className="w-3.5 h-3.5 text-emerald-600" /> <span>BUKTI BAYAR &amp; KEUANGAN</span>
               </button>
             )}
             <button 
@@ -703,8 +697,8 @@ const AdminPanel: React.FC<Props> = ({
               onClick={() => setActiveTab('SCORERS')}
               className={`px-4 md:px-6 py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 whitespace-nowrap relative ${activeTab === 'SCORERS' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
             >
-              <Smartphone className={`w-3.5 h-3.5 ${activeTab === 'SCORERS' ? 'text-arcus-red' : ''}`} /> AKSES PANITIA
-              {activeTab === 'SCORERS' && <motion.div layoutId="admTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
+              <Smartphone className={`w-3.5 h-3.5 ${activeTab === 'SCORERS' ? 'text-arcus-red' : ''}`} /> <span>AKSES PANITIA</span>
+              {activeTab === 'SCORERS' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
             </button>
             {!isPractice && (
               <button 
@@ -712,8 +706,8 @@ const AdminPanel: React.FC<Props> = ({
                 onClick={() => setActiveTab('SPONSORSHIP')}
                 className={`px-4 md:px-6 py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 whitespace-nowrap relative ${activeTab === 'SPONSORSHIP' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
               >
-                <Heart className={`w-3.5 h-3.5 ${activeTab === 'SPONSORSHIP' ? 'text-arcus-red' : ''}`} /> SPONSORSHIP
-                {activeTab === 'SPONSORSHIP' && <motion.div layoutId="admTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
+                <Heart className={`w-3.5 h-3.5 ${activeTab === 'SPONSORSHIP' ? 'text-arcus-red' : ''}`} /> <span>SPONSORSHIP</span>
+                {activeTab === 'SPONSORSHIP' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
               </button>
             )}
           </div>
@@ -2867,6 +2861,196 @@ const AdminPanel: React.FC<Props> = ({
                   </div>
                 </div>
 
+                {/* Pengaturan Kategori & Sesi Aktif di HP Scorer */}
+                {(() => {
+                  const activeWaves = localSettings.scorerActiveFilter?.activeWaves || [];
+                  const activeCategories = localSettings.scorerActiveFilter?.activeCategories || [];
+                  const hasFilter = activeWaves.length > 0 || activeCategories.length > 0;
+
+                  // Collect available waves from archers + waveLabels
+                  const waveNumbers = Array.from(new Set<number>([
+                    1,
+                    ...(archers || []).map(a => Number(a.wave) || 1),
+                    ...Object.keys(localSettings.autoTargetConfig?.waveLabels || {}).map(Number).filter(n => !isNaN(n) && n > 0)
+                  ])).sort((a, b) => a - b);
+
+                  // Collect available categories (configured + present in archers, excluding OFFICIAL)
+                  const configCats = Object.keys(localSettings.categoryConfigs || {}).filter(c => c !== CategoryType.OFFICIAL);
+                  const archerCats = Array.from(new Set((archers || []).map(a => a.category).filter((c): c is string => Boolean(c) && c !== CategoryType.OFFICIAL)));
+                  const allCategories = configCats.length > 0
+                    ? Array.from(new Set([...configCats, ...archerCats]))
+                    : Array.from(new Set([...(Object.keys(CategoryType) as CategoryType[]).filter(c => c !== CategoryType.OFFICIAL), ...archerCats]));
+
+                  const updateScorerFilter = (nextWaves: number[], nextCats: string[]) => {
+                    updateSettings({
+                      scorerActiveFilter: {
+                        activeWaves: nextWaves,
+                        activeCategories: nextCats
+                      }
+                    });
+                  };
+
+                  const applyFilterNow = async () => {
+                    if (!onSave) return;
+                    const lid = toast.loading('Menerapkan filter ke semua HP Scorer...');
+                    try {
+                      localStorage.setItem(`admin_saved_settings_${eventId}`, JSON.stringify(localSettings));
+                      await Promise.resolve(onSave(localSettings));
+                      setIsDirty(false);
+                      toast.success('Pengaturan tampilan HP Scorer berhasil diterapkan!', { id: lid });
+                    } catch (err: any) {
+                      toast.error('Gagal menerapkan ke server: ' + (err?.message || ''), { id: lid });
+                    }
+                  };
+
+                  return (
+                    <div className="bg-gradient-to-br from-slate-900 via-slate-900 to-purple-950 text-white rounded-[2rem] p-6 md:p-8 border border-purple-500/20 shadow-xl space-y-6">
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-white/10 pb-5">
+                        <div className="flex items-start gap-3.5">
+                          <div className="p-3 bg-purple-500/20 border border-purple-400/30 rounded-2xl shrink-0">
+                            <Sliders className="w-5 h-5 text-purple-300" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="text-lg md:text-xl font-black font-oswald uppercase italic tracking-wide text-white">
+                                Filter Kategori &amp; Sesi Aktif di HP Scorer
+                              </h4>
+                              <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
+                                hasFilter
+                                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-400/40'
+                                  : 'bg-white/10 text-slate-300 border-white/15'
+                              }`}>
+                                {hasFilter ? 'Mode Fokus Aktif' : 'Semua Tampil (Default)'}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">
+                              Atur sesi dan/atau kategori yang sedang bertanding agar HP Scorer di lapangan tidak bingung. Tetap mengikuti pembatasan bantalan per scorer dan tersedia tombol cadangan <strong className="text-white">&quot;Tampilkan Semua&quot;</strong> di HP Scorer.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {hasFilter && (
+                            <button
+                              type="button"
+                              onClick={() => updateScorerFilter([], [])}
+                              className="px-3.5 py-2.5 bg-white/10 hover:bg-white/20 text-slate-200 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border border-white/10"
+                            >
+                              Reset (Semua)
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={applyFilterNow}
+                            className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-slate-950 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+                          >
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                            Terapkan ke HP Scorer
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Filter Sesi / Gelombang */}
+                        <div className="space-y-2.5 bg-white/5 border border-white/10 rounded-2xl p-4">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-purple-300 flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5" /> 1. Sesi / Gelombang Aktif
+                            </span>
+                            <span className="text-[9px] text-slate-400 font-bold">
+                              {activeWaves.length === 0 ? 'Semua Sesi' : `${activeWaves.length} Sesi Dipilih`}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => updateScorerFilter([], activeCategories)}
+                              className={`px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
+                                activeWaves.length === 0
+                                  ? 'bg-white text-slate-900 border-white shadow-sm'
+                                  : 'bg-white/5 text-slate-300 border-white/15 hover:bg-white/10'
+                              }`}
+                            >
+                              Semua Sesi
+                            </button>
+                            {waveNumbers.map(w => {
+                              const sample = (archers || []).find(a => (Number(a.wave) || 1) === w && a.sessionName);
+                              const label = localSettings.autoTargetConfig?.waveLabels?.[w] || sample?.sessionName || `Sesi ${w}`;
+                              const isSelected = activeWaves.includes(w);
+                              return (
+                                <button
+                                  key={w}
+                                  type="button"
+                                  onClick={() => {
+                                    const next = isSelected
+                                      ? activeWaves.filter(x => x !== w)
+                                      : [...activeWaves, w].sort((a, b) => a - b);
+                                    updateScorerFilter(next, activeCategories);
+                                  }}
+                                  className={`px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
+                                    isSelected
+                                      ? 'bg-purple-500 text-white border-purple-400 shadow-md shadow-purple-500/30'
+                                      : 'bg-white/5 text-slate-300 border-white/15 hover:bg-white/10'
+                                  }`}
+                                >
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Filter Kategori Aktif */}
+                        <div className="space-y-2.5 bg-white/5 border border-white/10 rounded-2xl p-4">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-300 flex items-center gap-1.5">
+                              <Trophy className="w-3.5 h-3.5" /> 2. Kategori yang Dimainkan
+                            </span>
+                            <span className="text-[9px] text-slate-400 font-bold">
+                              {activeCategories.length === 0 ? 'Semua Kategori' : `${activeCategories.length} Kategori Dipilih`}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto pr-1">
+                            <button
+                              type="button"
+                              onClick={() => updateScorerFilter(activeWaves, [])}
+                              className={`px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
+                                activeCategories.length === 0
+                                  ? 'bg-white text-slate-900 border-white shadow-sm'
+                                  : 'bg-white/5 text-slate-300 border-white/15 hover:bg-white/10'
+                              }`}
+                            >
+                              Semua Kategori
+                            </button>
+                            {allCategories.map(cat => {
+                              const isSelected = activeCategories.includes(cat);
+                              return (
+                                <button
+                                  key={cat}
+                                  type="button"
+                                  onClick={() => {
+                                    const next = isSelected
+                                      ? activeCategories.filter(c => c !== cat)
+                                      : [...activeCategories, cat];
+                                    updateScorerFilter(activeWaves, next);
+                                  }}
+                                  className={`px-3.5 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border ${
+                                    isSelected
+                                      ? 'bg-amber-400 text-slate-950 border-amber-300 shadow-md shadow-amber-400/20'
+                                      : 'bg-white/5 text-slate-300 border-white/15 hover:bg-white/10'
+                                  }`}
+                                >
+                                  {getCategoryDisplayName(cat, localSettings.categoryConfigs)}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   {localScorers.map((scorer, scorerIdx) => {
                     const totalTargets = localSettings.totalTargets || 1;
@@ -3408,8 +3592,8 @@ const AdminPanel: React.FC<Props> = ({
               </p>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <button onClick={() => setShowDraftConfirm(false)} className="py-4 bg-slate-100 text-slate-800 rounded-2xl font-black uppercase text-[10px]">Lengkapi</button>
-              <button onClick={executeFinalSave} className="py-4 bg-arcus-dark text-white rounded-2xl font-black uppercase text-[10px] shadow-xl">Ya, Simpan Draft</button>
+              <button type="button" onClick={() => setShowDraftConfirm(false)} className="py-4 bg-slate-100 text-slate-800 rounded-2xl font-black uppercase text-[10px]">Lengkapi</button>
+              <button type="button" onClick={executeFinalSave} className="py-4 bg-arcus-dark text-white rounded-2xl font-black uppercase text-[10px] shadow-xl">Ya, Simpan Draft</button>
             </div>
           </div>
         </div>
@@ -3472,8 +3656,8 @@ const AdminPanel: React.FC<Props> = ({
               <p className="text-slate-800 text-sm">Data konfigurasi akan segera diterapkan.</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => setShowConfirmModal(false)} className="py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-xs">Batal</button>
-              <button onClick={handleFinalSave} className={`py-3 text-white rounded-xl font-bold text-xs shadow-md ${isPractice ? 'bg-teal-700' : 'bg-slate-900'}`}>Ya, Simpan</button>
+              <button type="button" onClick={() => setShowConfirmModal(false)} className="py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-xs">Batal</button>
+              <button type="button" onClick={handleFinalSave} className={`py-3 text-white rounded-xl font-bold text-xs shadow-md ${isPractice ? 'bg-teal-700' : 'bg-slate-900'}`}>Ya, Simpan</button>
             </div>
           </div>
         </div>
