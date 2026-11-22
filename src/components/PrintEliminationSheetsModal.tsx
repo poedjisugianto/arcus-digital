@@ -33,7 +33,7 @@ export const PrintEliminationSheetsModal: React.FC<Props> = ({
   const [blankCount, setBlankCount] = useState<number>(4);
   const [layoutMode, setLayoutMode] = useState<'2_PER_PAGE' | '1_PER_PAGE'>('2_PER_PAGE');
   const [scoringSystemOverride, setScoringSystemOverride] = useState<'AUTO' | 'SET_SYSTEM' | 'TOTAL_SCORE'>('AUTO');
-  const [numEndsOverride, setNumEndsOverride] = useState<number>(5);
+  const [numEndsOverride, setNumEndsOverride] = useState<number>(0);
   const [numArrowsOverride, setNumArrowsOverride] = useState<number>(3);
 
   // Set initial category when modal opens
@@ -201,7 +201,7 @@ export const PrintEliminationSheetsModal: React.FC<Props> = ({
                     : (catConfig?.scoringSystem || 'SET_SYSTEM');
 
                   const isSetSystem = scoringSystem === 'SET_SYSTEM';
-                  const totalEnds = numEndsOverride || catConfig?.matchEnds || 5;
+                  const totalEnds = numEndsOverride || Math.max(catConfig?.matchEnds || 5, match?.endsA?.length || 0, match?.endsB?.length || 0);
                   const arrowsPerEnd = numArrowsOverride || catConfig?.matchArrowsPerEnd || 3;
 
                   const archerA = getArcher(match?.archerAId);

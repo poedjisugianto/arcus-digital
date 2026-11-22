@@ -950,33 +950,35 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
               {/* Progress & Current Score Display */}
               <div className="space-y-4 sm:space-y-5 text-center">
                 {/* Ends Navigation */}
-                <div className="flex items-center justify-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
-                  {Array.from({ length: effectiveEnds }).map((_, i) => {
-                    const scoreForEnd = (state.scores || []).find(
-                      s =>
-                        s.archerId === selectedArcherId &&
-                        s.endIndex === i &&
-                        getNormalizedScoreSession(s.sessionId) === activeSession &&
-                        !s.isDeleted
-                    );
-                    return (
-                      <button 
-                        key={`end-${i}`} 
-                        type="button"
-                        onClick={() => setCurrentEnd(i)} 
-                        className={`min-w-10 h-10 rounded-xl text-xs font-black border transition-all flex flex-col items-center justify-center ${
-                          currentEnd === i 
-                            ? 'bg-slate-900 border-slate-900 text-white shadow-sm' 
-                            : scoreForEnd 
-                              ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
-                              : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                        }`}
-                      >
-                        <span className="text-[9px]">R{i + 1}</span>
-                        {scoreForEnd && <span className="text-[8px] font-bold opacity-80">{scoreForEnd.total}</span>}
-                      </button>
-                    );
-                  })}
+                <div className="overflow-x-auto no-scrollbar pb-1">
+                  <div className="flex items-center justify-center gap-1.5 w-max min-w-full">
+                    {Array.from({ length: effectiveEnds }).map((_, i) => {
+                      const scoreForEnd = (state.scores || []).find(
+                        s =>
+                          s.archerId === selectedArcherId &&
+                          s.endIndex === i &&
+                          getNormalizedScoreSession(s.sessionId) === activeSession &&
+                          !s.isDeleted
+                      );
+                      return (
+                        <button 
+                          key={`end-${i}`} 
+                          type="button"
+                          onClick={() => setCurrentEnd(i)} 
+                          className={`min-w-10 h-10 rounded-xl text-xs font-black border transition-all flex flex-col items-center justify-center shrink-0 ${
+                            currentEnd === i 
+                              ? 'bg-slate-900 border-slate-900 text-white shadow-sm' 
+                              : scoreForEnd 
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
+                                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                          }`}
+                        >
+                          <span className="text-[9px]">R{i + 1}</span>
+                          {scoreForEnd && <span className="text-[8px] font-bold opacity-80">{scoreForEnd.total}</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
                
                 {/* Arrow Boxes with individual click-to-edit & Active Indicator */}

@@ -1484,6 +1484,9 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
         const mFiveB = m.countback5_B !== undefined ? m.countback5_B : sB.fives;
         const mTotA = m.countbackTotal_A !== undefined ? m.countbackTotal_A : sA.total;
         const mTotB = m.countbackTotal_B !== undefined ? m.countbackTotal_B : sB.total;
+        const targetEndsCount = Math.max(config?.matchEnds || 5, m.endsA?.length || 0, m.endsB?.length || 0);
+        const displayEndsA = Array.from({ length: targetEndsCount }, (_, idx) => m.endsA?.[idx] ?? 0);
+        const displayEndsB = Array.from({ length: targetEndsCount }, (_, idx) => m.endsB?.[idx] ?? 0);
 
         return (
           <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[200] flex items-center justify-center p-4 animate-in fade-in duration-300">
@@ -1512,22 +1515,36 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
               <div className="flex-1 overflow-y-auto p-8 space-y-8">
                  {/* Archer A */}
                  <div className="space-y-4">
-                    <div className="flex items-center gap-4">
-                       <div className="w-10 h-10 bg-purple-600 rounded-xl flex items-center justify-center text-white font-black">A</div>
-                       <div>
-                          <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">{getArcherName(m.archerAId)}</h4>
-                          <p className="text-[9px] font-bold text-slate-700 uppercase tracking-wider">{getArcherClub(m.archerAId)}</p>
+                    <div className="flex items-center justify-between gap-4">
+                       <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 bg-purple-600 rounded-xl flex items-center justify-center text-white font-black">A</div>
+                          <div>
+                             <h4 className="text-xl font-black font-oswald uppercase italic text-slate-900">{getArcherName(m.archerAId)}</h4>
+                             <p className="text-[9px] font-bold text-slate-700 uppercase tracking-wider">{getArcherClub(m.archerAId)}</p>
+                          </div>
                        </div>
+                       <button
+                         type="button"
+                         onClick={() => {
+                           const nextA = [...displayEndsA, 0];
+                           const nextB = [...displayEndsB, 0];
+                           updateMatch(m.id, { endsA: nextA, endsB: nextB });
+                         }}
+                         className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1 transition-all shrink-0"
+                       >
+                         <Plus className="w-3.5 h-3.5" />
+                         <span>Tambah End</span>
+                       </button>
                     </div>
                     <div className="flex flex-wrap gap-2.5">
-                       {(m.endsA && m.endsA.length > 0 ? m.endsA : Array(config?.matchEnds || 5).fill(0)).map((score, idx) => (
+                       {displayEndsA.map((score, idx) => (
                           <div key={idx} className="flex-1 min-w-[65px] space-y-1.5">
                              <p className="text-[9px] font-black text-slate-700 uppercase text-center">End {idx + 1}</p>
                              <input 
                                 type="number" 
                                 value={score} 
                                 onChange={(e) => {
-                                   const current = (m.endsA && m.endsA.length > 0 ? [...m.endsA] : Array(config?.matchEnds || 5).fill(0));
+                                   const current = [...displayEndsA];
                                    current[idx] = parseInt(e.target.value) || 0;
                                    updateMatch(m.id, { endsA: current });
                                 }}
@@ -1550,14 +1567,14 @@ const EliminationPanel: React.FC<Props> = ({ event, onUpdateMatches, onBack }) =
                        </div>
                     </div>
                     <div className="flex flex-wrap gap-2.5">
-                       {(m.endsB && m.endsB.length > 0 ? m.endsB : Array(config?.matchEnds || 5).fill(0)).map((score, idx) => (
+                       {displayEndsB.map((score, idx) => (
                           <div key={idx} className="flex-1 min-w-[65px] space-y-1.5">
                              <p className="text-[9px] font-black text-slate-700 uppercase text-center">End {idx + 1}</p>
                              <input 
                                 type="number" 
                                 value={score} 
                                 onChange={(e) => {
-                                   const current = (m.endsB && m.endsB.length > 0 ? [...m.endsB] : Array(config?.matchEnds || 5).fill(0));
+                                   const current = [...displayEndsB];
                                    current[idx] = parseInt(e.target.value) || 0;
                                    updateMatch(m.id, { endsB: current });
                                 }}

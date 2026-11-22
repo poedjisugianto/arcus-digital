@@ -2357,8 +2357,12 @@ const AdminPanel: React.FC<Props> = ({
                           <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1">Rambahan</span>
                           <input 
                             type="number" 
-                            value={localSettings.categoryConfigs?.[cat]?.ends || 0} 
-                            onChange={e => updateCategoryConfig(cat, 'ends', parseInt(e.target.value) || 0)} 
+                            min="1"
+                            value={localSettings.categoryConfigs?.[cat]?.ends || ''} 
+                            onChange={e => {
+                              const raw = e.target.value;
+                              updateCategoryConfig(cat, 'ends', raw === '' ? 0 : (parseInt(raw, 10) || 0));
+                            }} 
                             className="w-full rounded-lg border-slate-200 p-3 border font-bold text-sm focus:border-arcus-red transition-all text-slate-900" 
                             placeholder="Ends" 
                           />
@@ -2544,8 +2548,16 @@ const AdminPanel: React.FC<Props> = ({
                                     <input
                                       type="number"
                                       min="1"
-                                      value={localSettings.categoryConfigs?.[cat]?.eliminationEnds || 2}
-                                      onChange={e => updateCategoryConfig(cat, 'eliminationEnds', parseInt(e.target.value) || 2)}
+                                      value={localSettings.categoryConfigs?.[cat]?.eliminationEnds === 0 ? '' : (localSettings.categoryConfigs?.[cat]?.eliminationEnds ?? 2)}
+                                      onChange={e => {
+                                        const raw = e.target.value;
+                                        updateCategoryConfig(cat, 'eliminationEnds', raw === '' ? 0 : (parseInt(raw, 10) || 0));
+                                      }}
+                                      onBlur={e => {
+                                        if (!e.target.value || (parseInt(e.target.value, 10) || 0) < 1) {
+                                          updateCategoryConfig(cat, 'eliminationEnds', 2);
+                                        }
+                                      }}
                                       className="w-full rounded-lg border border-purple-200 bg-white p-2 text-center font-black text-xs text-slate-900 outline-none focus:border-purple-600 shadow-xs"
                                       placeholder="2 Rambahan"
                                     />
@@ -2649,8 +2661,16 @@ const AdminPanel: React.FC<Props> = ({
                                   <input 
                                     type="number"
                                     min="1"
-                                    value={localSettings.categoryConfigs?.[cat]?.matchEnds || 5}
-                                    onChange={e => updateCategoryConfig(cat, 'matchEnds', parseInt(e.target.value) || 5)}
+                                    value={localSettings.categoryConfigs?.[cat]?.matchEnds === 0 ? '' : (localSettings.categoryConfigs?.[cat]?.matchEnds ?? 5)}
+                                    onChange={e => {
+                                      const raw = e.target.value;
+                                      updateCategoryConfig(cat, 'matchEnds', raw === '' ? 0 : (parseInt(raw, 10) || 0));
+                                    }}
+                                    onBlur={e => {
+                                      if (!e.target.value || (parseInt(e.target.value, 10) || 0) < 1) {
+                                        updateCategoryConfig(cat, 'matchEnds', 5);
+                                      }
+                                    }}
                                     className="w-full rounded-xl border-purple-200 bg-white p-3 border font-black text-xs text-slate-900 focus:border-purple-600 transition-all text-center shadow-sm"
                                     placeholder="5 Rambahan"
                                   />
