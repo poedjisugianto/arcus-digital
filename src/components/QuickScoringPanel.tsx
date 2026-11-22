@@ -4,11 +4,16 @@ import {
   Save, User, Zap, Hash, Trophy, Keyboard, Search, X, Trash2,
   ScanLine, Lock, ShieldCheck, ChevronsLeft, ChevronsRight,
   Info, RotateCcw, Check, Sparkles, Monitor, Maximize2, Minimize2,
-  Sliders, SlidersHorizontal
+  Sliders, SlidersHorizontal, Swords
 } from 'lucide-react';
 import { ArcheryEvent, ScoreEntry, Archer, CategoryType, TargetType, ScoreLog, ScorerAccess, CategoryConfig } from '../types';
-import { CATEGORY_LABELS } from '../constants';
+import { CATEGORY_LABELS, getCategoryDisplayName } from '../constants';
 import { findCategoryConfig } from '../lib/firestoreUtils';
+import {
+  getCategoryScoringStages,
+  getNormalizedScoreSession,
+  getStageParticipantsAndCompletion
+} from '../lib/bracketSeeding';
 import QRScanner from './QRScanner';
 
 interface Props {
@@ -16,6 +21,7 @@ interface Props {
   currentScorer?: ScorerAccess | null;
   onSaveScore: (score: ScoreEntry | ScoreEntry[], log?: ScoreLog | ScoreLog[]) => void;
   onBack: () => void;
+  onOpenElimination?: (category: string) => void;
 }
 
 export type ArrowVal = number | 'X' | 'M' | -1;
@@ -243,7 +249,7 @@ function getKeypadOptions(targetType?: TargetType): (number | 'X' | 'M')[] {
   return ['X', 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 'M'];
 }
 
-const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore, onBack }) => {
+const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore, onBack, onOpenElimination }) => {
   const [mode, setMode] = useState<'TARGET' | 'CATEGORY'>('TARGET');
   
   const allowedTargets = useMemo(() => {
@@ -258,6 +264,8 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
 
   const [selectedTarget, setSelectedTarget] = useState<number>(() => allowedTargets[0] || 1);
   const [selectedCategory, setSelectedCategory] = useState<CategoryType | 'ALL'>('ALL');
+  const [activeSessionByCategory, setActiveSessionByCategory] = useState<Record<string, string>>({});
+  const manualSessionCategoriesRef = useRef<Set<string>>(new Set());
   const [currentEnd, setCurrentEnd] = useState<number>(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [showToast, setShowToast] = useState<string | null>(null);
@@ -335,20 +343,148 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
   }, [allowedTargets, selectedTarget]);
 
   const availableCategories = useMemo(() => {
-    return Array.from(new Set(event.archers.map(a => a.category)));
+    return Array.from(
+      new Set(
+        (event.archers || [])
+          .filter(a => a && a.category && a.category !== CategoryType.OFFICIAL)
+          .map(a => a.category)
+      )
+    );
   }, [event.archers]);
 
-  // Archers in active scope
-  const archersInScope = useMemo(() => {
+  // Base archers in active scope before stage qualifier filtering
+  const baseArchersInScope = useMemo(() => {
+    const archers = (event.archers || []).filter(a => a && a.category !== CategoryType.OFFICIAL);
     if (mode === 'TARGET') {
-      return event.archers.filter(a => a.targetNo === selectedTarget && allowedTargets.includes(a.targetNo));
+      return archers.filter(a => a.targetNo === selectedTarget && allowedTargets.includes(a.targetNo));
     } else {
-      return event.archers.filter(a => 
+      return archers.filter(a =>
         (selectedCategory === 'ALL' || a.category === selectedCategory) &&
         allowedTargets.includes(a.targetNo)
       );
     }
   }, [event.archers, selectedTarget, selectedCategory, mode, allowedTargets]);
+
+  const activeCategoryForStages = useMemo(() => {
+    if (selectedCategory !== 'ALL') return selectedCategory;
+    if (activeCell?.archerId) {
+      const focused = (event.archers || []).find(a => a.id === activeCell.archerId);
+      if (focused?.category && focused.category !== CategoryType.OFFICIAL) {
+        return focused.category;
+      }
+    }
+    const firstInScope = baseArchersInScope[0];
+    if (firstInScope?.category) return firstInScope.category;
+    return availableCategories[0] || '';
+  }, [selectedCategory, activeCell?.archerId, event.archers, baseArchersInScope, availableCategories]);
+
+  const activeCategoryConfig = useMemo(() => {
+    if (!activeCategoryForStages) return null;
+    return findCategoryConfig(activeCategoryForStages, event.settings?.categoryConfigs) || null;
+  }, [activeCategoryForStages, event.settings?.categoryConfigs]);
+
+  const categoryStages = useMemo(() => {
+    return getCategoryScoringStages(activeCategoryConfig);
+  }, [activeCategoryConfig]);
+
+  const categoryStageStatusMap = useMemo(() => {
+    const map: Record<string, ReturnType<typeof getStageParticipantsAndCompletion>> = {};
+    if (!activeCategoryForStages) return map;
+    const catArchers = (event.archers || []).filter(
+      a => a && a.category !== CategoryType.OFFICIAL && a.category === activeCategoryForStages
+    );
+    categoryStages.forEach(st => {
+      map[st.sessionId] = getStageParticipantsAndCompletion(
+        catArchers,
+        event.scores || [],
+        activeCategoryConfig,
+        st.sessionId
+      );
+    });
+    return map;
+  }, [activeCategoryForStages, event.archers, event.scores, activeCategoryConfig, categoryStages]);
+
+  const activeSession = useMemo(() => {
+    if (!activeCategoryForStages || categoryStages.length === 0) return 'QUAL';
+    const chosen = activeSessionByCategory[activeCategoryForStages];
+    if (chosen && categoryStages.some(s => s.sessionId === chosen)) {
+      return chosen;
+    }
+    const firstIncomplete = categoryStages.find(st => !categoryStageStatusMap[st.sessionId]?.isComplete);
+    return (firstIncomplete || categoryStages[categoryStages.length - 1]).sessionId;
+  }, [activeCategoryForStages, activeSessionByCategory, categoryStages, categoryStageStatusMap]);
+
+  // Auto-open the next incomplete elimination stage when opening a category whose qualification is already complete
+  useEffect(() => {
+    if (!activeCategoryForStages || categoryStages.length <= 1) return;
+    if (manualSessionCategoriesRef.current.has(activeCategoryForStages)) return;
+    const firstIncomplete = categoryStages.find(st => !categoryStageStatusMap[st.sessionId]?.isComplete);
+    const targetSession = (firstIncomplete || categoryStages[categoryStages.length - 1]).sessionId;
+    if (activeSessionByCategory[activeCategoryForStages] !== targetSession) {
+      setActiveSessionByCategory(prev => ({ ...prev, [activeCategoryForStages]: targetSession }));
+      setCurrentEnd(0);
+    }
+  }, [activeCategoryForStages, categoryStages, categoryStageStatusMap]);
+
+  const activeStageInfo = categoryStageStatusMap[activeSession];
+  const currentStageIndex = categoryStages.findIndex(s => s.sessionId === activeSession);
+  const currentStageMeta = categoryStages[currentStageIndex] || categoryStages[0];
+  const nextStageMeta = currentStageIndex >= 0 && currentStageIndex < categoryStages.length - 1
+    ? categoryStages[currentStageIndex + 1]
+    : null;
+  const isElimSession = activeSession.startsWith('ELIM_');
+
+  const getStageArrowsCount = useCallback((cfg?: Partial<CategoryConfig> | null) => {
+    return isElimSession
+      ? Math.max(1, Number(cfg?.eliminationArrows) || 6)
+      : Math.max(1, Number(cfg?.arrows) || 6);
+  }, [isElimSession]);
+
+  const getStageEndsCount = useCallback((cfg?: Partial<CategoryConfig> | null) => {
+    return isElimSession
+      ? Math.max(1, Number(cfg?.eliminationEnds) || 2)
+      : Math.max(1, Number(cfg?.ends) || 6);
+  }, [isElimSession]);
+
+  const handleSelectSession = (sessionId: string) => {
+    if (!activeCategoryForStages) return;
+    manualSessionCategoriesRef.current.add(activeCategoryForStages);
+    setActiveSessionByCategory(prev => ({ ...prev, [activeCategoryForStages]: sessionId }));
+    setCurrentEnd(0);
+    dirtyArchersRef.current = {};
+    setDirtyArchers({});
+    setActiveCell(null);
+  };
+
+  // Archers in active scope (filtered to qualifiers in ELIM_* stages when previous stage scores exist)
+  const archersInScope = useMemo(() => {
+    if (isElimSession && activeStageInfo?.hasPreviousStageScores) {
+      return baseArchersInScope.filter(
+        a => a.category !== activeCategoryForStages || activeStageInfo.qualifiedIds.has(a.id)
+      );
+    }
+    return baseArchersInScope;
+  }, [baseArchersInScope, isElimSession, activeStageInfo, activeCategoryForStages]);
+
+  // If in an ELIM_N stage and current target has no qualified archers, auto-jump to a target that has qualifiers
+  useEffect(() => {
+    if (mode !== 'TARGET' || !isElimSession || !activeStageInfo?.hasPreviousStageScores) return;
+    if (Object.values(dirtyArchersRef.current).some(Boolean)) return;
+    if (archersInScope.length > 0) return;
+
+    const targetWithQualifiers = allowedTargets.find(t =>
+      (event.archers || []).some(
+        a =>
+          a &&
+          a.category !== CategoryType.OFFICIAL &&
+          Number(a.targetNo) === t &&
+          (a.category !== activeCategoryForStages || activeStageInfo.qualifiedIds.has(a.id))
+      )
+    );
+    if (targetWithQualifiers !== undefined && targetWithQualifiers !== selectedTarget) {
+      setSelectedTarget(targetWithQualifiers);
+    }
+  }, [mode, isElimSession, activeStageInfo, archersInScope.length, allowedTargets, event.archers, activeCategoryForStages, selectedTarget]);
 
   // Sorted by position A, B, C, D
   const archersToDisplay = useMemo(() => {
@@ -378,26 +514,35 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
 
   // Determine max arrows per end among archers in scope (usually 6 or 3)
   const maxArrowsInScope = useMemo(() => {
-    if (archersToDisplay.length === 0) return 6;
-    let max = 6;
+    if (archersToDisplay.length === 0) return getStageArrowsCount(activeCategoryConfig);
+    let max = getStageArrowsCount(activeCategoryConfig);
     archersToDisplay.forEach(a => {
-      const config = (event.settings?.categoryConfigs || {})[a.category as CategoryType];
-      if (config?.arrows && config.arrows > max) max = config.arrows;
+      const config = findCategoryConfig(a.category, event.settings?.categoryConfigs);
+      const arrowCount = getStageArrowsCount(config);
+      if (arrowCount > max) max = arrowCount;
     });
     return max;
-  }, [archersToDisplay, event.settings?.categoryConfigs]);
+  }, [archersToDisplay, event.settings?.categoryConfigs, activeCategoryConfig, getStageArrowsCount]);
 
-  // Determine total ends from category config or default 6
+  // Determine total ends from category config or default
   const totalEnds = useMemo(() => {
-    if (archersToDisplay.length === 0) return 6;
+    if (archersToDisplay.length === 0) {
+      return getStageEndsCount(activeCategoryConfig);
+    }
     const firstArcher = archersToDisplay[0];
-    const config = (event.settings?.categoryConfigs || {})[firstArcher.category as CategoryType];
-    return config?.ends || 6;
-  }, [archersToDisplay, event.settings?.categoryConfigs]);
+    const config = findCategoryConfig(firstArcher.category, event.settings?.categoryConfigs);
+    return getStageEndsCount(config);
+  }, [archersToDisplay, event.settings?.categoryConfigs, activeCategoryConfig, getStageEndsCount]);
 
-  // Load existing scores into local state when switching Target or End (preserving unsaved edits on background snapshots)
   useEffect(() => {
-    const scopeKey = `${selectedTarget}_${currentEnd}_${mode}_${selectedCategory}`;
+    if (currentEnd >= totalEnds) {
+      setCurrentEnd(0);
+    }
+  }, [totalEnds, currentEnd]);
+
+  // Load existing scores into local state when switching Target, End, or Stage (preserving unsaved edits on background snapshots)
+  useEffect(() => {
+    const scopeKey = `${selectedTarget}_${currentEnd}_${mode}_${selectedCategory}_${activeSession}`;
     const scopeChanged = prevScopeKeyRef.current !== scopeKey;
     prevScopeKeyRef.current = scopeKey;
 
@@ -419,15 +564,15 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
         }
 
         const config = findCategoryConfig(a.category, event.settings?.categoryConfigs);
-        const numArrows = config?.arrows || 6;
+        const numArrows = getStageArrowsCount(config);
 
         const existing = scoresList
           .filter(s => {
             if (!s || s.isDeleted) return false;
-            const norm = (s.sessionId === '1' || s.sessionId === '2' || !s.sessionId) ? 'QUAL' : s.sessionId;
+            const norm = getNormalizedScoreSession(s.sessionId);
             const isSameArcher = String(s.archerId) === String(a.id);
             const isSameEnd = Number(s.endIndex) === Number(currentEnd);
-            return isSameArcher && isSameEnd && norm === 'QUAL';
+            return isSameArcher && isSameEnd && norm === activeSession;
           })
           .sort((scoreA, scoreB) => getScoreTimestamp(scoreB.lastUpdated) - getScoreTimestamp(scoreA.lastUpdated))[0];
 
@@ -467,7 +612,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
 
       return nextScores;
     });
-  }, [selectedTarget, currentEnd, mode, selectedCategory, archersToDisplay, event.scores, event.settings?.categoryConfigs]);
+  }, [selectedTarget, currentEnd, mode, selectedCategory, activeSession, archersToDisplay, event.scores, event.settings?.categoryConfigs, getStageArrowsCount]);
 
   const tableArcherConfig = useMemo(() => {
     const focusedArcher = archersToDisplay.find(a => a.id === activeCell?.archerId) || archersToDisplay[0];
@@ -507,10 +652,10 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
       let pastTotal = 0;
       scoresList.forEach(s => {
         if (!s || s.isDeleted) return;
-        const norm = (s.sessionId === '1' || s.sessionId === '2' || !s.sessionId) ? 'QUAL' : s.sessionId;
+        const norm = getNormalizedScoreSession(s.sessionId);
         const isSameArcher = String(s.archerId) === String(a.id);
         const endNum = Number(s.endIndex ?? 0);
-        if (isSameArcher && norm === 'QUAL' && !isNaN(endNum) && endNum < currentEnd) {
+        if (isSameArcher && norm === activeSession && !isNaN(endNum) && endNum < currentEnd) {
           pastTotal += (s.total || 0);
         }
       });
@@ -518,7 +663,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
     });
 
     return map;
-  }, [archersToDisplay, event.scores, currentEnd]);
+  }, [archersToDisplay, event.scores, currentEnd, activeSession]);
 
   // Target completion overview for rapid visual status
   const targetCompletionMap = useMemo(() => {
@@ -526,7 +671,15 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
     const res: Record<number, 'FULL' | 'PARTIAL' | 'EMPTY'> = {};
 
     allowedTargets.forEach(tNum => {
-      const archersOnTarget = event.archers.filter(a => a.targetNo === tNum);
+      const baseOnTarget = (event.archers || []).filter(
+        a => a && a.category !== CategoryType.OFFICIAL && a.targetNo === tNum
+      );
+      const archersOnTarget =
+        isElimSession && activeStageInfo?.hasPreviousStageScores
+          ? baseOnTarget.filter(
+              a => a.category !== activeCategoryForStages || activeStageInfo.qualifiedIds.has(a.id)
+            )
+          : baseOnTarget;
       if (archersOnTarget.length === 0) {
         res[tNum] = 'EMPTY';
         return;
@@ -537,8 +690,8 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
         const hasScore = scoresList.some(s => 
           !s.isDeleted && 
           s.archerId === a.id && 
-          s.endIndex === currentEnd && 
-          (s.sessionId === 'QUAL' || !s.sessionId || s.sessionId === '1')
+          Number(s.endIndex) === Number(currentEnd) && 
+          getNormalizedScoreSession(s.sessionId) === activeSession
         );
         if (hasScore) scoredCount++;
       });
@@ -553,7 +706,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
     });
 
     return res;
-  }, [event.archers, event.scores, allowedTargets, currentEnd]);
+  }, [event.archers, event.scores, allowedTargets, currentEnd, activeSession, isElimSession, activeStageInfo, activeCategoryForStages]);
 
   // Move focus to next arrow cell, or next archer's first cell
   const advanceToNextCell = useCallback((archerId: string, arrowIdx: number) => {
@@ -561,8 +714,8 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
     if (archerIdx === -1) return;
 
     const a = archersToDisplay[archerIdx];
-    const config = (event.settings?.categoryConfigs || {})[a.category as CategoryType];
-    const maxArrows = config?.arrows || 6;
+    const config = findCategoryConfig(a.category, event.settings?.categoryConfigs);
+    const maxArrows = getStageArrowsCount(config);
 
     if (arrowIdx < maxArrows - 1) {
       // Next arrow of same archer
@@ -580,7 +733,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
         setActiveCell(null);
       }
     }
-  }, [archersToDisplay, event.settings?.categoryConfigs]);
+  }, [archersToDisplay, event.settings?.categoryConfigs, getStageArrowsCount]);
 
   // Move focus to previous arrow cell
   const retreatToPreviousCell = useCallback((archerId: string, arrowIdx: number) => {
@@ -593,21 +746,22 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
       cellRefs.current[`${archerId}-${prevIdx}`]?.focus();
     } else if (archerIdx > 0) {
       const prevArcher = archersToDisplay[archerIdx - 1];
-      const prevConfig = (event.settings?.categoryConfigs || {})[prevArcher.category as CategoryType];
-      const prevMax = (prevConfig?.arrows || 6) - 1;
+      const prevConfig = findCategoryConfig(prevArcher.category, event.settings?.categoryConfigs);
+      const prevMax = getStageArrowsCount(prevConfig) - 1;
       setActiveCell({ archerId: prevArcher.id, arrowIdx: prevMax });
       cellRefs.current[`${prevArcher.id}-${prevMax}`]?.focus();
     }
-  }, [archersToDisplay, event.settings?.categoryConfigs]);
+  }, [archersToDisplay, event.settings?.categoryConfigs, getStageArrowsCount]);
 
   // Set an arrow's value and auto calculate
   const handleSetArrowValue = useCallback((archerId: string, arrowIdx: number, val: number | 'X' | 'M' | -1) => {
     const archer = archersToDisplay.find(a => a.id === archerId);
     const config = findCategoryConfig(archer?.category, event.settings?.categoryConfigs);
+    const numArrows = getStageArrowsCount(config);
 
     setLocalArcherScores(prev => {
       const current = prev[archerId] || {
-        arrows: new Array(config?.arrows || 6).fill(-1),
+        arrows: new Array(numArrows).fill(-1),
         total: 0,
         count6: 0,
         count5: 0
@@ -636,7 +790,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
     if (val !== -1) {
       advanceToNextCell(archerId, arrowIdx);
     }
-  }, [archersToDisplay, event.settings?.categoryConfigs, advanceToNextCell]);
+  }, [archersToDisplay, event.settings?.categoryConfigs, advanceToNextCell, getStageArrowsCount]);
 
   // Handle keystrokes on cell
   const handleCellKeyDown = (
@@ -776,6 +930,8 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
     }
   };
 
+  const handleSaveTargetRef = useRef<(shouldAdvance?: boolean) => void>(() => {});
+
   // Global Page Navigation Shortcuts
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
@@ -784,7 +940,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
       // Ctrl + S: Save All
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
-        handleSaveTarget();
+        handleSaveTargetRef.current();
         return;
       }
 
@@ -815,15 +971,15 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
   // Reset an archer's end
   const handleResetArcherEnd = (archerId: string) => {
     const archer = archersToDisplay.find(a => a.id === archerId);
-    if (!confirm(`Reset nilai Rambahan ${currentEnd + 1} untuk ${archer?.name || 'pemanah ini'}?`)) return;
+    if (!confirm(`Reset nilai Rambahan ${currentEnd + 1} (${currentStageMeta?.shortLabel || 'Kualifikasi'}) untuk ${archer?.name || 'pemanah ini'}?`)) return;
 
-    const config = archer ? (event.settings?.categoryConfigs || {})[archer.category as CategoryType] : null;
-    const numArrows = config?.arrows || 6;
+    const config = archer ? findCategoryConfig(archer.category, event.settings?.categoryConfigs) : null;
+    const numArrows = getStageArrowsCount(config);
     const dummyArrows: (number | 'X')[] = new Array(numArrows).fill(-1);
 
     onSaveScore({
       archerId,
-      sessionId: 'QUAL',
+      sessionId: activeSession,
       endIndex: currentEnd,
       arrows: dummyArrows,
       total: 0,
@@ -859,8 +1015,8 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
       const state = localArcherScores[a.id];
       if (!state) return;
 
-      const config = (event.settings?.categoryConfigs || {})[a.category as CategoryType];
-      const numArrows = config?.arrows || 6;
+      const config = findCategoryConfig(a.category, event.settings?.categoryConfigs);
+      const numArrows = getStageArrowsCount(config);
 
       // Filter or sanitize arrows
       const finalArrows: (number | 'X')[] = state.arrows.map((v: ArrowVal): (number | 'X') => {
@@ -875,7 +1031,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
 
       scoresToSave.push({
         archerId: a.id,
-        sessionId: 'QUAL',
+        sessionId: activeSession,
         endIndex: currentEnd,
         arrows: finalArrows,
         total: state.total,
@@ -901,7 +1057,41 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
       setDirtyArchers({});
     }
 
-    setShowToast(`Bantalan ${selectedTarget} - Rambahan ${currentEnd + 1} Tersimpan!`);
+    // Check if saving this target completes any affected category's current stage
+    const savedCats = Array.from(new Set(archersToDisplay.map(a => a.category).filter(Boolean)));
+    for (const savedCat of savedCats) {
+      const savedCatConfig = findCategoryConfig(savedCat, event.settings?.categoryConfigs) || null;
+      const stagesForCat = getCategoryScoringStages(savedCatConfig);
+      const stageIdx = stagesForCat.findIndex(st => st.sessionId === activeSession);
+      const catArchers = (event.archers || []).filter(
+        a => a && a.category !== CategoryType.OFFICIAL && a.category === savedCat
+      );
+      const completionAfterSave = getStageParticipantsAndCompletion(
+        catArchers,
+        event.scores || [],
+        savedCatConfig,
+        activeSession,
+        scoresToSave
+      );
+
+      if (completionAfterSave.isComplete) {
+        if (stageIdx >= 0 && stageIdx < stagesForCat.length - 1) {
+          const nextStage = stagesForCat[stageIdx + 1];
+          manualSessionCategoriesRef.current.delete(savedCat);
+          setActiveSessionByCategory(prev => ({ ...prev, [savedCat]: nextStage.sessionId }));
+          setCurrentEnd(0);
+          setShowToast(`Babak ${stagesForCat[stageIdx].label} Selesai! Membuka Input Skor ${nextStage.label}...`);
+          setTimeout(() => setShowToast(null), 2800);
+          return;
+        } else if ((savedCatConfig?.h2hStartSize || 0) > 0) {
+          setShowToast(`Babak ${stagesForCat[stageIdx]?.label || 'Kualifikasi'} Selesai! Siap Lanjut ke Bagan Aduan (${savedCatConfig?.h2hStartSize} Besar).`);
+          setTimeout(() => setShowToast(null), 3000);
+          return;
+        }
+      }
+    }
+
+    setShowToast(`Bantalan ${selectedTarget} (${currentStageMeta?.shortLabel || 'Kualifikasi'} • R${currentEnd + 1}) Tersimpan!`);
 
     if (advance) {
       setTimeout(() => {
@@ -918,6 +1108,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
       setTimeout(() => setShowToast(null), 1800);
     }
   };
+  handleSaveTargetRef.current = handleSaveTarget;
 
   // QR & Barcode Scanner Handler
   const handleScan = (data: string) => {
@@ -1185,6 +1376,75 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
           </div>
         </div>
 
+        {/* Stage Switcher & Next Round Banner */}
+        {(categoryStages.length > 1 || (activeStageInfo?.isComplete && (activeCategoryConfig?.h2hStartSize || 0) > 0)) && (
+          <div className={`border-t border-slate-100 flex flex-col gap-2 ${isCompact ? 'mt-2.5 pt-2.5' : 'mt-4 pt-4'}`}>
+            {categoryStages.length > 1 && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[9px] font-black uppercase tracking-wider text-slate-500 mr-1">
+                  Babak ({getCategoryDisplayName(activeCategoryForStages, event.settings?.categoryConfigs)}):
+                </span>
+                {categoryStages.map(st => {
+                  const stInfo = categoryStageStatusMap[st.sessionId];
+                  const isSel = activeSession === st.sessionId;
+                  const isDone = Boolean(stInfo?.isComplete);
+                  return (
+                    <button
+                      key={st.sessionId}
+                      type="button"
+                      onClick={() => handleSelectSession(st.sessionId)}
+                      className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider border transition-all flex items-center gap-1.5 ${
+                        isSel
+                          ? st.sessionId === 'QUAL'
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                            : 'bg-purple-700 text-white border-purple-700 shadow-xs'
+                          : isDone
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                            : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      <span>{st.label}</span>
+                      {isDone && <CheckCircle2 className="w-3 h-3 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {activeStageInfo?.isComplete && (nextStageMeta || (activeCategoryConfig?.h2hStartSize || 0) > 0) && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3.5 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-emerald-950">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span className="text-xs font-bold">
+                    {nextStageMeta
+                      ? `Babak ${currentStageMeta?.label} (${getCategoryDisplayName(activeCategoryForStages, event.settings?.categoryConfigs)}) selesai! Lanjut input skor ${nextStageMeta.label}.`
+                      : `Babak ${currentStageMeta?.label} (${getCategoryDisplayName(activeCategoryForStages, event.settings?.categoryConfigs)}) selesai! Siap masuk Bagan Aduan (${activeCategoryConfig?.h2hStartSize} Besar).`}
+                  </span>
+                </div>
+                {nextStageMeta ? (
+                  <button
+                    type="button"
+                    onClick={() => handleSelectSession(nextStageMeta.sessionId)}
+                    className="shrink-0 px-3.5 py-1.5 bg-purple-700 hover:bg-purple-800 text-white rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-xs active:scale-95"
+                  >
+                    <span>Buka {nextStageMeta.label}</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                ) : onOpenElimination ? (
+                  <button
+                    type="button"
+                    onClick={() => onOpenElimination(activeCategoryForStages)}
+                    className="shrink-0 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-xs active:scale-95"
+                  >
+                    <Swords className="w-3.5 h-3.5" />
+                    <span>Buka Bagan Aduan ({activeCategoryConfig?.h2hStartSize} Besar)</span>
+                  </button>
+                ) : null}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Ianseo Target Quick Strip */}
         <div className={`border-t border-slate-100 flex items-center justify-between gap-2 overflow-x-auto ${isCompact ? 'mt-2.5 pt-2.5' : 'mt-4 pt-4'}`}>
           <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
@@ -1247,7 +1507,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
             </span>
             <div>
               <h3 className={`${isCompact ? 'text-base' : 'text-lg'} font-black font-oswald uppercase italic text-slate-900 leading-none`}>
-                Bantalan {selectedTarget} &bull; Rambahan {currentEnd + 1}
+                Bantalan {selectedTarget} &bull; {currentStageMeta?.label || 'Kualifikasi'} &bull; Rambahan {currentEnd + 1}
               </h3>
               <p className="text-[10px] md:text-[11px] font-semibold text-slate-600 mt-0.5">
                 Ketik nilai di Numpad &bull; Panah otomatis lompat ke atlet berikutnya setelah terisi penuh &bull; Tekan Tab atau Panah
@@ -1290,7 +1550,8 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
               {archersToDisplay.map((archer, archerIdx) => {
                 const config = findCategoryConfig(archer.category, event.settings?.categoryConfigs);
                 const targetType = config?.targetType;
-                const numArrows = config?.arrows || 6;
+                const numArrows = getStageArrowsCount(config);
+                const elimRank = isElimSession ? activeStageInfo?.rankMap?.[archer.id] : undefined;
                 const archerScore = localArcherScores[archer.id] || {
                   arrows: new Array(numArrows).fill(-1),
                   total: 0,
@@ -1316,6 +1577,11 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
                       <div className={`${isCompact ? 'w-8 h-8 text-sm rounded-lg' : 'w-12 h-12 text-xl rounded-2xl'} mx-auto bg-slate-900 text-white font-black font-oswald italic flex items-center justify-center shadow-xs`}>
                         {archer.targetNo || selectedTarget}{archer.position || String.fromCharCode(65 + archerIdx)}
                       </div>
+                      {elimRank && (
+                        <span className="mt-1 inline-block px-1.5 py-0.5 rounded bg-purple-700 text-white text-[9px] font-black">
+                          #{elimRank}
+                        </span>
+                      )}
                     </td>
 
                     {/* Archer Name & Club */}

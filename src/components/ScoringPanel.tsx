@@ -1,10 +1,16 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, Target, QrCode, X, User, Delete, CheckCircle2, 
-  ChevronRight, ChevronLeft, Trash2, ScanLine, ShieldCheck, Lock, LogOut, Eye
+  ChevronRight, ChevronLeft, Trash2, ScanLine, ShieldCheck, Lock, LogOut, Eye, Swords
 } from 'lucide-react';
 import { ArcheryEvent, ScoreEntry, Archer, TargetType, ScoreLog, CategoryType, ScorerAccess } from '../types';
 import { getCategoryDisplayName } from '../constants';
+import { findCategoryConfig } from '../lib/firestoreUtils';
+import {
+  getCategoryScoringStages,
+  getNormalizedScoreSession,
+  getStageParticipantsAndCompletion
+} from '../lib/bracketSeeding';
 import QRScanner from './QRScanner';
 
 interface Props {
@@ -13,9 +19,10 @@ interface Props {
   onSaveScore: (score: ScoreEntry | ScoreEntry[], log?: ScoreLog | ScoreLog[]) => void;
   onBack?: () => void;
   onLogoutScorer?: () => void;
+  onOpenElimination?: (category: string) => void;
 }
 
-const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBack, onLogoutScorer }) => {
+const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBack, onLogoutScorer, onOpenElimination }) => {
   const [selectedCategory, setSelectedCategory] = useState<string | 'ALL'>('ALL');
   const [showAllFallback, setShowAllFallback] = useState(false);
 
@@ -42,6 +49,8 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
 
   const [selectedTarget, setSelectedTarget] = useState<number>(() => allowedTargets[0] || 1);
   const [selectedArcherId, setSelectedArcherId] = useState<string | null>(null);
+  const [activeSessionByCategory, setActiveSessionByCategory] = useState<Record<string, string>>({});
+  const manualSessionCategoriesRef = useRef<Set<string>>(new Set());
   const [currentEnd, setCurrentEnd] = useState(0);
   const [tempArrows, setTempArrows] = useState<(number | 'X')[]>([]);
   const [activeArrowIndex, setActiveArrowIndex] = useState<number | null>(null);
@@ -108,52 +117,166 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
     }
   }, [availableCategories, selectedCategory]);
 
-  const archersAtTarget = useMemo(() => {
-    return scopedArchers
-      .filter(a => 
-        Number(a.targetNo) === selectedTarget && 
-        (selectedCategory === 'ALL' || a.category === selectedCategory)
-      )
-      .sort((a, b) => (a.position || "").localeCompare(b.position || ""));
-  }, [scopedArchers, selectedTarget, selectedCategory]);
-
   const selectedArcher = useMemo(() => {
     return (state.archers || []).find(a => a.id === selectedArcherId);
   }, [state.archers, selectedArcherId]);
 
-  const config = selectedArcher ? ((state.settings?.categoryConfigs || {})[selectedArcher.category as CategoryType]) : null;
+  const activeCategoryForStages = useMemo(() => {
+    if (selectedArcher?.category) return selectedArcher.category;
+    if (selectedCategory !== 'ALL') return selectedCategory;
+    return availableCategories[0] || '';
+  }, [selectedArcher?.category, selectedCategory, availableCategories]);
+
+  const activeCategoryConfig = useMemo(() => {
+    if (!activeCategoryForStages) return null;
+    return findCategoryConfig(activeCategoryForStages, state.settings?.categoryConfigs) || null;
+  }, [activeCategoryForStages, state.settings?.categoryConfigs]);
+
+  const categoryStages = useMemo(() => {
+    return getCategoryScoringStages(activeCategoryConfig);
+  }, [activeCategoryConfig]);
+
+  const categoryStageStatusMap = useMemo(() => {
+    const map: Record<string, ReturnType<typeof getStageParticipantsAndCompletion>> = {};
+    if (!activeCategoryForStages) return map;
+    const catArchers = (state.archers || []).filter(
+      a => a && a.category !== CategoryType.OFFICIAL && a.category === activeCategoryForStages
+    );
+    categoryStages.forEach(st => {
+      map[st.sessionId] = getStageParticipantsAndCompletion(
+        catArchers,
+        state.scores || [],
+        activeCategoryConfig,
+        st.sessionId
+      );
+    });
+    return map;
+  }, [activeCategoryForStages, state.archers, state.scores, activeCategoryConfig, categoryStages]);
+
+  const activeSession = useMemo(() => {
+    if (!activeCategoryForStages || categoryStages.length === 0) return 'QUAL';
+    const chosen = activeSessionByCategory[activeCategoryForStages];
+    if (chosen && categoryStages.some(s => s.sessionId === chosen)) {
+      return chosen;
+    }
+    const firstIncomplete = categoryStages.find(st => !categoryStageStatusMap[st.sessionId]?.isComplete);
+    return (firstIncomplete || categoryStages[categoryStages.length - 1]).sessionId;
+  }, [activeCategoryForStages, activeSessionByCategory, categoryStages, categoryStageStatusMap]);
+
+  // Auto-open the next incomplete elimination stage when opening a category whose qualification is already complete
+  useEffect(() => {
+    if (!activeCategoryForStages || categoryStages.length <= 1) return;
+    if (manualSessionCategoriesRef.current.has(activeCategoryForStages)) return;
+    const firstIncomplete = categoryStages.find(st => !categoryStageStatusMap[st.sessionId]?.isComplete);
+    const targetSession = (firstIncomplete || categoryStages[categoryStages.length - 1]).sessionId;
+    if (activeSessionByCategory[activeCategoryForStages] !== targetSession) {
+      setActiveSessionByCategory(prev => ({ ...prev, [activeCategoryForStages]: targetSession }));
+      setCurrentEnd(0);
+    }
+  }, [activeCategoryForStages, categoryStages, categoryStageStatusMap]);
+
+  const activeStageInfo = categoryStageStatusMap[activeSession];
+  const currentStageIndex = categoryStages.findIndex(s => s.sessionId === activeSession);
+  const currentStageMeta = categoryStages[currentStageIndex] || categoryStages[0];
+  const nextStageMeta = currentStageIndex >= 0 && currentStageIndex < categoryStages.length - 1
+    ? categoryStages[currentStageIndex + 1]
+    : null;
+
+  const handleSelectSession = (sessionId: string) => {
+    if (!activeCategoryForStages) return;
+    manualSessionCategoriesRef.current.add(activeCategoryForStages);
+    setActiveSessionByCategory(prev => ({ ...prev, [activeCategoryForStages]: sessionId }));
+    setCurrentEnd(0);
+    setIsDirty(false);
+    setActiveArrowIndex(null);
+  };
+
+  const archersAtTarget = useMemo(() => {
+    const base = scopedArchers.filter(
+      a => Number(a.targetNo) === selectedTarget && (selectedCategory === 'ALL' || a.category === selectedCategory)
+    );
+    const filtered =
+      activeSession.startsWith('ELIM_') && activeStageInfo?.hasPreviousStageScores
+        ? base.filter(a => a.category !== activeCategoryForStages || activeStageInfo.qualifiedIds.has(a.id))
+        : base;
+    return filtered.sort((a, b) => (a.position || "").localeCompare(b.position || ""));
+  }, [scopedArchers, selectedTarget, selectedCategory, activeSession, activeStageInfo, activeCategoryForStages]);
+
+  // If in an ELIM_N stage and current target has no qualified archers, auto-jump to a target that does
+  useEffect(() => {
+    if (!activeSession.startsWith('ELIM_') || !activeStageInfo?.hasPreviousStageScores) return;
+    if (isDirty) return;
+    if (archersAtTarget.length > 0) return;
+
+    const targetWithQualifiers = allowedTargets.find(t =>
+      scopedArchers.some(
+        a =>
+          Number(a.targetNo) === t &&
+          (selectedCategory === 'ALL' || a.category === selectedCategory) &&
+          (a.category !== activeCategoryForStages || activeStageInfo.qualifiedIds.has(a.id))
+      )
+    );
+    if (targetWithQualifiers !== undefined && targetWithQualifiers !== selectedTarget) {
+      setSelectedTarget(targetWithQualifiers);
+      setSelectedArcherId(null);
+    }
+  }, [activeSession, activeStageInfo, archersAtTarget.length, allowedTargets, scopedArchers, selectedCategory, activeCategoryForStages, selectedTarget, isDirty]);
+
+  const config = selectedArcher
+    ? (findCategoryConfig(selectedArcher.category, state.settings?.categoryConfigs) || null)
+    : activeCategoryConfig;
+
+  const isElimSession = activeSession.startsWith('ELIM_');
+  const effectiveEnds = isElimSession
+    ? Math.max(1, Number(config?.eliminationEnds) || 2)
+    : Math.max(1, Number(config?.ends) || 6);
+  const effectiveArrows = isElimSession
+    ? Math.max(1, Number(config?.eliminationArrows) || 6)
+    : Math.max(1, Number(config?.arrows) || 6);
+
+  useEffect(() => {
+    if (currentEnd >= effectiveEnds) {
+      setCurrentEnd(0);
+    }
+  }, [effectiveEnds, currentEnd]);
 
   useEffect(() => {
     setIsDirty(false);
     setActiveArrowIndex(null);
-  }, [selectedArcherId, currentEnd]);
+  }, [selectedArcherId, currentEnd, activeSession]);
 
   useEffect(() => {
     if (selectedArcher && config && !isDirty) {
-      // 1. Check if there's a draft for THIS specific archer/end
-      const draftKey = `scoring_draft_${state.id}_${selectedArcherId}_${currentEnd}`;
+      // 1. Check if there's a draft for THIS specific archer/session/end
+      const draftKey = `scoring_draft_${state.id}_${activeSession}_${selectedArcherId}_${currentEnd}`;
       const savedDraft = localStorage.getItem(draftKey);
       
       if (savedDraft) {
-        setTempArrows(JSON.parse(savedDraft));
-      } else {
-        // 2. If no draft, check if there's already a SAVED score
-        const existing = (state.scores || [])
-          .filter(s => {
-            if (s.isDeleted) return false;
-            const norm = (s.sessionId === '1' || s.sessionId === '2' || !s.sessionId) ? 'QUAL' : s.sessionId;
-            return s.archerId === selectedArcherId && s.endIndex === currentEnd && norm === 'QUAL';
-          })
-          .sort((a, b) => (b.lastUpdated || 0) - (a.lastUpdated || 0))[0];
-        setTempArrows(existing?.arrows ? [...existing.arrows] : new Array(config.arrows).fill(-1));
+        const parsedDraft = JSON.parse(savedDraft);
+        if (Array.isArray(parsedDraft) && parsedDraft.length === effectiveArrows) {
+          setTempArrows(parsedDraft);
+          return;
+        }
       }
+
+      // 2. If no draft, check if there's already a SAVED score for this session & end
+      const existing = (state.scores || [])
+        .filter(s => {
+          if (s.isDeleted) return false;
+          const norm = getNormalizedScoreSession(s.sessionId);
+          return s.archerId === selectedArcherId && s.endIndex === currentEnd && norm === activeSession;
+        })
+        .sort((a, b) => (b.lastUpdated || 0) - (a.lastUpdated || 0))[0];
+      const loaded = existing?.arrows ? existing.arrows.slice(0, effectiveArrows) : [];
+      while (loaded.length < effectiveArrows) loaded.push(-1);
+      setTempArrows(loaded.length > 0 ? loaded : new Array(effectiveArrows).fill(-1));
     }
-  }, [selectedArcherId, currentEnd, state.scores, config, state.id, isDirty]);
+  }, [selectedArcherId, currentEnd, activeSession, state.scores, config, state.id, isDirty, effectiveArrows]);
 
   // Persist tempArrows to draft as they are entered
   useEffect(() => {
     if (selectedArcherId && tempArrows.length > 0) {
-      const draftKey = `scoring_draft_${state.id}_${selectedArcherId}_${currentEnd}`;
+      const draftKey = `scoring_draft_${state.id}_${activeSession}_${selectedArcherId}_${currentEnd}`;
       if (tempArrows.some(v => v !== -1)) {
         localStorage.setItem(draftKey, JSON.stringify(tempArrows));
       } else {
@@ -161,7 +284,7 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
         localStorage.removeItem(draftKey);
       }
     }
-  }, [tempArrows, selectedArcherId, currentEnd, state.id]);
+  }, [tempArrows, selectedArcherId, currentEnd, activeSession, state.id]);
 
   const keypadValues: (number | 'X' | 'M')[] = useMemo(() => {
     if (config?.targetType === TargetType.PUTA || config?.targetType === TargetType.TRADITIONAL_PUTA) {
@@ -221,7 +344,7 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
         setCurrentEnd(prev => Math.max(0, prev - 1));
       }
       else if (key === 'arrowright') {
-        setCurrentEnd(prev => Math.min((config?.ends || 7) - 1, prev + 1));
+        setCurrentEnd(prev => Math.min(effectiveEnds - 1, prev + 1));
       }
       else if (key === 'arrowup') {
         const archerIdx = archersAtTarget.findIndex(a => a.id === selectedArcherId);
@@ -239,7 +362,7 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedArcherId, currentEnd, tempArrows, keypadValues, config, archersAtTarget, activeArrowIndex]);
+  }, [selectedArcherId, currentEnd, tempArrows, keypadValues, config, effectiveEnds, archersAtTarget, activeArrowIndex]);
 
   const handleInput = (val: number | 'X' | 'M') => {
     if (!config) return;
@@ -247,13 +370,13 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
     const scoreVal = val === 'M' ? 0 : val;
 
     // If user explicitly clicked on an arrow box, update that specific arrow
-    if (activeArrowIndex !== null && activeArrowIndex < config.arrows) {
+    if (activeArrowIndex !== null && activeArrowIndex < effectiveArrows) {
       const newArrows = [...tempArrows];
       newArrows[activeArrowIndex] = scoreVal;
       setTempArrows(newArrows);
 
       // Move focus to next arrow slot or clear focus if at end
-      if (activeArrowIndex + 1 < config.arrows) {
+      if (activeArrowIndex + 1 < effectiveArrows) {
         setActiveArrowIndex(activeArrowIndex + 1);
       } else {
         setActiveArrowIndex(null);
@@ -269,7 +392,7 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
       setTempArrows(newArrows);
       
       // CRITICAL: NO AUTO-SAVE! Team can examine & verify every arrow before saving
-      if (nextIdx + 1 < config.arrows) {
+      if (nextIdx + 1 < effectiveArrows) {
         setActiveArrowIndex(nextIdx + 1);
       } else {
         setActiveArrowIndex(null);
@@ -318,11 +441,11 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
   }, [tempArrows]);
 
   const isAllArrowsFilled = useMemo(() => {
-    return !!config && tempArrows.length === config.arrows && tempArrows.every(v => v !== -1);
-  }, [tempArrows, config]);
+    return !!config && tempArrows.length === effectiveArrows && tempArrows.every(v => v !== -1);
+  }, [tempArrows, config, effectiveArrows]);
 
   const handleSave = (arrows: (number | 'X')[]) => {
-    if (!selectedArcherId || !config) return;
+    if (!selectedArcherId || !config || !selectedArcher) return;
     
     // Check if it's a reset (all -1)
     const isReset = arrows.every(v => v === -1);
@@ -362,9 +485,9 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
       count5 = arrows.filter(v => v === 9).length;
     }
     
-    onSaveScore({
+    const savedEntry: ScoreEntry = {
       archerId: selectedArcherId,
-      sessionId: 'QUAL',
+      sessionId: activeSession,
       endIndex: currentEnd,
       arrows,
       total,
@@ -372,10 +495,11 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
       count5,
       lastUpdated: Date.now(),
       isDeleted: isReset
-    });
+    };
+    onSaveScore(savedEntry);
 
     // Clear draft after successful save
-    const draftKey = `scoring_draft_${state.id}_${selectedArcherId}_${currentEnd}`;
+    const draftKey = `scoring_draft_${state.id}_${activeSession}_${selectedArcherId}_${currentEnd}`;
     localStorage.removeItem(draftKey);
 
     // Reset status dirty immediately
@@ -386,16 +510,48 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
     if (isReset) {
       setShowToast(`Data Rambahan ${currentEnd + 1} Direset!`);
       setTimeout(() => setShowToast(null), 1500);
-      setTempArrows(new Array(config.arrows).fill(-1));
+      setTempArrows(new Array(effectiveArrows).fill(-1));
       return;
     }
 
     // Reset tempArrows immediately so the "draft saver" effect 
     // doesn't catch the old arrows for the NEW archerId/currentEnd
-    setTempArrows(new Array(config.arrows).fill(-1));
+    setTempArrows(new Array(effectiveArrows).fill(-1));
 
-    setShowToast(`Skor ${selectedArcher?.name} (Rambahan ${currentEnd + 1}) Disimpan!`);
-    setTimeout(() => setShowToast(null), 1500);
+    // Check if saving this end completes the entire current stage for this archer's category
+    const savedCat = selectedArcher.category;
+    const savedCatConfig = findCategoryConfig(savedCat, state.settings?.categoryConfigs) || config;
+    const stagesForCat = getCategoryScoringStages(savedCatConfig);
+    const stageIdx = stagesForCat.findIndex(st => st.sessionId === activeSession);
+    const catArchers = (state.archers || []).filter(
+      a => a && a.category !== CategoryType.OFFICIAL && a.category === savedCat
+    );
+    const completionAfterSave = getStageParticipantsAndCompletion(
+      catArchers,
+      state.scores || [],
+      savedCatConfig,
+      activeSession,
+      [savedEntry]
+    );
+
+    if (completionAfterSave.isComplete) {
+      if (stageIdx >= 0 && stageIdx < stagesForCat.length - 1) {
+        const nextStage = stagesForCat[stageIdx + 1];
+        manualSessionCategoriesRef.current.delete(savedCat);
+        setActiveSessionByCategory(prev => ({ ...prev, [savedCat]: nextStage.sessionId }));
+        setCurrentEnd(0);
+        setSelectedArcherId(null);
+        setShowToast(`Babak ${stagesForCat[stageIdx].label} Selesai! Membuka Input Skor ${nextStage.label}...`);
+        setTimeout(() => setShowToast(null), 2800);
+        return;
+      } else if ((savedCatConfig?.h2hStartSize || 0) > 0) {
+        setShowToast(`Babak ${stagesForCat[stageIdx]?.label || 'Kualifikasi'} Selesai! Siap Lanjut ke Bagan Aduan (${savedCatConfig.h2hStartSize} Besar).`);
+        setTimeout(() => setShowToast(null), 3000);
+      }
+    }
+
+    setShowToast(`Skor ${selectedArcher?.name} (${currentStageMeta?.shortLabel || 'Kualifikasi'} • R${currentEnd + 1}) Disimpan!`);
+    setTimeout(() => setShowToast(null), 1600);
 
     // Auto Advance logic (Pindah Archer -> Pindah Bantalan berikutnya yang diizinkan -> Pindah Rambahan)
     const archerIdx = archersAtTarget.findIndex(a => a.id === selectedArcherId);
@@ -406,7 +562,7 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
       if (currentTargetIdx >= 0 && currentTargetIdx < allowedTargets.length - 1) {
         // Pindah ke target berikutnya dalam alokasi petugas ini
         setSelectedTarget(allowedTargets[currentTargetIdx + 1]);
-      } else if (currentEnd < config.ends - 1) {
+      } else if (currentEnd < effectiveEnds - 1) {
         // Kembali ke target pertama dan lanjut ke rambahan berikutnya
         setSelectedTarget(allowedTargets[0] || 1);
         setCurrentEnd(currentEnd + 1);
@@ -417,7 +573,7 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
   const handleResetEnd = () => {
     if (!config || !selectedArcherId) return;
     setIsDirty(true);
-    const emptyArrows = new Array(config.arrows).fill(-1);
+    const emptyArrows = new Array(effectiveArrows).fill(-1);
     setTempArrows(emptyArrows);
     handleSave(emptyArrows);
   };
@@ -634,38 +790,112 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
             </button>
           )}
         </div>
+
+        {/* Stage / Session Switcher (Kualifikasi -> Eliminasi Penyaringan Skor) */}
+        {categoryStages.length > 1 && (
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5 border-t border-slate-100">
+            <span className="text-[8px] font-black uppercase tracking-wider text-slate-500 shrink-0 mr-1">
+              Babak:
+            </span>
+            {categoryStages.map(st => {
+              const stInfo = categoryStageStatusMap[st.sessionId];
+              const isSel = activeSession === st.sessionId;
+              const isDone = Boolean(stInfo?.isComplete);
+              return (
+                <button
+                  key={st.sessionId}
+                  type="button"
+                  onClick={() => handleSelectSession(st.sessionId)}
+                  className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider border whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 ${
+                    isSel
+                      ? st.sessionId === 'QUAL'
+                        ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                        : 'bg-purple-700 text-white border-purple-700 shadow-xs'
+                      : isDone
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  <span>{st.label}</span>
+                  {isDone && <CheckCircle2 className="w-3 h-3 shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Banner when current stage is complete & next stage or H2H is ready */}
+        {activeStageInfo?.isComplete && (nextStageMeta || (activeCategoryConfig?.h2hStartSize || 0) > 0) && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-emerald-950">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span className="text-[10px] font-bold leading-snug">
+                {nextStageMeta
+                  ? `Babak ${currentStageMeta?.label} (${getCategoryDisplayName(activeCategoryForStages, state.settings?.categoryConfigs)}) selesai! Lanjut input skor ${nextStageMeta.label}.`
+                  : `Babak ${currentStageMeta?.label} (${getCategoryDisplayName(activeCategoryForStages, state.settings?.categoryConfigs)}) selesai! Siap masuk Bagan Aduan (${activeCategoryConfig?.h2hStartSize} Besar).`}
+              </span>
+            </div>
+            {nextStageMeta ? (
+              <button
+                type="button"
+                onClick={() => handleSelectSession(nextStageMeta.sessionId)}
+                className="shrink-0 px-3 py-1.5 bg-purple-700 hover:bg-purple-800 text-white rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shadow-xs active:scale-95"
+              >
+                <span>Buka {nextStageMeta.label}</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            ) : onOpenElimination ? (
+              <button
+                type="button"
+                onClick={() => onOpenElimination(activeCategoryForStages)}
+                className="shrink-0 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-xs active:scale-95"
+              >
+                <Swords className="w-3.5 h-3.5" />
+                <span>Buka Bagan Aduan ({activeCategoryConfig?.h2hStartSize} Besar)</span>
+              </button>
+            ) : null}
+          </div>
+        )}
       </div>
 
       <div className="flex-1 flex flex-col md:flex-row bg-slate-50 overflow-hidden">
         {/* Archer Selection - High Visibility Vertical Bar */}
         <div className="w-full md:w-64 bg-[#FBFBFD] border-r border-slate-200 p-2 overflow-x-auto no-scrollbar flex md:flex-col gap-2 shrink-0">
-          {archersAtTarget.map((a, idx) => (
-            <button 
-              key={a.id || `archer-${idx}`} 
-              type="button"
-              onClick={() => setSelectedArcherId(a.id)}
-              className={`flex-1 md:flex-none p-4 rounded-lg text-left border transition-all duration-200 ${selectedArcherId === a.id ? 'bg-arcus-sun border-yellow-500 text-black shadow-md' : 'bg-white border-slate-200 text-slate-900'}`}
-            >
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] font-black uppercase tracking-widest">
-                  <span>{a.targetNo}{a.position}</span>
-                  {(a.sessionName || a.wave > 1) && (
-                    <span className="ml-1 text-[8px] font-semibold text-slate-500">
-                      • {a.sessionName || `Sesi ${a.wave}`}
-                    </span>
-                  )}
-                </p>
-                <div className="flex items-center gap-2">
-                   <div className="flex gap-0.5 overflow-hidden max-w-[60px]">
-                      {Array.from({ length: Math.max(0, Number((state.settings?.categoryConfigs || {})[a.category as CategoryType]?.ends) || 6) }).map((_, i) => (
-                         <div key={`dot-${a.id || idx}-${i}`} className={`w-1 h-1 rounded-full shrink-0 ${(state.scores || []).find(s => s.archerId === a.id && s.endIndex === i && !s.isDeleted) ? 'bg-slate-900' : 'bg-slate-200'}`} />
-                      ))}
-                   </div>
+          {archersAtTarget.map((a, idx) => {
+            const elimRank = activeSession.startsWith('ELIM_') ? activeStageInfo?.rankMap?.[a.id] : undefined;
+            return (
+              <button 
+                key={a.id || `archer-${idx}`} 
+                type="button"
+                onClick={() => setSelectedArcherId(a.id)}
+                className={`flex-1 md:flex-none p-4 rounded-lg text-left border transition-all duration-200 ${selectedArcherId === a.id ? 'bg-arcus-sun border-yellow-500 text-black shadow-md' : 'bg-white border-slate-200 text-slate-900'}`}
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-black uppercase tracking-widest">
+                    <span>{a.targetNo}{a.position}</span>
+                    {elimRank && (
+                      <span className="ml-1 px-1.5 py-0.5 rounded bg-purple-700 text-white text-[8px] font-black">
+                        #{elimRank}
+                      </span>
+                    )}
+                    {(a.sessionName || a.wave > 1) && (
+                      <span className="ml-1 text-[8px] font-semibold text-slate-500">
+                        • {a.sessionName || `Sesi ${a.wave}`}
+                      </span>
+                    )}
+                  </p>
+                  <div className="flex items-center gap-2">
+                     <div className="flex gap-0.5 overflow-hidden max-w-[60px]">
+                        {Array.from({ length: effectiveEnds }).map((_, i) => (
+                           <div key={`dot-${a.id || idx}-${i}`} className={`w-1 h-1 rounded-full shrink-0 ${(state.scores || []).find(s => s.archerId === a.id && s.endIndex === i && getNormalizedScoreSession(s.sessionId) === activeSession && !s.isDeleted) ? 'bg-slate-900' : 'bg-slate-200'}`} />
+                        ))}
+                     </div>
+                  </div>
                 </div>
-              </div>
-              <p className={`font-black uppercase font-oswald text-base truncate mt-1 italic tracking-tight ${selectedArcherId === a.id ? 'text-black' : 'text-slate-600'}`}>{a.name}</p>
-            </button>
-          ))}
+                <p className={`font-black uppercase font-oswald text-base truncate mt-1 italic tracking-tight ${selectedArcherId === a.id ? 'text-black' : 'text-slate-600'}`}>{a.name}</p>
+              </button>
+            );
+          })}
           {archersAtTarget.length === 0 && (
             <div className="p-8 text-center text-slate-900 font-bold italic text-xs uppercase">Bantalan Kosong</div>
           )}
@@ -692,18 +922,27 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
                     )}
                   </span>
                   <div>
-                    <h3 className="text-lg sm:text-xl font-black uppercase font-oswald tracking-tight text-slate-900 leading-tight">
-                      {selectedArcher.name}
-                    </h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg sm:text-xl font-black uppercase font-oswald tracking-tight text-slate-900 leading-tight">
+                        {selectedArcher.name}
+                      </h3>
+                      {isElimSession && (
+                        <span className="px-2 py-0.5 rounded-md bg-purple-100 text-purple-800 border border-purple-200 text-[9px] font-black uppercase tracking-wider">
+                          {currentStageMeta?.shortLabel || 'Eliminasi'}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
                       {selectedArcher.club || 'Independen'} • {getCategoryDisplayName(selectedArcher.category, state.settings?.categoryConfigs)}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className="text-[9px] font-black uppercase text-slate-400 block tracking-wider">Rambahan</span>
+                  <span className="text-[9px] font-black uppercase text-slate-400 block tracking-wider">
+                    {currentStageMeta?.shortLabel || 'Rambahan'}
+                  </span>
                   <span className="text-base sm:text-lg font-black font-mono text-slate-900">
-                    Ke-{currentEnd + 1} <span className="text-xs text-slate-400 font-normal">/ {config?.ends || 7}</span>
+                    Ke-{currentEnd + 1} <span className="text-xs text-slate-400 font-normal">/ {effectiveEnds}</span>
                   </span>
                 </div>
               </div>
@@ -712,11 +951,18 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
               <div className="space-y-4 sm:space-y-5 text-center">
                 {/* Ends Navigation */}
                 <div className="flex items-center justify-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
-                  {Array.from({ length: Math.max(0, Number(config?.ends) || 7) }).map((_, i) => {
-                    const scoreForEnd = (state.scores || []).find(s => s.archerId === selectedArcherId && s.endIndex === i && !s.isDeleted);
+                  {Array.from({ length: effectiveEnds }).map((_, i) => {
+                    const scoreForEnd = (state.scores || []).find(
+                      s =>
+                        s.archerId === selectedArcherId &&
+                        s.endIndex === i &&
+                        getNormalizedScoreSession(s.sessionId) === activeSession &&
+                        !s.isDeleted
+                    );
                     return (
                       <button 
                         key={`end-${i}`} 
+                        type="button"
                         onClick={() => setCurrentEnd(i)} 
                         className={`min-w-10 h-10 rounded-xl text-xs font-black border transition-all flex flex-col items-center justify-center ${
                           currentEnd === i 
@@ -788,7 +1034,7 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
                             ? 'bg-amber-500 text-white' 
                             : 'bg-slate-200 text-slate-600'
                       }`}>
-                        {isAllArrowsFilled ? <CheckCircle2 className="w-5 h-5" /> : `${filledArrowsCount}/${config?.arrows || 6}`}
+                        {isAllArrowsFilled ? <CheckCircle2 className="w-5 h-5" /> : `${filledArrowsCount}/${effectiveArrows}`}
                       </div>
                       <div>
                         <div className="flex items-center gap-2">

@@ -2912,6 +2912,12 @@ export default function App() {
               setView('LANDING');
             }
           }}
+          onOpenElimination={appState.currentUser ? (category) => {
+            try {
+              localStorage.setItem(`elim_cat_${activeEvent.id}`, category);
+            } catch {}
+            setView('ELIMINATION_PANEL');
+          } : undefined}
         />;
 
       case 'LOGIN_PANEL':
@@ -3301,6 +3307,12 @@ export default function App() {
             pushNotification("Skor Disimpan", "Rekapitulasi cepat berhasil disimpan.", "SUCCESS");
           }}
           onBack={() => setView('EVENT_ADMIN')}
+          onOpenElimination={(category) => {
+            try {
+              localStorage.setItem(`elim_cat_${activeEvent.id}`, category);
+            } catch {}
+            setView('ELIMINATION_PANEL');
+          }}
         />;
 
       case 'ADMIN_DASHBOARD':
