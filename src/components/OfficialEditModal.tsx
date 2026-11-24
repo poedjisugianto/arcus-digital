@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  X, Save, ShieldCheck, Building2, Phone, Mail, 
+  X, Save, ShieldCheck, Building2, MapPin, Phone, Mail, 
   Camera, Trash2, Loader2 
 } from 'lucide-react';
 import { ParticipantRegistration, RegistrationStatus, TournamentSettings } from '../types';
@@ -26,6 +26,7 @@ export const OfficialEditModal: React.FC<OfficialEditModalProps> = ({
   const [formData, setFormData] = useState({
     name: '',
     club: '',
+    region: '',
     phone: '',
     email: '',
     status: RegistrationStatus.APPROVED,
@@ -41,6 +42,7 @@ export const OfficialEditModal: React.FC<OfficialEditModalProps> = ({
       setFormData({
         name: official.name || '',
         club: official.club || '',
+        region: official.region || '',
         phone: official.phone === '-' ? '' : (official.phone || ''),
         email: official.email === '-' ? '' : (official.email || ''),
         status: official.status || RegistrationStatus.APPROVED,
@@ -92,12 +94,18 @@ export const OfficialEditModal: React.FC<OfficialEditModalProps> = ({
       return;
     }
 
+    if (!formData.region.trim()) {
+      toast.error("Nama daerah wajib diisi.");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const updated: ParticipantRegistration = {
         ...official,
         name: formData.name.trim(),
         club: formData.club.trim(),
+        region: formData.region.trim().toUpperCase(),
         phone: formData.phone.trim() || '-',
         email: formData.email.trim() || '-',
         status: formData.status,
@@ -204,7 +212,7 @@ export const OfficialEditModal: React.FC<OfficialEditModalProps> = ({
 
             <label className="block">
               <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">
-                Klub / Pengcab / Instansi <span className="text-red-500">*</span>
+                Klub / Instansi <span className="text-red-500">*</span>
               </span>
               <div className="relative mt-1.5">
                 <Building2 className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
@@ -213,7 +221,24 @@ export const OfficialEditModal: React.FC<OfficialEditModalProps> = ({
                   required
                   value={formData.club}
                   onChange={(e) => setFormData({ ...formData, club: e.target.value })}
-                  placeholder="Klub atau kontingen..."
+                  placeholder="Nama klub..."
+                  className="block w-full pl-11 pr-4 py-2.5 rounded-2xl border border-slate-200 font-bold outline-none focus:ring-4 ring-blue-500/10 focus:border-blue-500 transition-all text-slate-900 text-sm"
+                />
+              </div>
+            </label>
+
+            <label className="block">
+              <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">
+                Nama Daerah (Kota/Kab/Prov) <span className="text-red-500">*</span>
+              </span>
+              <div className="relative mt-1.5">
+                <MapPin className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  required
+                  value={formData.region}
+                  onChange={(e) => setFormData({ ...formData, region: e.target.value.toUpperCase() })}
+                  placeholder="Contoh: Kota Surabaya / Kab. Sleman"
                   className="block w-full pl-11 pr-4 py-2.5 rounded-2xl border border-slate-200 font-bold outline-none focus:ring-4 ring-blue-500/10 focus:border-blue-500 transition-all text-slate-900 text-sm"
                 />
               </div>

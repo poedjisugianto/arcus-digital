@@ -61,6 +61,13 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
   const [confirmDeleteEvent, setConfirmDeleteEvent] = useState<{ id: string, name: string } | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [confirmDeleteUser, setConfirmDeleteUser] = useState<{ id: string, name: string } | null>(null);
+  const [confirmPaymentEvent, setConfirmPaymentEvent] = useState<{
+    id: string;
+    name: string;
+    organizerName: string;
+    amount: number;
+    nextPaidState: boolean;
+  } | null>(null);
   const [testEmail, setTestEmail] = useState('');
   const [isTestingEmail, setIsTestingEmail] = useState(false);
   const [testEmailResult, setTestEmailResult] = useState<{ success: boolean, message: string } | null>(null);
@@ -79,42 +86,45 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
     }
   }, [activeTab]);
 
+  const isKidsCategory = (cat: string) => {
+    return [
+      'U18_PUTRA', 'U18_PUTRI', 
+      'U12_PUTRA', 'U12_PUTRI', 
+      'U9_PUTRA', 'U9_PUTRI'
+    ].includes(cat);
+  };
+
+  const getEventFee = (e: ArcheryEvent): number => {
+    if (e.settings?.isFreeEvent || e.settings?.isPractice) return 0;
+    const participantsMap = new Map<string, any>();
+    e.registrations?.forEach(p => p?.id && participantsMap.set(p.id, p));
+    e.archers?.forEach(p => p?.id && participantsMap.set(p.id, p));
+
+    const participants = Array.from(participantsMap.values());
+    if (participants.length === 0 && Number((e as any).registrationCount) > 0) {
+      return Number((e as any).registrationCount) * (state.globalSettings?.feeAdult || 0);
+    }
+
+    return participants.reduce((a, p) => {
+      if (!p) return a;
+      const fee = p.platformFee && p.platformFee > 0 
+        ? p.platformFee 
+        : (isKidsCategory(p.category || '') ? (state.globalSettings?.feeKids || 0) : (state.globalSettings?.feeAdult || 0));
+      return a + (Number(fee) || 0);
+    }, 0);
+  };
+
   const stats = useMemo(() => {
     const totalEvents = state.events.length;
     const totalUsers = state.users.length;
-    
-    // Helper to identify kids categories
-    const isKidsCategory = (cat: string) => {
-      return [
-        'U18_PUTRA', 'U18_PUTRI', 
-        'U12_PUTRA', 'U12_PUTRI', 
-        'U9_PUTRA', 'U9_PUTRI'
-      ].includes(cat);
-    };
-
-    // Helper to get total platform fee for an event (archers + unique registrations)
-    const getEventFee = (e: ArcheryEvent): number => {
-      if (e.settings?.isFreeEvent || e.settings?.isPractice) return 0;
-      const participantsMap = new Map<string, any>();
-      e.registrations?.forEach(p => participantsMap.set(p.id, p));
-      e.archers?.forEach(p => participantsMap.set(p.id, p));
-      
-      const participants = Array.from(participantsMap.values());
-      return participants.reduce((a, p) => {
-        if (!p) return a;
-        const fee = p.platformFee && p.platformFee > 0 
-          ? p.platformFee 
-          : (isKidsCategory(p.category || '') ? (state.globalSettings?.feeKids || 0) : (state.globalSettings?.feeAdult || 0));
-        return a + (Number(fee) || 0);
-      }, 0);
-    };
 
     const totalArchers = state.events.reduce((acc, e) => {
       const uniqueIds = new Set([
         ...(e.archers || []).map(a => a.id), 
         ...(e.registrations || []).map(r => r.id)
       ]);
-      return acc + uniqueIds.size;
+      const count = uniqueIds.size > 0 ? uniqueIds.size : (Number((e as any).registrationCount) || 0);
+      return acc + count;
     }, 0);
 
     const potentialFee = state.events.reduce((acc, e) => acc + getEventFee(e), 0);
@@ -124,7 +134,7 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
       .reduce((acc, e) => acc + getEventFee(e), 0);
     
     return { totalEvents, totalUsers, totalArchers, potentialFee, collectedFee, pendingFee: potentialFee - collectedFee };
-  }, [state.events, state.users]);
+  }, [state.events, state.users, state.globalSettings]);
 
   const handleSaveGlobal = async () => {
     setIsSaving(true);
@@ -428,6 +438,8 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                   const activeCategories = Object.keys(event.settings?.categoryConfigs || {}).map(cat => CATEGORY_LABELS[cat as CategoryType]);
                   const hasSupport = isSupportAccessActive(event.settings?.technicalSupport);
                   const timeLeft = getRemainingSupportTime(event.settings?.technicalSupport);
+                  const eventFee = getEventFee(event);
+                  const isPaid = !!event.settings?.platformFeePaidToOwner;
                   
                     return (
                       <tr key={event.id} className={`transition-colors ${hasSupport ? 'bg-amber-50/40 hover:bg-amber-50/70' : 'hover:bg-slate-50'}`}>
@@ -461,14 +473,59 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                         </td>
                         <td className="p-6 text-center">
                           <div className="flex flex-col items-center">
-                            <span className="font-black text-lg text-slate-900">{event.archers.length}</span>
+                            <span className="font-black text-lg text-slate-900">{event.archers?.length || 0}</span>
                             <span className="text-[8px] font-black uppercase text-slate-700">Archers</span>
                           </div>
                         </td>
-                        <td className="p-6 text-center">
-                          <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${event.settings?.platformFeePaidToOwner ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
-                            {event.settings?.platformFeePaidToOwner ? 'Lunas' : 'Tertagih'}
-                          </span>
+                        <td className="p-6 text-center space-y-2">
+                          <div className="flex flex-col items-center gap-1">
+                            <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${
+                              isPaid
+                                ? 'bg-green-100 text-green-700'
+                                : eventFee === 0
+                                  ? 'bg-slate-100 text-slate-700'
+                                  : 'bg-orange-100 text-orange-700'
+                            }`}>
+                              {isPaid ? 'Lunas' : eventFee === 0 ? 'Gratis' : 'Tertagih'}
+                            </span>
+                            {eventFee > 0 && (
+                              <span className="text-[10px] font-black font-oswald text-slate-800">
+                                Rp {eventFee.toLocaleString('id-ID')}
+                              </span>
+                            )}
+                          </div>
+                          {!isPaid ? (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmPaymentEvent({
+                                id: event.id,
+                                name: event.settings?.tournamentName || 'Untitled',
+                                organizerName: organizer?.name || 'Unknown',
+                                amount: eventFee,
+                                nextPaidState: true
+                              })}
+                              className="w-full px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[9px] font-black uppercase tracking-wider inline-flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all"
+                              title="Konfirmasi Pembayaran Event (Tandai Lunas)"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Konfirmasi Bayar</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmPaymentEvent({
+                                id: event.id,
+                                name: event.settings?.tournamentName || 'Untitled',
+                                organizerName: organizer?.name || 'Unknown',
+                                amount: eventFee,
+                                nextPaidState: false
+                              })}
+                              className="w-full px-3 py-1 bg-slate-100 hover:bg-orange-100 text-slate-600 hover:text-orange-700 rounded-xl text-[8px] font-black uppercase tracking-wider transition-all"
+                              title="Batalkan Konfirmasi Pembayaran"
+                            >
+                              Batalkan Lunas
+                            </button>
+                          )}
                         </td>
                         <td className="p-6 text-center space-y-2">
                           <div className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase ${event.settings?.isActivated !== false ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}`}>
@@ -1421,6 +1478,91 @@ const SuperAdminPanel: React.FC<Props> = ({ state, onUpdateSettings, onResetSyst
                 className="py-4 bg-red-600 text-white rounded-2xl font-black uppercase text-[10px] shadow-xl shadow-red-600/20"
               >
                 Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmPaymentEvent && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-[3rem] shadow-2xl p-8 sm:p-10 text-center space-y-6 animate-in zoom-in-95">
+            <div className={`w-20 h-20 rounded-3xl border-2 flex items-center justify-center mx-auto shadow-xl ${
+              confirmPaymentEvent.nextPaidState
+                ? 'bg-emerald-50 border-emerald-100'
+                : 'bg-orange-50 border-orange-100'
+            }`}>
+              {confirmPaymentEvent.nextPaidState ? (
+                <CheckCircle2 className="w-10 h-10 text-emerald-600" />
+              ) : (
+                <DollarSign className="w-10 h-10 text-orange-600" />
+              )}
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-2xl font-black font-oswald uppercase italic tracking-tight text-slate-900">
+                {confirmPaymentEvent.nextPaidState ? 'Konfirmasi Pembayaran?' : 'Batalkan Status Lunas?'}
+              </h3>
+              <p className="text-slate-700 text-xs font-medium leading-relaxed">
+                {confirmPaymentEvent.nextPaidState ? (
+                  <>Tandai tagihan platform event <strong>"{confirmPaymentEvent.name}"</strong> sebagai <strong>LUNAS</strong>?</>
+                ) : (
+                  <>Kembalikan status pembayaran event <strong>"{confirmPaymentEvent.name}"</strong> menjadi <strong>TERTAGIH</strong>?</>
+                )}
+              </p>
+            </div>
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left space-y-1.5 text-xs">
+              <div className="flex justify-between gap-2">
+                <span className="text-slate-500 font-bold uppercase text-[10px]">Penyelenggara</span>
+                <span className="font-black text-slate-900 text-right">{confirmPaymentEvent.organizerName}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-slate-500 font-bold uppercase text-[10px]">Total Tagihan</span>
+                <span className="font-black font-oswald text-base text-emerald-700">
+                  {confirmPaymentEvent.amount > 0
+                    ? `Rp ${confirmPaymentEvent.amount.toLocaleString('id-ID')}`
+                    : 'Gratis (Rp 0)'}
+                </span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => setConfirmPaymentEvent(null)}
+                className="py-4 bg-slate-100 text-slate-800 rounded-2xl font-black uppercase text-[10px]"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const targetEvent = state.events.find(e => e.id === confirmPaymentEvent.id);
+                  if (targetEvent) {
+                    onUpdateEvent(targetEvent.id, {
+                      settings: {
+                        ...targetEvent.settings,
+                        platformFeePaidToOwner: confirmPaymentEvent.nextPaidState
+                      }
+                    });
+                    onSendNotif({
+                      id: `notif_pay_${Date.now()}`,
+                      title: confirmPaymentEvent.nextPaidState ? 'Pembayaran Dikonfirmasi' : 'Status Lunas Dibatalkan',
+                      message: confirmPaymentEvent.nextPaidState
+                        ? `Pembayaran event "${confirmPaymentEvent.name}" telah dikonfirmasi LUNAS.`
+                        : `Status pembayaran event "${confirmPaymentEvent.name}" diubah kembali menjadi TERTAGIH.`,
+                      type: confirmPaymentEvent.nextPaidState ? 'SUCCESS' : 'WARNING',
+                      timestamp: Date.now(),
+                      read: false
+                    });
+                  }
+                  setConfirmPaymentEvent(null);
+                }}
+                className={`py-4 text-white rounded-2xl font-black uppercase text-[10px] shadow-xl ${
+                  confirmPaymentEvent.nextPaidState
+                    ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20'
+                    : 'bg-orange-600 hover:bg-orange-700 shadow-orange-600/20'
+                }`}
+              >
+                {confirmPaymentEvent.nextPaidState ? 'Ya, Lunas' : 'Ya, Batalkan'}
               </button>
             </div>
           </div>

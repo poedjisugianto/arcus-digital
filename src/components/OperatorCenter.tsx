@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { ArcheryEvent, ScoreEntry, ScoreLog, Archer, CategoryType, TargetType } from '../types';
 import { CATEGORY_LABELS } from '../constants';
 import { findCategoryConfig } from '../lib/firestoreUtils';
+import { sortArrowsDescending } from '../lib/scoreSorting';
 import QRScanner from './QRScanner';
 
 interface Props {
@@ -197,7 +198,7 @@ const OperatorCenter: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
     return 'bg-slate-850 text-white border-slate-700 shadow-sm'; // M
   }, [config?.targetType]);
 
-  // Arrow value entry handler
+  // Arrow value entry handler (auto-sorts descending on input)
   const handleInputArrow = useCallback((val: number | 'X' | 'M') => {
     if (!selectedArcher || arrowsCount === 0) return;
     setIsDirty(true);
@@ -208,14 +209,16 @@ const OperatorCenter: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
 
     const targetIdx = idx !== -1 ? idx : 0;
 
-    setTempArrows(prev => {
-      const next = [...prev];
-      next[targetIdx] = val;
-      return next;
-    });
+    const updated = [...tempArrows];
+    updated[targetIdx] = val;
+    const sorted = sortArrowsDescending(updated);
+    setTempArrows(sorted);
 
-    // Advance to next arrow index
-    if (targetIdx + 1 < arrowsCount) {
+    // Advance to next empty arrow slot or next index when full
+    const nextEmpty = sorted.indexOf(-1);
+    if (nextEmpty !== -1) {
+      setActiveArrowIndex(nextEmpty);
+    } else if (targetIdx + 1 < arrowsCount) {
       setActiveArrowIndex(targetIdx + 1);
     } else {
       setActiveArrowIndex(targetIdx);
@@ -228,16 +231,18 @@ const OperatorCenter: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
     setIsDirty(true);
 
     const currIdx = activeArrowIndex !== null ? activeArrowIndex : arrowsCount - 1;
-    setTempArrows(prev => {
-      const next = [...prev];
-      next[currIdx] = -1;
-      return next;
-    });
+    const updated = [...tempArrows];
+    updated[currIdx] = -1;
+    const sorted = sortArrowsDescending(updated);
+    setTempArrows(sorted);
 
-    if (currIdx > 0) {
+    const nextEmpty = sorted.indexOf(-1);
+    if (nextEmpty !== -1) {
+      setActiveArrowIndex(nextEmpty);
+    } else if (currIdx > 0) {
       setActiveArrowIndex(currIdx - 1);
     }
-  }, [selectedArcher, arrowsCount, activeArrowIndex]);
+  }, [selectedArcher, arrowsCount, activeArrowIndex, tempArrows]);
 
   // Reset current end arrows
   const handleResetEnd = () => {
@@ -388,12 +393,14 @@ const OperatorCenter: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
       return;
     }
 
-    // Convert tempArrows to standard ScoreEntry.arrows representation: 'X' or number (M / -1 -> 0)
-    const finalArrows: (number | 'X')[] = tempArrows.map(v => {
-      if (v === 'X') return 'X';
-      if (v === 'M' || v === -1) return 0;
-      return Number(v);
-    });
+    // Convert tempArrows to standard ScoreEntry.arrows representation and keep sorted descending
+    const finalArrows: (number | 'X')[] = sortArrowsDescending(
+      tempArrows.map(v => {
+        if (v === 'X') return 'X';
+        if (v === 'M' || v === -1) return 0;
+        return Number(v);
+      })
+    );
 
     const isReset = tempArrows.every(v => v === -1);
 

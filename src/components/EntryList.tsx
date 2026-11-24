@@ -102,8 +102,10 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing, organiz
 
   const filteredData = useMemo(() => {
     const list = currentList.filter(item => {
-      const matchesSearch = (item.name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           (item.club || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const q = searchTerm.toLowerCase();
+      const matchesSearch = (item.name || '').toLowerCase().includes(q) || 
+                           (item.club || '').toLowerCase().includes(q) ||
+                           ((item as any).region || '').toLowerCase().includes(q);
       const matchesCategory = viewMode === 'OFFICIALS' || activeCategory === 'ALL' || item.category === activeCategory;
       return matchesSearch && matchesCategory;
     });
@@ -210,7 +212,7 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing, organiz
               <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-900" />
               <input 
                 type="text" 
-                placeholder={viewMode === 'ARCHERS' ? "Cari nama atlet atau klub..." : "Cari nama official atau klub..."}
+                placeholder={viewMode === 'ARCHERS' ? "Cari nama atlet, klub, atau daerah..." : "Cari nama official, klub, atau daerah..."}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-12 pr-6 py-3 bg-white border border-slate-200 rounded-xl font-bold text-sm text-slate-900 outline-none focus:border-arcus-red transition-all shadow-sm"
@@ -250,7 +252,7 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing, organiz
                 <tr className="bg-slate-50 text-slate-900 text-[9px] md:text-[10px] font-bold uppercase tracking-widest border-b border-slate-100">
                   <th className="px-4 md:px-10 py-3 md:py-6 w-12 md:w-16">No</th>
                   <th className="px-4 md:px-10 py-3 md:py-6">{viewMode === 'ARCHERS' ? 'Archer' : 'Official Name'}</th>
-                  <th className="px-4 md:px-10 py-3 md:py-6 hidden md:table-cell">Club</th>
+                  <th className="px-4 md:px-10 py-3 md:py-6 hidden md:table-cell">Klub &amp; Daerah</th>
                   {viewMode === 'ARCHERS' && <th className="px-4 md:px-10 py-3 md:py-6 hidden sm:table-cell">Category</th>}
                   {viewMode === 'ARCHERS' && <th className="px-4 md:px-10 py-3 md:py-6 text-center">Target</th>}
                   <th className="px-4 md:px-10 py-3 md:py-6 text-right">Status</th>
@@ -267,10 +269,15 @@ export default function EntryList({ event, onBack, onRefresh, isSyncing, organiz
                     </td>
                     <td className="px-4 md:px-10 py-3 md:py-6">
                       <p className="text-sm md:text-xl font-black font-oswald uppercase italic text-slate-900 leading-none tracking-tight">{item.name}</p>
-                      <p className="text-[7px] font-bold text-slate-700 md:hidden uppercase mt-1">{item.club}</p>
+                      <p className="text-[7px] font-bold text-slate-700 md:hidden uppercase mt-1">
+                        {item.club}{(item as any).region ? ` • ${(item as any).region}` : ''}
+                      </p>
                     </td>
                     <td className="px-10 py-6 hidden md:table-cell">
-                      <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">{item.club}</p>
+                      <p className="text-[10px] font-black text-slate-800 uppercase tracking-widest">{item.club}</p>
+                      {(item as any).region && (
+                        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">{(item as any).region}</p>
+                      )}
                     </td>
                     {viewMode === 'ARCHERS' && (
                       <td className="px-10 py-6 hidden sm:table-cell">

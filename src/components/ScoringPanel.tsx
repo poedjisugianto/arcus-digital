@@ -11,6 +11,7 @@ import {
   getNormalizedScoreSession,
   getStageParticipantsAndCompletion
 } from '../lib/bracketSeeding';
+import { sortArrowsDescending } from '../lib/scoreSorting';
 import QRScanner from './QRScanner';
 
 interface Props {
@@ -58,6 +59,23 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
   const [showToast, setShowToast] = useState<string | null>(null);
   const [showScanner, setShowScanner] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [quickSaveMode, setQuickSaveMode] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('arcus_scorer_quick_save') === '1';
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleQuickSaveMode = () => {
+    setQuickSaveMode(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('arcus_scorer_quick_save', next ? '1' : '0');
+      } catch {}
+      return next;
+    });
+  };
 
   // Archers scoped to this scorer's assigned targets + active tournament wave/category focus filter
   const scopedArchers = useMemo(() => {
@@ -369,34 +387,29 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
     setIsDirty(true);
     const scoreVal = val === 'M' ? 0 : val;
 
-    // If user explicitly clicked on an arrow box, update that specific arrow
+    // If user explicitly clicked on an arrow box, update that specific arrow then auto-sort descending
     if (activeArrowIndex !== null && activeArrowIndex < effectiveArrows) {
       const newArrows = [...tempArrows];
       newArrows[activeArrowIndex] = scoreVal;
-      setTempArrows(newArrows);
+      const sortedArrows = sortArrowsDescending(newArrows);
+      setTempArrows(sortedArrows);
 
-      // Move focus to next arrow slot or clear focus if at end
-      if (activeArrowIndex + 1 < effectiveArrows) {
-        setActiveArrowIndex(activeArrowIndex + 1);
-      } else {
-        setActiveArrowIndex(null);
-      }
+      const nextEmpty = sortedArrows.indexOf(-1);
+      setActiveArrowIndex(nextEmpty !== -1 ? nextEmpty : null);
       return;
     }
 
-    // Otherwise, fill the first available empty slot (-1)
+    // Otherwise, fill the first available empty slot (-1) then auto-sort descending
     const nextIdx = tempArrows.indexOf(-1);
     if (nextIdx !== -1) {
       const newArrows = [...tempArrows];
       newArrows[nextIdx] = scoreVal;
-      setTempArrows(newArrows);
+      const sortedArrows = sortArrowsDescending(newArrows);
+      setTempArrows(sortedArrows);
       
       // CRITICAL: NO AUTO-SAVE! Team can examine & verify every arrow before saving
-      if (nextIdx + 1 < effectiveArrows) {
-        setActiveArrowIndex(nextIdx + 1);
-      } else {
-        setActiveArrowIndex(null);
-      }
+      const nextEmpty = sortedArrows.indexOf(-1);
+      setActiveArrowIndex(nextEmpty !== -1 ? nextEmpty : null);
     }
   };
 
@@ -404,10 +417,13 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
     setIsDirty(true);
     const newArrows = [...tempArrows];
 
-    // If an arrow box is actively selected and has a value, clear it
+    // If an arrow box is actively selected and has a value, clear it and keep sorted
     if (activeArrowIndex !== null && newArrows[activeArrowIndex] !== -1) {
       newArrows[activeArrowIndex] = -1;
-      setTempArrows(newArrows);
+      const sortedArrows = sortArrowsDescending(newArrows);
+      setTempArrows(sortedArrows);
+      const nextEmpty = sortedArrows.indexOf(-1);
+      setActiveArrowIndex(nextEmpty !== -1 ? nextEmpty : null);
       return;
     }
 
@@ -415,8 +431,10 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
     const lastFilledIdx = newArrows.map(x => x !== -1).lastIndexOf(true);
     if (lastFilledIdx !== -1) {
       newArrows[lastFilledIdx] = -1;
-      setTempArrows(newArrows);
-      setActiveArrowIndex(lastFilledIdx);
+      const sortedArrows = sortArrowsDescending(newArrows);
+      setTempArrows(sortedArrows);
+      const nextEmpty = sortedArrows.indexOf(-1);
+      setActiveArrowIndex(nextEmpty !== -1 ? nextEmpty : null);
     }
   };
 
@@ -447,8 +465,11 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
   const handleSave = (arrows: (number | 'X')[]) => {
     if (!selectedArcherId || !config || !selectedArcher) return;
     
+    // Always store arrows sorted from highest to lowest ('X' > 10 > 9 > ... > 0)
+    const sortedArrows = sortArrowsDescending(arrows);
+
     // Check if it's a reset (all -1)
-    const isReset = arrows.every(v => v === -1);
+    const isReset = sortedArrows.every(v => v === -1);
     
     let maxVal = 10;
     if (config.targetType === TargetType.PUTA || config.targetType === TargetType.TRADITIONAL_PUTA) {
@@ -459,7 +480,7 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
       maxVal = 5;
     }
 
-    const total = arrows.reduce<number>((acc, v) => {
+    const total = sortedArrows.reduce<number>((acc, v) => {
       if (v === -1) return acc;
       const scoreVal = v === 'X' ? maxVal : Number(v);
       return acc + scoreVal;
@@ -471,25 +492,25 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
     let count5 = 0;
 
     if (targetType === TargetType.PUTA || targetType === TargetType.TRADITIONAL_PUTA) {
-      count6 = arrows.filter(v => v === 2).length;
-      count5 = arrows.filter(v => v === 1).length;
+      count6 = sortedArrows.filter(v => v === 2).length;
+      count5 = sortedArrows.filter(v => v === 1).length;
     } else if (targetType === TargetType.TRADITIONAL_6_RING) {
-      count6 = arrows.filter(v => v === 6).length;
-      count5 = arrows.filter(v => v === 5).length;
+      count6 = sortedArrows.filter(v => v === 6).length;
+      count5 = sortedArrows.filter(v => v === 5).length;
     } else if (targetType === TargetType.FACE_5_RING) {
-      count6 = arrows.filter(v => v === 5).length;
-      count5 = arrows.filter(v => v === 4).length;
+      count6 = sortedArrows.filter(v => v === 5).length;
+      count5 = sortedArrows.filter(v => v === 4).length;
     } else {
       // Standard 10-ring face (X, 10, 9, 8...)
-      count6 = arrows.filter(v => v === 'X' || v === 10).length;
-      count5 = arrows.filter(v => v === 9).length;
+      count6 = sortedArrows.filter(v => v === 'X' || v === 10).length;
+      count5 = sortedArrows.filter(v => v === 9).length;
     }
     
     const savedEntry: ScoreEntry = {
       archerId: selectedArcherId,
       sessionId: activeSession,
       endIndex: currentEnd,
-      arrows,
+      arrows: sortedArrows,
       total,
       count6,
       count5,
@@ -683,29 +704,41 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
     return 'bg-slate-900 text-white border-slate-700';
   };
 
+  const mobileGridColsClass = keypadValues.length >= 7 ? 'grid-cols-4 sm:grid-cols-3' : 'grid-cols-3';
+
   return (
-    <div className="fixed inset-0 bg-white z-[100] flex flex-col font-inter overflow-hidden select-none">
+    <div className="fixed inset-0 h-[100dvh] bg-white z-[100] flex flex-col font-inter overflow-hidden select-none">
       {showScanner && <QRScanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
       
-      {/* High Contrast Header (Sunlight Optimized) */}
-      <div className="bg-white text-slate-900 px-4 py-3 flex flex-col gap-3 shrink-0 shadow-sm border-b border-slate-200">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <button onClick={onBack} className="p-3 bg-slate-100 rounded-lg active:scale-90 text-slate-600"><ArrowLeft className="w-6 h-6" /></button>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base font-black uppercase font-oswald leading-none tracking-tight text-slate-900">Bantalan {selectedTarget}</h2>
+      {/* High Contrast Header (Sunlight Optimized & Compact on Mobile) */}
+      <div className="bg-white text-slate-900 px-3 py-2 sm:px-4 sm:py-3 flex flex-col gap-1.5 sm:gap-3 shrink-0 shadow-sm border-b border-slate-200">
+        <div className="flex justify-between items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <button onClick={onBack} className="p-2 sm:p-3 bg-slate-100 rounded-lg active:scale-90 text-slate-600 shrink-0"><ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" /></button>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+                <h2 className="text-sm sm:text-base font-black uppercase font-oswald leading-none tracking-tight text-slate-900">Bantalan {selectedTarget}</h2>
                 {currentScorer?.assignedTargets && currentScorer.assignedTargets.length > 0 && (
-                  <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[8px] font-black rounded-md uppercase tracking-wider flex items-center gap-1 border border-purple-200">
+                  <span className="hidden sm:inline-flex px-2 py-0.5 bg-purple-100 text-purple-700 text-[8px] font-black rounded-md uppercase tracking-wider items-center gap-1 border border-purple-200">
                     <Lock className="w-2.5 h-2.5" /> Bantalan {allowedTargets.join(', ')}
                   </span>
                 )}
-                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[8px] font-black rounded-md uppercase tracking-wider border border-emerald-200" title="Skor tidak disimpan otomatis agar dapat diperiksa terlebih dahulu">
-                  <ShieldCheck className="w-2.5 h-2.5 text-emerald-600" /> Manual Save (Verifikasi)
-                </span>
+                <button
+                  type="button"
+                  onClick={toggleQuickSaveMode}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black rounded-md uppercase tracking-wider border transition-colors active:scale-95 ${
+                    quickSaveMode
+                      ? 'bg-emerald-600 text-white border-emerald-700'
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  }`}
+                  title={quickSaveMode ? 'Mode Simpan 1-Klik aktif: tekan Simpan langsung menyimpan tanpa popup' : 'Mode Verifikasi aktif: tampilkan popup teliti sebelum simpan'}
+                >
+                  <ShieldCheck className="w-2.5 h-2.5" />
+                  <span>{quickSaveMode ? 'Simpan 1-Klik' : 'Verifikasi'}</span>
+                </button>
               </div>
-              <div className="flex items-center gap-2 mt-1">
-                <p className="text-[9px] font-bold uppercase tracking-widest text-slate-800">
+              <div className="flex items-center gap-2 mt-0.5 sm:mt-1">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-slate-700 truncate">
                   {currentScorer ? `Petugas: ${currentScorer.name}` : 'Field Score Terminal'}
                 </p>
                 {currentScorer && onLogoutScorer && (
@@ -716,24 +749,24 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
                         onLogoutScorer();
                       }
                     }}
-                    className="inline-flex items-center gap-1 text-[8px] font-black uppercase text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-1.5 py-0.5 rounded border border-red-200 transition-colors active:scale-95"
+                    className="inline-flex items-center gap-1 text-[8px] font-black uppercase text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-1.5 py-0.5 rounded border border-red-200 transition-colors active:scale-95 shrink-0"
                     title="Ganti Petugas / Keluar"
                   >
-                    <LogOut className="w-2.5 h-2.5" /> Ganti / Keluar
+                    <LogOut className="w-2.5 h-2.5" /> Keluar
                   </button>
                 )}
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 font-sans">
-             <button onClick={() => setShowScanner(true)} className="p-3 bg-arcus-red text-white rounded-lg active:scale-90 transition-all shadow-md"><ScanLine className="w-5 h-5" /></button>
-             <div className="flex items-center gap-1 overflow-x-auto no-scrollbar max-w-[200px] px-2 bg-slate-50 border border-slate-100 p-1 rounded-lg">
+          <div className="flex items-center gap-1 sm:gap-1.5 font-sans shrink-0">
+             <button onClick={() => setShowScanner(true)} className="p-2 sm:p-3 bg-arcus-red text-white rounded-lg active:scale-90 transition-all shadow-md"><ScanLine className="w-4 h-4 sm:w-5 sm:h-5" /></button>
+             <div className="flex items-center gap-0.5 sm:gap-1 overflow-x-auto no-scrollbar max-w-[130px] sm:max-w-[200px] px-1.5 sm:px-2 bg-slate-50 border border-slate-100 p-0.5 sm:p-1 rounded-lg">
                 {allowedTargets.map((targetNum) => (
                   <button 
                     key={targetNum} 
                     type="button"
                     onClick={() => setSelectedTarget(targetNum)}
-                    className={`shrink-0 w-8 h-8 rounded-lg font-black text-[10px] transition-all border ${selectedTarget === targetNum ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-transparent border-transparent text-slate-900 opacity-60'}`}
+                    className={`shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-lg font-black text-[10px] transition-all border ${selectedTarget === targetNum ? 'bg-slate-900 text-white border-slate-900 shadow-sm' : 'bg-transparent border-transparent text-slate-900 opacity-60'}`}
                   >
                     {targetNum}
                   </button>
@@ -858,9 +891,9 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
         )}
       </div>
 
-      <div className="flex-1 flex flex-col md:flex-row bg-slate-50 overflow-hidden">
-        {/* Archer Selection - High Visibility Vertical Bar */}
-        <div className="w-full md:w-64 bg-[#FBFBFD] border-r border-slate-200 p-2 overflow-x-auto no-scrollbar flex md:flex-col gap-2 shrink-0">
+      <div className="flex-1 min-h-0 flex flex-col md:flex-row bg-slate-50 overflow-hidden">
+        {/* Archer Selection - Compact Strip on Mobile, Sidebar on Desktop */}
+        <div className="w-full md:w-64 bg-[#FBFBFD] border-b md:border-b-0 md:border-r border-slate-200 px-2 py-1.5 md:p-2 overflow-x-auto no-scrollbar flex md:flex-col gap-1.5 md:gap-2 shrink-0">
           {archersAtTarget.map((a, idx) => {
             const elimRank = activeSession.startsWith('ELIM_') ? activeStageInfo?.rankMap?.[a.id] : undefined;
             return (
@@ -868,274 +901,298 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
                 key={a.id || `archer-${idx}`} 
                 type="button"
                 onClick={() => setSelectedArcherId(a.id)}
-                className={`flex-1 md:flex-none p-4 rounded-lg text-left border transition-all duration-200 ${selectedArcherId === a.id ? 'bg-arcus-sun border-yellow-500 text-black shadow-md' : 'bg-white border-slate-200 text-slate-900'}`}
+                className={`min-w-[104px] flex-1 md:flex-none px-2.5 py-1.5 md:p-4 rounded-lg text-left border transition-all duration-200 ${selectedArcherId === a.id ? 'bg-arcus-sun border-yellow-500 text-black shadow-sm md:shadow-md' : 'bg-white border-slate-200 text-slate-900'}`}
               >
-                <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-black uppercase tracking-widest">
+                <div className="flex items-center justify-between gap-1">
+                  <p className="text-[10px] font-black uppercase tracking-wider">
                     <span>{a.targetNo}{a.position}</span>
                     {elimRank && (
-                      <span className="ml-1 px-1.5 py-0.5 rounded bg-purple-700 text-white text-[8px] font-black">
+                      <span className="ml-1 px-1 py-0.5 rounded bg-purple-700 text-white text-[8px] font-black">
                         #{elimRank}
                       </span>
                     )}
                     {(a.sessionName || a.wave > 1) && (
-                      <span className="ml-1 text-[8px] font-semibold text-slate-500">
+                      <span className="hidden md:inline ml-1 text-[8px] font-semibold text-slate-500">
                         • {a.sessionName || `Sesi ${a.wave}`}
                       </span>
                     )}
                   </p>
-                  <div className="flex items-center gap-2">
-                     <div className="flex gap-0.5 overflow-hidden max-w-[60px]">
+                  <div className="flex items-center gap-1">
+                     <div className="flex gap-0.5 overflow-hidden max-w-[48px] md:max-w-[60px]">
                         {Array.from({ length: effectiveEnds }).map((_, i) => (
                            <div key={`dot-${a.id || idx}-${i}`} className={`w-1 h-1 rounded-full shrink-0 ${(state.scores || []).find(s => s.archerId === a.id && s.endIndex === i && getNormalizedScoreSession(s.sessionId) === activeSession && !s.isDeleted) ? 'bg-slate-900' : 'bg-slate-200'}`} />
                         ))}
                      </div>
                   </div>
                 </div>
-                <p className={`font-black uppercase font-oswald text-base truncate mt-1 italic tracking-tight ${selectedArcherId === a.id ? 'text-black' : 'text-slate-600'}`}>{a.name}</p>
+                <p className={`font-black uppercase font-oswald text-xs sm:text-sm md:text-base truncate mt-0.5 md:mt-1 italic tracking-tight ${selectedArcherId === a.id ? 'text-black' : 'text-slate-600'}`}>{a.name}</p>
               </button>
             );
           })}
           {archersAtTarget.length === 0 && (
-            <div className="p-8 text-center text-slate-900 font-bold italic text-xs uppercase">Bantalan Kosong</div>
+            <div className="p-4 md:p-8 text-center text-slate-900 font-bold italic text-xs uppercase">Bantalan Kosong</div>
           )}
         </div>
 
-        {/* Scoring Area - Single Screen Layout */}
-        <div className="flex-1 flex flex-col p-4 sm:p-8 gap-6 justify-between overflow-y-auto bg-white">
+        {/* Scoring Area + Pinned Bottom Action Bar (No Scroll Required on Mobile) */}
+        <div className="flex-1 min-h-0 flex flex-col bg-white overflow-hidden">
           {!selectedArcher ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-slate-200 gap-6">
-              <User className="w-24 h-24" />
-              <p className="text-xs font-black uppercase tracking-[0.4em] italic text-slate-700">Silakan Pilih Pemanah</p>
+            <div className="flex-1 flex flex-col items-center justify-center text-slate-200 gap-4 sm:gap-6 p-4">
+              <User className="w-16 h-16 sm:w-24 sm:h-24" />
+              <p className="text-xs font-black uppercase tracking-[0.4em] italic text-slate-700 text-center">Silakan Pilih Pemanah</p>
             </div>
           ) : (
             <>
-              {/* Selected Archer Header Bar */}
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs sm:text-sm font-black px-2.5 py-1 bg-slate-900 text-white rounded-xl shadow-xs">
-                    {selectedArcher.targetNo}{selectedArcher.position}
-                    {(selectedArcher.sessionName || (selectedArcher.wave && selectedArcher.wave > 1)) && (
-                      <span className="ml-1.5 text-[9px] font-bold text-amber-300">
-                        • {selectedArcher.sessionName || `Sesi ${selectedArcher.wave}`}
-                      </span>
-                    )}
-                  </span>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg sm:text-xl font-black uppercase font-oswald tracking-tight text-slate-900 leading-tight">
-                        {selectedArcher.name}
-                      </h3>
-                      {isElimSession && (
-                        <span className="px-2 py-0.5 rounded-md bg-purple-100 text-purple-800 border border-purple-200 text-[9px] font-black uppercase tracking-wider">
-                          {currentStageMeta?.shortLabel || 'Eliminasi'}
+              <div className="flex-1 min-h-0 flex flex-col justify-between px-3 py-2 sm:p-6 md:p-8 gap-2 sm:gap-4 overflow-y-auto">
+                {/* Selected Archer Header Bar */}
+                <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 sm:pb-3 gap-2">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <span className="text-[11px] sm:text-sm font-black px-2 py-0.5 sm:px-2.5 sm:py-1 bg-slate-900 text-white rounded-lg sm:rounded-xl shadow-xs shrink-0">
+                      {selectedArcher.targetNo}{selectedArcher.position}
+                      {(selectedArcher.sessionName || (selectedArcher.wave && selectedArcher.wave > 1)) && (
+                        <span className="hidden sm:inline ml-1.5 text-[9px] font-bold text-amber-300">
+                          • {selectedArcher.sessionName || `Sesi ${selectedArcher.wave}`}
                         </span>
                       )}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        <h3 className="text-sm sm:text-xl font-black uppercase font-oswald tracking-tight text-slate-900 leading-tight truncate">
+                          {selectedArcher.name}
+                        </h3>
+                        {isElimSession && (
+                          <span className="px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-200 text-[8px] sm:text-[9px] font-black uppercase tracking-wider shrink-0">
+                            {currentStageMeta?.shortLabel || 'Elim'}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[9px] sm:text-[10px] text-slate-500 font-bold uppercase tracking-wider truncate">
+                        {selectedArcher.club || 'Independen'} • {getCategoryDisplayName(selectedArcher.category, state.settings?.categoryConfigs)}
+                      </p>
                     </div>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
-                      {selectedArcher.club || 'Independen'} • {getCategoryDisplayName(selectedArcher.category, state.settings?.categoryConfigs)}
-                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-[8px] sm:text-[9px] font-black uppercase text-slate-400 block tracking-wider">
+                      {currentStageMeta?.shortLabel || 'Rambahan'}
+                    </span>
+                    <span className="text-sm sm:text-lg font-black font-mono text-slate-900 leading-none">
+                      R{currentEnd + 1}<span className="text-[10px] sm:text-xs text-slate-400 font-normal">/{effectiveEnds}</span>
+                    </span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <span className="text-[9px] font-black uppercase text-slate-400 block tracking-wider">
-                    {currentStageMeta?.shortLabel || 'Rambahan'}
-                  </span>
-                  <span className="text-base sm:text-lg font-black font-mono text-slate-900">
-                    Ke-{currentEnd + 1} <span className="text-xs text-slate-400 font-normal">/ {effectiveEnds}</span>
-                  </span>
-                </div>
-              </div>
 
-              {/* Progress & Current Score Display */}
-              <div className="space-y-4 sm:space-y-5 text-center">
-                {/* Ends Navigation */}
-                <div className="overflow-x-auto no-scrollbar pb-1">
-                  <div className="flex items-center justify-center gap-1.5 w-max min-w-full">
-                    {Array.from({ length: effectiveEnds }).map((_, i) => {
-                      const scoreForEnd = (state.scores || []).find(
-                        s =>
-                          s.archerId === selectedArcherId &&
-                          s.endIndex === i &&
-                          getNormalizedScoreSession(s.sessionId) === activeSession &&
-                          !s.isDeleted
-                      );
+                {/* Progress, Ends & Arrow Boxes */}
+                <div className="space-y-2 sm:space-y-4 text-center">
+                  {/* Ends Navigation */}
+                  <div className="overflow-x-auto no-scrollbar">
+                    <div className="flex items-center justify-center gap-1 sm:gap-1.5 w-max min-w-full">
+                      {Array.from({ length: effectiveEnds }).map((_, i) => {
+                        const scoreForEnd = (state.scores || []).find(
+                          s =>
+                            s.archerId === selectedArcherId &&
+                            s.endIndex === i &&
+                            getNormalizedScoreSession(s.sessionId) === activeSession &&
+                            !s.isDeleted
+                        );
+                        return (
+                          <button 
+                            key={`end-${i}`} 
+                            type="button"
+                            onClick={() => setCurrentEnd(i)} 
+                            className={`min-w-[36px] sm:min-w-10 h-8 sm:h-10 px-1.5 rounded-lg sm:rounded-xl text-xs font-black border transition-all flex flex-col items-center justify-center shrink-0 leading-tight ${
+                              currentEnd === i 
+                                ? 'bg-slate-900 border-slate-900 text-white shadow-sm' 
+                                : scoreForEnd 
+                                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
+                                  : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className="text-[9px]">R{i + 1}</span>
+                            {scoreForEnd && <span className="text-[8px] font-bold opacity-80">{scoreForEnd.total}</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                 
+                  {/* Arrow Boxes */}
+                  <div className="flex justify-center flex-wrap gap-1.5 sm:gap-3">
+                    {tempArrows.map((a, i) => {
+                      const isActive = activeArrowIndex === i;
+                      const isFilled = a !== -1;
+                      const filledStyle = isFilled ? getButtonStyles(a === 0 ? 'M' : a) : '';
                       return (
-                        <button 
-                          key={`end-${i}`} 
+                        <button
+                          key={`arrow-${i}`} 
                           type="button"
-                          onClick={() => setCurrentEnd(i)} 
-                          className={`min-w-10 h-10 rounded-xl text-xs font-black border transition-all flex flex-col items-center justify-center shrink-0 ${
-                            currentEnd === i 
-                              ? 'bg-slate-900 border-slate-900 text-white shadow-sm' 
-                              : scoreForEnd 
-                                ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
-                                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                          onClick={() => setActiveArrowIndex(i === activeArrowIndex ? null : i)}
+                          className={`min-w-[46px] flex-1 max-w-[58px] h-12 sm:flex-none sm:w-20 sm:h-22 rounded-xl sm:rounded-2xl border-2 flex flex-col items-center justify-between p-1 sm:p-2 transition-all relative ${
+                            isActive 
+                              ? isFilled 
+                                ? `${filledStyle} ring-2 sm:ring-4 ring-blue-500 shadow-md scale-105`
+                                : 'border-blue-600 bg-blue-50/80 ring-2 sm:ring-4 ring-blue-500/40 shadow-md scale-105 text-blue-900'
+                              : isFilled 
+                                ? `${filledStyle} shadow-xs hover:scale-102` 
+                                : 'border-dashed border-slate-300 bg-slate-50/70 text-slate-300 hover:border-slate-400'
                           }`}
+                          title={`Anak panah ${i + 1} - Klik untuk koreksi nilai`}
                         >
-                          <span className="text-[9px]">R{i + 1}</span>
-                          {scoreForEnd && <span className="text-[8px] font-bold opacity-80">{scoreForEnd.total}</span>}
+                          <span className={`text-[7px] sm:text-[9px] font-black uppercase tracking-wider leading-none ${
+                            isFilled ? 'opacity-80' : isActive ? 'text-blue-700 font-extrabold' : 'text-slate-400'
+                          }`}>
+                            P{i + 1}
+                          </span>
+                          <span className="text-lg sm:text-4xl font-black leading-none">
+                            {a === -1 ? '-' : (a === 0 ? 'M' : a)}
+                          </span>
+                          <span className={`hidden sm:block text-[7px] font-bold uppercase tracking-wider ${isFilled ? 'opacity-70' : 'text-slate-400'}`}>
+                            {isActive ? 'Aktif' : isFilled ? 'Ubah' : 'Isi'}
+                          </span>
                         </button>
                       );
                     })}
                   </div>
-                </div>
-               
-                {/* Arrow Boxes with individual click-to-edit & Active Indicator */}
-                <div className="flex justify-center flex-wrap gap-2 sm:gap-3">
-                  {tempArrows.map((a, i) => {
-                    const isActive = activeArrowIndex === i;
-                    const isFilled = a !== -1;
-                    const filledStyle = isFilled ? getButtonStyles(a === 0 ? 'M' : a) : '';
-                    return (
-                      <button
-                        key={`arrow-${i}`} 
-                        type="button"
-                        onClick={() => setActiveArrowIndex(i === activeArrowIndex ? null : i)}
-                        className={`w-14 h-16 sm:w-20 sm:h-22 rounded-2xl border-2 flex flex-col items-center justify-between p-1.5 sm:p-2 transition-all relative ${
-                          isActive 
-                            ? isFilled 
-                              ? `${filledStyle} ring-4 ring-blue-500 shadow-md scale-105`
-                              : 'border-blue-600 bg-blue-50/80 ring-4 ring-blue-500/40 shadow-md scale-105 text-blue-900'
-                            : isFilled 
-                              ? `${filledStyle} shadow-xs hover:scale-102` 
-                              : 'border-dashed border-slate-300 bg-slate-50/70 text-slate-300 hover:border-slate-400'
-                        }`}
-                        title={`Anak panah ${i + 1} - Klik untuk koreksi nilai`}
-                      >
-                        <span className={`text-[8px] sm:text-[9px] font-black uppercase tracking-wider ${
-                          isFilled ? 'opacity-80' : isActive ? 'text-blue-700 font-extrabold' : 'text-slate-400'
-                        }`}>
-                          P{i + 1}
-                        </span>
-                        <span className="text-2xl sm:text-4xl font-black leading-none mb-1">
-                          {a === -1 ? '-' : (a === 0 ? 'M' : a)}
-                        </span>
-                        <span className={`text-[7px] font-bold uppercase tracking-wider ${isFilled ? 'opacity-70' : 'text-slate-400'}`}>
-                          {isActive ? 'Aktif' : isFilled ? 'Ubah' : 'Isi'}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
 
-                {/* Verification & Inspection Status Bar */}
-                <div className="max-w-md mx-auto">
-                  <div className={`p-3 sm:p-3.5 rounded-2xl border transition-all flex items-center justify-between gap-3 text-left ${
-                    isAllArrowsFilled
-                      ? 'bg-emerald-50 border-emerald-300 text-emerald-950 shadow-sm'
-                      : filledArrowsCount > 0
-                        ? 'bg-amber-50/90 border-amber-200 text-amber-950'
-                        : 'bg-slate-50 border-slate-200 text-slate-700'
-                  }`}>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-black text-xs ${
-                        isAllArrowsFilled 
-                          ? 'bg-emerald-600 text-white shadow-sm' 
-                          : filledArrowsCount > 0 
-                            ? 'bg-amber-500 text-white' 
-                            : 'bg-slate-200 text-slate-600'
-                      }`}>
-                        {isAllArrowsFilled ? <CheckCircle2 className="w-5 h-5" /> : `${filledArrowsCount}/${effectiveArrows}`}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-black uppercase tracking-wider">
-                            {isAllArrowsFilled ? 'Siap Diteliti & Disimpan' : 'Input Berjalan'}
-                          </span>
-                          <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-white border border-current/20 shadow-2xs">
-                            Total R{currentEnd + 1}: <strong className="text-slate-900">{currentEndTotal} Poin</strong>
-                          </span>
+                  {/* Compact Inline Summary Bar on Mobile, Detailed Box on Tablet/Desktop */}
+                  <div className="max-w-md mx-auto">
+                    <div className={`px-3 py-1.5 sm:p-3.5 rounded-xl sm:rounded-2xl border transition-all flex items-center justify-between gap-2 text-left ${
+                      isAllArrowsFilled
+                        ? 'bg-emerald-50 border-emerald-300 text-emerald-950 shadow-2xs'
+                        : filledArrowsCount > 0
+                          ? 'bg-amber-50/90 border-amber-200 text-amber-950'
+                          : 'bg-slate-50 border-slate-200 text-slate-700'
+                    }`}>
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                        <div className={`w-6 h-6 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0 font-black text-[10px] sm:text-xs ${
+                          isAllArrowsFilled 
+                            ? 'bg-emerald-600 text-white' 
+                            : filledArrowsCount > 0 
+                              ? 'bg-amber-500 text-white' 
+                              : 'bg-slate-200 text-slate-600'
+                        }`}>
+                          {isAllArrowsFilled ? <CheckCircle2 className="w-3.5 h-3.5 sm:w-5 sm:h-5" /> : `${filledArrowsCount}/${effectiveArrows}`}
                         </div>
-                        <p className="text-[10px] opacity-80 leading-snug mt-0.5">
-                          {isAllArrowsFilled
-                            ? 'Periksa kembali kesesuaian skor di atas dengan lembar fisik / bantalan. Tekan Simpan Skor jika sudah benar.'
-                            : 'Auto-save dinonaktifkan: Silakan isi semua anak panah, teliti, lalu simpan secara manual.'}
-                        </p>
+                        <div className="min-w-0">
+                          <span className="text-[10px] sm:text-xs font-black uppercase tracking-wider block truncate">
+                            {isAllArrowsFilled ? 'Lengkap — Siap Disimpan' : 'Input Skor Berjalan'}
+                          </span>
+                          <p className="hidden sm:block text-[10px] opacity-80 leading-snug mt-0.5">
+                            {isAllArrowsFilled
+                              ? 'Periksa kembali kesesuaian skor di atas, lalu tekan Simpan Skor.'
+                              : 'Isi seluruh anak panah, periksa, lalu tekan Simpan Skor.'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <span className="text-[10px] sm:text-xs font-black px-2 py-0.5 sm:py-1 rounded-md bg-white border border-slate-200/80 text-slate-900 font-mono tabular-nums">
+                          R{currentEnd + 1}: {currentEndTotal}
+                        </span>
                       </div>
                     </div>
                   </div>
                 </div>
+
+                {/* High Contrast Sunlight Keypad (4-col on mobile for zero scroll) */}
+                <div className="w-full max-w-lg mx-auto flex flex-col gap-1.5 sm:gap-3 pb-1">
+                  {/* Keyboard Helper */}
+                  <div className="hidden lg:flex items-center justify-center gap-4 mb-1">
+                     <div className="flex items-center gap-1.5 opacity-40">
+                        <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border text-[9px] font-mono">1-9</kbd>
+                        <span className="text-[8px] font-bold uppercase tracking-widest">Score</span>
+                     </div>
+                     <div className="flex items-center gap-1.5 opacity-40">
+                        <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border text-[9px] font-mono">0</kbd>
+                        <span className="text-[8px] font-bold uppercase tracking-widest">10</span>
+                     </div>
+                     <div className="flex items-center gap-1.5 opacity-40">
+                        <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border text-[9px] font-mono">X</kbd>
+                        <span className="text-[8px] font-bold uppercase tracking-widest">X</span>
+                     </div>
+                     <div className="flex items-center gap-1.5 opacity-40">
+                        <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border text-[9px] font-mono">M</kbd>
+                        <span className="text-[8px] font-bold uppercase tracking-widest">Miss</span>
+                     </div>
+                     <div className="flex items-center gap-1.5 opacity-40">
+                        <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border text-[9px] font-mono">BS</kbd>
+                        <span className="text-[8px] font-bold uppercase tracking-widest">Undo</span>
+                     </div>
+                     <div className="flex items-center gap-1.5 opacity-40">
+                        <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border text-[9px] font-mono">↵</kbd>
+                        <span className="text-[8px] font-bold uppercase tracking-widest">Save</span>
+                     </div>
+                  </div>
+
+                  <div className={`grid ${mobileGridColsClass} gap-1.5 sm:gap-3`}>
+                    {keypadValues.map((val, idx) => (
+                      <button 
+                        key={`pad-${String(val)}-${idx}`} 
+                        type="button"
+                        onClick={() => handleInput(val)}
+                        className={`h-11 sm:h-16 md:h-20 rounded-xl sm:rounded-2xl text-xl sm:text-3xl md:text-4xl font-black shadow-sm active:scale-95 transition-all flex items-center justify-center border-b-4 ${getButtonStyles(val)}`}
+                      >
+                        {val}
+                      </button>
+                    ))}
+                    <button 
+                      type="button"
+                      onClick={handleDeleteArrow}
+                      className={`${keypadValues.length === 7 ? 'flex' : 'hidden sm:flex'} h-11 sm:h-16 md:h-20 bg-white text-red-500 rounded-xl sm:rounded-2xl flex-col items-center justify-center active:scale-95 transition-all border-2 border-slate-200 shadow-sm hover:bg-red-50 hover:border-red-200`}
+                      title="Hapus / Koreksi Anak Panah"
+                    >
+                      <Delete className="w-5 h-5 sm:w-8 sm:h-8" />
+                      <span className="text-[7px] sm:text-[8px] font-black uppercase tracking-wider">Hapus</span>
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              {/* High Contrast Sunlight Keypad */}
-              <div className="w-full max-w-lg mx-auto flex flex-col gap-2 sm:gap-4 pb-4 sm:pb-8">
-                {/* Keyboard Helper */}
-                <div className="hidden lg:flex items-center justify-center gap-4 mb-1">
-                   <div className="flex items-center gap-1.5 opacity-40">
-                      <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border text-[9px] font-mono">1-9</kbd>
-                      <span className="text-[8px] font-bold uppercase tracking-widest">Score</span>
-                   </div>
-                   <div className="flex items-center gap-1.5 opacity-40">
-                      <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border text-[9px] font-mono">0</kbd>
-                      <span className="text-[8px] font-bold uppercase tracking-widest">10</span>
-                   </div>
-                   <div className="flex items-center gap-1.5 opacity-40">
-                      <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border text-[9px] font-mono">X</kbd>
-                      <span className="text-[8px] font-bold uppercase tracking-widest">X</span>
-                   </div>
-                   <div className="flex items-center gap-1.5 opacity-40">
-                      <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border text-[9px] font-mono">M</kbd>
-                      <span className="text-[8px] font-bold uppercase tracking-widest">Miss</span>
-                   </div>
-                   <div className="flex items-center gap-1.5 opacity-40">
-                      <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border text-[9px] font-mono">BS</kbd>
-                      <span className="text-[8px] font-bold uppercase tracking-widest">Undo</span>
-                   </div>
-                   <div className="flex items-center gap-1.5 opacity-40">
-                      <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border text-[9px] font-mono">↵</kbd>
-                      <span className="text-[8px] font-bold uppercase tracking-widest">Save</span>
-                   </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                  {keypadValues.map((val, idx) => (
-                    <button 
-                      key={`pad-${String(val)}-${idx}`} 
-                      onClick={() => handleInput(val)}
-                      className={`h-14 sm:h-20 rounded-2xl text-2xl sm:text-4xl font-black shadow-sm active:scale-95 transition-all flex items-center justify-center border-b-4 ${getButtonStyles(val)}`}
-                    >
-                      {val}
-                    </button>
-                  ))}
-                  <button 
+              {/* Pinned Bottom Action Bar - Always Reachable Without Scrolling */}
+              <div className="shrink-0 bg-white border-t border-slate-200 px-3 py-2 sm:px-6 sm:py-3 shadow-[0_-4px_16px_rgba(15,23,42,0.06)] pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+                <div className="w-full max-w-lg mx-auto flex items-center gap-2 sm:gap-3">
+                  <button
+                    type="button"
                     onClick={handleDeleteArrow}
-                    className="h-14 sm:h-20 bg-white text-red-500 rounded-2xl flex flex-col items-center justify-center active:scale-95 transition-all border-2 border-slate-200 shadow-sm hover:bg-red-50 hover:border-red-200"
-                    title="Hapus / Koreksi Anak Panah"
+                    className="sm:hidden h-12 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl font-black uppercase text-[9px] tracking-wider active:scale-95 transition-all flex flex-col items-center justify-center shrink-0"
+                    title="Hapus panah terakhir"
                   >
-                    <Delete className="w-7 h-7 sm:w-9 sm:h-9" />
-                    <span className="text-[8px] font-black uppercase tracking-wider mt-0.5">Hapus</span>
+                    <Delete className="w-4 h-4 text-red-500" />
+                    <span>Hapus</span>
                   </button>
-                </div>
-
-                {/* Explicit Action Buttons */}
-                <div className="flex gap-2 sm:gap-4 pt-1">
-                    <button 
-                      onClick={() => {
-                        if (tempArrows.some(v => v !== -1)) {
-                          setShowConfirmModal(true);
-                        }
-                      }}
-                      disabled={!tempArrows.some(v => v !== -1)}
-                      className={`flex-1 h-14 sm:h-20 rounded-2xl font-black uppercase text-sm sm:text-base tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 sm:gap-3 border-b-4 ${
-                        isAllArrowsFilled
-                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-800 shadow-emerald-600/30 ring-4 ring-emerald-400/30'
-                          : tempArrows.some(v => v !== -1)
-                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-800'
-                            : 'bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed'
-                      }`}
-                    >
-                      <CheckCircle2 className="w-6 h-6 sm:w-7 sm:h-7" />
-                      <span>{isAllArrowsFilled ? `Teliti & Simpan R${currentEnd + 1}` : 'Teliti & Simpan Skor'}</span>
-                    </button>
-                    <button 
-                      onClick={handleResetEnd}
-                      className="px-5 sm:px-6 h-14 sm:h-20 bg-red-50 text-red-600 border-2 border-red-200 rounded-2xl font-black uppercase text-[10px] sm:text-xs tracking-tighter sm:tracking-widest shadow-xs active:scale-95 transition-all flex flex-col items-center justify-center gap-1 hover:bg-red-100"
-                      title="Reset skor rambahan ini"
-                    >
-                      <Trash2 className="w-5 h-5 sm:w-6 sm:h-6" />
-                      RESET
-                    </button>
+                  <button 
+                    type="button"
+                    onClick={handleResetEnd}
+                    className="h-12 sm:h-14 px-3 sm:px-5 bg-red-50 text-red-600 border border-red-200 rounded-xl sm:rounded-2xl font-black uppercase text-[9px] sm:text-xs tracking-wider shadow-2xs active:scale-95 transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 hover:bg-red-100 shrink-0"
+                    title="Reset skor rambahan ini"
+                  >
+                    <Trash2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <span>Reset</span>
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      if (!tempArrows.some(v => v !== -1)) return;
+                      if (quickSaveMode) {
+                        handleSave(tempArrows);
+                      } else {
+                        setShowConfirmModal(true);
+                      }
+                    }}
+                    disabled={!tempArrows.some(v => v !== -1)}
+                    className={`flex-1 h-12 sm:h-14 rounded-xl sm:rounded-2xl font-black uppercase text-xs sm:text-base tracking-wider sm:tracking-widest shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 border-b-4 ${
+                      isAllArrowsFilled
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-800 shadow-emerald-600/30 ring-2 sm:ring-4 ring-emerald-400/30'
+                        : tempArrows.some(v => v !== -1)
+                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-800'
+                          : 'bg-slate-200 text-slate-400 border-slate-300 cursor-not-allowed'
+                    }`}
+                  >
+                    <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 shrink-0" />
+                    <span className="truncate">
+                      {quickSaveMode
+                        ? isAllArrowsFilled ? `Simpan R${currentEnd + 1} (${currentEndTotal})` : `Simpan R${currentEnd + 1}`
+                        : isAllArrowsFilled ? `Teliti & Simpan R${currentEnd + 1} (${currentEndTotal})` : 'Teliti & Simpan Skor'}
+                    </span>
+                  </button>
                 </div>
               </div>
             </>
@@ -1244,8 +1301,8 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
 
       {/* Instant Notification Toast */}
       {showToast && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-8 py-4 rounded-3xl font-black text-xs uppercase shadow-2xl animate-in slide-in-from-bottom-10 flex items-center gap-3 border-2 border-white/20">
-           <CheckCircle2 className="w-5 h-5" /> {showToast}
+        <div className="fixed bottom-20 sm:bottom-10 left-1/2 -translate-x-1/2 bg-emerald-500 text-white px-6 sm:px-8 py-3 sm:py-4 rounded-3xl font-black text-xs uppercase shadow-2xl animate-in slide-in-from-bottom-10 flex items-center gap-3 border-2 border-white/20 z-[150] whitespace-nowrap max-w-[92vw]">
+           <CheckCircle2 className="w-5 h-5 shrink-0" /> <span className="truncate">{showToast}</span>
         </div>
       )}
     </div>

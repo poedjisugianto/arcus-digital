@@ -10,6 +10,7 @@ import { buildRankedArchersForElimination } from '../lib/bracketSeeding';
 interface Props {
   state: ArcheryEvent;
   onBack: () => void;
+  onViewMedalStandings?: () => void;
   startInTVMode?: boolean;
 }
 
@@ -213,7 +214,7 @@ const TVVideoSponsor = ({ sponsorships }: { sponsorships?: Sponsorship[] }) => {
   );
 };
 
-const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false }) => {
+const LiveScoreboard: React.FC<Props> = ({ state, onBack, onViewMedalStandings, startInTVMode = false }) => {
   const settings: any = state?.settings || {};
   const [activeTab, setActiveTab] = useState<'KUALIFIKASI' | 'ELIMINASI'>('KUALIFIKASI');
   const [filterCategory, setFilterCategory] = useState<CategoryType | string>(CategoryType.ADULT_PUTRA);
@@ -521,6 +522,7 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
     return leaderBoard.filter(a => 
       (a.name || '').toLowerCase().includes(search) || 
       (a.club || '').toLowerCase().includes(search) ||
+      (a.region || '').toLowerCase().includes(search) ||
       (String(a.targetNo || '') + String(a.position || '')).toLowerCase().includes(search)
     );
   }, [leaderBoard, searchTerm]);
@@ -600,9 +602,22 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
         </div>
 
         {!isTVMode && (
-          <div className="flex items-center gap-1 sm:gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
-             <button onClick={() => setActiveTab('KUALIFIKASI')} className={`px-5 sm:px-8 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === 'KUALIFIKASI' ? 'bg-white shadow-md text-slate-900' : 'text-slate-700'}`}>Kualifikasi</button>
-             <button onClick={() => setActiveTab('ELIMINASI')} className={`px-5 sm:px-8 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === 'ELIMINASI' ? 'bg-white shadow-md text-slate-900' : 'text-slate-700'}`}>Aduan</button>
+          <div className="flex items-center gap-2">
+            {onViewMedalStandings && (
+              <button
+                type="button"
+                onClick={onViewMedalStandings}
+                className="px-3 sm:px-4 py-2 bg-slate-900 hover:bg-slate-800 text-amber-400 rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
+                title="Buka Klasemen Medali Daerah / Klub"
+              >
+                <Medal className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden sm:inline">Klasemen Medali</span>
+              </button>
+            )}
+            <div className="flex items-center gap-1 sm:gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
+               <button onClick={() => setActiveTab('KUALIFIKASI')} className={`px-4 sm:px-7 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === 'KUALIFIKASI' ? 'bg-white shadow-md text-slate-900' : 'text-slate-700'}`}>Kualifikasi</button>
+               <button onClick={() => setActiveTab('ELIMINASI')} className={`px-4 sm:px-7 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === 'ELIMINASI' ? 'bg-white shadow-md text-slate-900' : 'text-slate-700'}`}>Aduan</button>
+            </div>
           </div>
         )}
       </div>
@@ -865,9 +880,9 @@ const LiveScoreboard: React.FC<Props> = ({ state, onBack, startInTVMode = false 
                                    <span className="text-[12px] sm:text-[13px] font-black font-oswald uppercase italic tracking-tight text-slate-900 truncate">
                                      {row.name}
                                    </span>
-                                   {row.club && (
+                                   {(row.club || row.region) && (
                                      <span className="text-[9.5px] sm:text-[10.5px] font-semibold text-slate-400 uppercase truncate">
-                                       · {row.club}
+                                       · {row.club || '-'}{row.region ? ` (${row.region})` : ''}
                                      </span>
                                    )}
                                    {isQualified && (

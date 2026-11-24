@@ -109,6 +109,7 @@ const ArcherList: React.FC<Props> = ({
   );
   const [filterWave, setFilterWave] = useState<number | "ALL">("ALL");
   const [filterClub, setFilterClub] = useState<string>("ALL");
+  const [filterRegion, setFilterRegion] = useState<string>("ALL");
   const [filterCheckIn, setFilterCheckIn] = useState<"ALL" | "CHECKED_IN" | "NOT_CHECKED_IN">("ALL");
   const [showScannerModal, setShowScannerModal] = useState(false);
   const [editingArcher, setEditingArcher] = useState<Archer | null>(null);
@@ -127,6 +128,7 @@ const ArcherList: React.FC<Props> = ({
     email: "",
     phone: "",
     club: "",
+    region: "",
     category: (eventCategories[0] || CategoryType.ADULT_PUTRA) as string,
     targetNo: 1,
     position: "A" as "A" | "B" | "C" | "D",
@@ -164,7 +166,10 @@ const ArcherList: React.FC<Props> = ({
 
   const handleManualAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newArcher.name || !newArcher.club) return;
+    if (!newArcher.name.trim() || !newArcher.club.trim() || !newArcher.region.trim()) {
+      toast.error("Nama lengkap, Klub, dan Nama Daerah wajib diisi!");
+      return;
+    }
 
     if (Boolean(settings?.requireKta) && !newArcher.ktaNumber.trim()) {
       alert("Nomor KTA wajib diisi karena turnamen ini diatur sebagai Event Resmi (Wajib KTA).");
@@ -200,10 +205,11 @@ const ArcherList: React.FC<Props> = ({
       id: "m-arc-" + Math.random().toString(36).substr(2, 9),
       eventId: "", // Will be handled by parent if needed, but App.tsx just spreads it
       registrationNo: registrationNo,
-      name: newArcher.name,
+      name: newArcher.name.trim(),
       ...(newArcher.ktaNumber.trim() ? { ktaNumber: newArcher.ktaNumber.trim().toUpperCase() } : {}),
       email: newArcher.email || "-",
-      club: newArcher.club,
+      club: newArcher.club.trim(),
+      region: newArcher.region.trim().toUpperCase(),
       category: newArcher.category,
       phone: newArcher.phone || "-",
       status: RegistrationStatus.APPROVED,
@@ -226,6 +232,7 @@ const ArcherList: React.FC<Props> = ({
       email: "",
       phone: "",
       club: "",
+      region: "",
       category: eventCategories[0] || CategoryType.ADULT_PUTRA,
       targetNo: 1,
       position: "A",
@@ -371,7 +378,8 @@ const ArcherList: React.FC<Props> = ({
       "No",
       "Nama Lengkap Peserta",
       "No KTA",
-      "Klub / Kontingen / Sekolah",
+      "Klub / Instansi",
+      "Daerah / Asal",
       "Kategori",
       "Nomor Bantalan",
       "Posisi Bantalan",
@@ -389,6 +397,7 @@ const ArcherList: React.FC<Props> = ({
         a.name || "",
         a.ktaNumber || "-",
         a.club || "-",
+        a.region || "-",
         catName,
         a.targetNo || "-",
         a.position || "-",
@@ -456,6 +465,13 @@ const ArcherList: React.FC<Props> = ({
     return ["ALL", ...uniqueClubs];
   }, [archers]);
 
+  const regions = useMemo(() => {
+    const uniqueRegions = Array.from(
+      new Set(archers.map((a) => (a.region || "").trim()).filter(Boolean))
+    ).sort();
+    return ["ALL", ...uniqueRegions];
+  }, [archers]);
+
   const filtered = useMemo(() => {
     return (archers || [])
       .filter((a) => {
@@ -465,6 +481,7 @@ const ArcherList: React.FC<Props> = ({
           (a.name || "").toLowerCase().includes(search) ||
           (a.ktaNumber || "").toLowerCase().includes(search) ||
           (a.club || "").toLowerCase().includes(search) ||
+          (a.region || "").toLowerCase().includes(search) ||
           (a.registrationNo || "").toLowerCase().includes(search) ||
           (a.id || "").toLowerCase().includes(search) ||
           (String(a.targetNo || "") + String(a.position || "")).toLowerCase().includes(search);
@@ -473,12 +490,13 @@ const ArcherList: React.FC<Props> = ({
         (activeCategory as any) === "ALL" || a.category === activeCategory;
         const matchesWave = filterWave === "ALL" || a.wave === filterWave;
         const matchesClub = filterClub === "ALL" || a.club === filterClub;
+        const matchesRegion = filterRegion === "ALL" || (a.region || "").trim() === filterRegion;
         const matchesCheckIn = 
           filterCheckIn === "ALL" || 
           (filterCheckIn === "CHECKED_IN" && a.checkedIn) || 
           (filterCheckIn === "NOT_CHECKED_IN" && !a.checkedIn);
 
-        return matchesSearch && matchesCategory && matchesWave && matchesClub && matchesCheckIn;
+        return matchesSearch && matchesCategory && matchesWave && matchesClub && matchesRegion && matchesCheckIn;
       })
       .sort((a: Archer, b: Archer) => {
         const wA = a.wave || 1;
@@ -491,7 +509,7 @@ const ArcherList: React.FC<Props> = ({
 
         return (a.position || "").localeCompare(b.position || "");
       });
-  }, [archers, activeCategory, searchTerm, filterWave, filterClub, filterCheckIn]);
+  }, [archers, activeCategory, searchTerm, filterWave, filterClub, filterRegion, filterCheckIn]);
 
   return (
     <div className="space-y-6">
@@ -892,7 +910,7 @@ const ArcherList: React.FC<Props> = ({
                   </label>
                   <label className="block">
                     <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest px-1">
-                      Klub / Instansi
+                      Klub / Instansi <span className="text-red-500">*</span>
                     </span>
                     <input
                       type="text"
@@ -901,6 +919,21 @@ const ArcherList: React.FC<Props> = ({
                       onChange={(e) =>
                         setNewArcher({ ...newArcher, club: e.target.value })
                       }
+                      className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none focus:ring-4 ring-red-500/10 transition-all text-slate-900"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest px-1">
+                      Nama Daerah (Kota/Kab/Prov) <span className="text-red-500">*</span>
+                    </span>
+                    <input
+                      type="text"
+                      required
+                      value={newArcher.region}
+                      onChange={(e) =>
+                        setNewArcher({ ...newArcher, region: e.target.value.toUpperCase() })
+                      }
+                      placeholder="Contoh: Kota Yogyakarta / Kab. Sleman"
                       className="mt-1 block w-full rounded-2xl border-slate-200 px-4 py-2.5 border font-bold outline-none focus:ring-4 ring-red-500/10 transition-all text-slate-900"
                     />
                   </label>
@@ -1126,7 +1159,7 @@ const ArcherList: React.FC<Props> = ({
                             {a.ktaNumber || "-"}
                           </td>
                           <td className="border border-black py-1 px-2 text-[10px] uppercase">
-                            {a.club}
+                            {a.club}{a.region ? ` • ${a.region}` : ''}
                           </td>
                           <td className="border border-black py-1 px-1 text-center text-[10px] font-bold">
                             {a.wave}
@@ -1219,7 +1252,7 @@ const ArcherList: React.FC<Props> = ({
                         {a.ktaNumber || "-"}
                       </td>
                       <td className="border border-black py-1 px-2 text-[10px] uppercase">
-                        {a.club}
+                        {a.club}{a.region ? ` • ${a.region}` : ''}
                       </td>
                       <td className="border border-black py-1 px-1 text-center text-[10px] font-bold">
                         {a.wave}
@@ -1467,6 +1500,17 @@ const ArcherList: React.FC<Props> = ({
                 </option>
               ))}
             </select>
+            <select
+              value={filterRegion}
+              onChange={(e) => setFilterRegion(e.target.value)}
+              className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-[10px] font-black uppercase outline-none focus:border-arcus-red max-w-[150px]"
+            >
+              {regions.map((reg: string) => (
+                <option key={reg} value={reg}>
+                  {reg === "ALL" ? "Semua Daerah" : reg}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
         <div className="overflow-x-auto min-h-[300px] flex flex-col">
@@ -1479,7 +1523,7 @@ const ArcherList: React.FC<Props> = ({
                 <th className="p-4">No. KTA</th>
                 <th className="p-4">Registrasi Ulang</th>
                 <th className="p-4">Kontak</th>
-                <th className="p-4">Klub</th>
+                <th className="p-4">Klub &amp; Daerah</th>
                 <th className="p-4">Kategori</th>
                 <th className="p-4">Status Bayar</th>
                 <th className="p-4 text-right">Aksi</th>
@@ -1573,7 +1617,14 @@ const ArcherList: React.FC<Props> = ({
                       </span>
                     </div>
                   </td>
-                  <td className="p-4 text-slate-800 font-medium">{a.club}</td>
+                  <td className="p-4">
+                    <div className="flex flex-col">
+                      <span className="text-slate-800 font-semibold">{a.club}</span>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">
+                        {a.region || '-'}
+                      </span>
+                    </div>
+                  </td>
                   <td className="p-4 text-slate-700 uppercase font-black tracking-tighter">
                     {getCategoryDisplayName(a.category, settings?.categoryConfigs)}
                   </td>

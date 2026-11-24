@@ -93,6 +93,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
     email: string;
     phone: string;
     club: string;
+    region: string;
     category: string;
     paymentProof: string;
     paymentType: 'MANUAL' | 'GATEWAY';
@@ -100,7 +101,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
     regType: 'ARCHER' | 'OFFICIAL';
     photoUrl?: string;
   }>({
-    name: '', ktaNumber: '', email: '', phone: '', club: '', category: '', paymentProof: '',
+    name: '', ktaNumber: '', email: '', phone: '', club: '', region: '', category: '', paymentProof: '',
     paymentType: isGatewayEnabled ? 'GATEWAY' : 'MANUAL', 
     selectedPaymentMethodId: '', regType: 'ARCHER', photoUrl: ''
   });
@@ -289,7 +290,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
 
   const resetRegistration = () => {
     setFormData({
-      name: '', ktaNumber: '', email: '', phone: '', club: '', category: '', paymentProof: '',
+      name: '', ktaNumber: '', email: '', phone: '', club: '', region: '', category: '', paymentProof: '',
       paymentType: 'MANUAL', selectedPaymentMethodId: '', regType: 'ARCHER', photoUrl: ''
     });
     setAgreedToTerms(false);
@@ -346,6 +347,11 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
 
     if (!agreedToTerms) {
       toast.error("Anda harus menyetujui Syarat & Ketentuan untuk melanjutkan");
+      return;
+    }
+
+    if (!formData.club.trim() || !formData.region.trim()) {
+      toast.error("Nama Klub dan Nama Daerah wajib diisi.");
       return;
     }
 
@@ -490,7 +496,8 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
         ktaNumber: formData.ktaNumber.trim() ? formData.ktaNumber.trim().toUpperCase() : undefined,
         email: formData.email,
         phone: formData.phone,
-        club: formData.club,
+        club: formData.club.trim(),
+        region: formData.region.trim().toUpperCase(),
         category: formData.regType === 'OFFICIAL' ? 'OFFICIAL' : formData.category,
         regType: formData.regType,
         paymentProof: formData.paymentType === 'MANUAL' ? (formData.paymentProof || "") : "",
@@ -562,7 +569,8 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
           ktaNumber: member.ktaNumber?.trim() ? member.ktaNumber.trim().toUpperCase() : undefined,
           email: formData.email, // Use club contact email
           phone: formData.phone, // Use club contact phone
-          club: formData.club,
+          club: formData.club.trim(),
+          region: formData.region.trim().toUpperCase(),
           category: member.category,
           regType: (member.category === 'OFFICIAL' || member.category === CategoryType.OFFICIAL) ? 'OFFICIAL' : 'ARCHER',
           paymentProof: formData.paymentType === 'MANUAL' ? (formData.paymentProof || "") : "",
@@ -1249,6 +1257,14 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
             {step === 1 && (
               <form onSubmit={(e) => { 
                 e.preventDefault(); 
+                if (!formData.club.trim()) {
+                  toast.error("Nama Klub wajib diisi!");
+                  return;
+                }
+                if (!formData.region.trim()) {
+                  toast.error("Nama Daerah (Kota/Kabupaten/Provinsi) wajib diisi!");
+                  return;
+                }
                 if (isKtaRequired) {
                   if (regMode === 'INDIVIDUAL' && formData.regType === 'ARCHER' && !formData.ktaNumber.trim()) {
                     toast.error("Nomor KTA wajib diisi untuk atlet karena turnamen ini berstatus Event Resmi!");
@@ -1274,14 +1290,25 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="md:col-span-2 space-y-0.5">
-                    <span className="text-[7.5px] font-black text-slate-700 uppercase ml-2 italic">Nama Klub</span>
+                  <div className="space-y-0.5">
+                    <span className="text-[7.5px] font-black text-slate-700 uppercase ml-2 italic">Nama Klub <span className="text-red-500">*</span></span>
                     <input 
                       required 
                       type="text"
                       placeholder="NAMA KLUB" 
                       value={formData.club} 
                       onChange={e => setFormData({...formData, club: e.target.value.toUpperCase()})} 
+                      className="w-full p-2.5 bg-slate-50 rounded-xl font-black italic border border-slate-100 outline-none focus:border-arcus-red text-[11px]" 
+                    />
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-[7.5px] font-black text-slate-700 uppercase ml-2 italic">Nama Daerah (Kota/Kab/Prov) <span className="text-red-500">*</span></span>
+                    <input 
+                      required 
+                      type="text"
+                      placeholder="CONTOH: KOTA YOGYAKARTA / SLEMAN" 
+                      value={formData.region} 
+                      onChange={e => setFormData({...formData, region: e.target.value.toUpperCase()})} 
                       className="w-full p-2.5 bg-slate-50 rounded-xl font-black italic border border-slate-100 outline-none focus:border-arcus-red text-[11px]" 
                     />
                   </div>
@@ -1912,6 +1939,7 @@ export default function OnlineRegistration({ event, globalSettings, onRegister, 
                           name: formData.name || 'SIMULASI USER', 
                           email: formData.email, 
                           club: formData.club, 
+                          region: formData.region.trim().toUpperCase(),
                           category: formData.category || 'UMUM', 
                           totalPaid: 0, 
                           platformFee: 0, 

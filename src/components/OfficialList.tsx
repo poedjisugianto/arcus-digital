@@ -23,11 +23,13 @@ const OfficialList: React.FC<Props> = ({ officials, onUpdate, onRemove, onGoToId
   const [isDeleting, setIsDeleting] = useState(false);
 
   const filtered = useMemo(() => {
+    const q = (searchTerm || '').toLowerCase();
     return (officials || []).filter(o => 
       !o ? false : (
-        (o.name || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
-        (o.club || '').toLowerCase().includes((searchTerm || '').toLowerCase()) ||
-        (o.email || '').toLowerCase().includes((searchTerm || '').toLowerCase())
+        (o.name || '').toLowerCase().includes(q) ||
+        (o.club || '').toLowerCase().includes(q) ||
+        (o.region || '').toLowerCase().includes(q) ||
+        (o.email || '').toLowerCase().includes(q)
       )
     ).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [officials, searchTerm]);
@@ -44,7 +46,7 @@ const OfficialList: React.FC<Props> = ({ officials, onUpdate, onRemove, onGoToId
         return;
       }
 
-      const headers = ["Nama", "No KTA", "Klub", "Kontak", "Email", "Status"];
+      const headers = ["Nama", "No KTA", "Klub", "Daerah", "Kontak", "Email", "Status"];
       const csvRows = [];
       csvRows.push(headers.join(","));
 
@@ -53,6 +55,7 @@ const OfficialList: React.FC<Props> = ({ officials, onUpdate, onRemove, onGoToId
           `"${o.name}"`,
           `"${o.ktaNumber || '-'}"`,
           `"${o.club}"`,
+          `"${o.region || '-'}"`,
           `"${o.phone || '-'}"`,
           `"${o.email || '-'}"`,
           `"${o.status}"`
@@ -130,7 +133,7 @@ const OfficialList: React.FC<Props> = ({ officials, onUpdate, onRemove, onGoToId
               <tr className="bg-slate-50">
                 <th className="px-6 py-4 text-[10px] font-black text-slate-900 uppercase tracking-widest">Official / Pelatih</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-900 uppercase tracking-widest">No. KTA</th>
-                <th className="px-6 py-4 text-[10px] font-black text-slate-900 uppercase tracking-widest">Klub / Pengcab</th>
+                <th className="px-6 py-4 text-[10px] font-black text-slate-900 uppercase tracking-widest">Klub &amp; Daerah</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-900 uppercase tracking-widest">Kontak</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-900 uppercase tracking-widest">Status</th>
                 <th className="px-6 py-4 text-[10px] font-black text-slate-900 uppercase tracking-widest text-right">Aksi</th>
@@ -156,7 +159,10 @@ const OfficialList: React.FC<Props> = ({ officials, onUpdate, onRemove, onGoToId
                       <span className="text-slate-400 font-bold italic text-xs">-</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-xs font-bold text-slate-800 uppercase">{o.club}</td>
+                  <td className="px-6 py-4">
+                    <div className="text-xs font-bold text-slate-800 uppercase">{o.club}</div>
+                    <div className="text-[10px] font-bold text-slate-500 uppercase mt-0.5">{o.region || '-'}</div>
+                  </td>
                   <td className="px-6 py-4">
                     <p className="text-[10px] font-black text-slate-600">{o.phone || '-'}</p>
                     <p className="text-[8px] font-bold text-slate-700">{o.email}</p>

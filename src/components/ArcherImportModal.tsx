@@ -50,6 +50,7 @@ export const ArcherImportModal: React.FC<ArcherImportModalProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
   const [defaultCategory, setDefaultCategory] = useState<CategoryType>(CategoryType.ADULT_PUTRA);
+  const [defaultRegion, setDefaultRegion] = useState<string>('');
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -160,12 +161,27 @@ export const ArcherImportModal: React.FC<ArcherImportModalProps> = ({
     );
   };
 
+  // Change region of a single row in preview
+  const handleRowRegionChange = (tempId: string, newRegion: string) => {
+    setParsedRows(prev =>
+      prev.map(row =>
+        row.tempId === tempId
+          ? {
+              ...row,
+              region: newRegion
+            }
+          : row
+      )
+    );
+  };
+
   // Filtered rows for preview
   const filteredRows = useMemo(() => {
     return parsedRows.filter(row => {
       const matchesSearch =
         row.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         row.club.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (row.region || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         row.categoryLabel.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = filterCategory === 'ALL' || row.category === filterCategory;
       return matchesSearch && matchesCategory;
@@ -180,6 +196,12 @@ export const ArcherImportModal: React.FC<ArcherImportModalProps> = ({
     const rowsToImport = parsedRows.filter(r => r.selected && r.isValid);
     if (rowsToImport.length === 0) {
       toast.warning('Pilih setidaknya satu peserta yang valid untuk diimpor.');
+      return;
+    }
+
+    const missingRegionRow = rowsToImport.find(r => !(r.region || defaultRegion).trim());
+    if (missingRegionRow) {
+      toast.error(`Nama Daerah wajib diisi untuk "${missingRegionRow.name}" (isi pada kolom Daerah atau masukkan Daerah Default di atas tabel).`);
       return;
     }
 
@@ -217,7 +239,9 @@ export const ArcherImportModal: React.FC<ArcherImportModalProps> = ({
           id: 'm-arc-' + Math.random().toString(36).substring(2, 11),
           registrationNo,
           name: row.name,
+          ...(row.ktaNumber ? { ktaNumber: row.ktaNumber } : {}),
           club: row.club || '-',
+          region: (row.region || defaultRegion).trim().toUpperCase(),
           category: row.category,
           status: RegistrationStatus.APPROVED,
           paymentType: 'MANUAL',
@@ -500,18 +524,26 @@ export const ArcherImportModal: React.FC<ArcherImportModalProps> = ({
 
               {/* Table Search & Category Filter */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-                <div className="relative w-full sm:w-72">
+                <div className="relative w-full sm:w-64">
                   <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Cari nama, klub, atau kategori..."
+                    placeholder="Cari nama, klub, daerah..."
                     className="w-full bg-slate-50 border border-slate-200 pl-9 pr-3 py-2 rounded-xl text-xs font-medium outline-none focus:ring-2 focus:ring-emerald-500/20"
                   />
                 </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
+                  <input
+                    type="text"
+                    value={defaultRegion}
+                    onChange={(e) => setDefaultRegion(e.target.value.toUpperCase())}
+                    placeholder="Daerah Default (jika kosong)..."
+                    title="Jika kolom Daerah di Excel ada yang kosong, nilai ini akan otomatis dipakai"
+                    className="bg-amber-50 border border-amber-200 text-slate-900 text-xs font-bold rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-amber-400/30 w-full sm:w-52 placeholder:text-amber-700/70"
+                  />
                   <select
                     value={filterCategory}
                     onChange={(e) => setFilterCategory(e.target.value)}
@@ -546,6 +578,7 @@ export const ArcherImportModal: React.FC<ArcherImportModalProps> = ({
                       <th className="p-3 w-10">No</th>
                       <th className="p-3">Nama Lengkap</th>
                       <th className="p-3">Klub / Instansi</th>
+                      <th className="p-3">Daerah *</th>
                       <th className="p-3">Kategori Lomba</th>
                       <th className="p-3 text-center">Bantalan</th>
                       <th className="p-3 text-center">Posisi</th>
@@ -557,7 +590,7 @@ export const ArcherImportModal: React.FC<ArcherImportModalProps> = ({
                   <tbody className="divide-y divide-slate-100 bg-white font-medium">
                     {filteredRows.length === 0 ? (
                       <tr>
-                        <td colSpan={10} className="p-8 text-center text-slate-400">
+                        <td colSpan={11} className="p-8 text-center text-slate-400">
                           Tidak ada peserta yang cocok dengan pencarian / filter.
                         </td>
                       </tr>
@@ -590,6 +623,19 @@ export const ArcherImportModal: React.FC<ArcherImportModalProps> = ({
                           </td>
                           <td className="p-3 text-slate-700">
                             {row.club}
+                          </td>
+                          <td className="p-3">
+                            <input
+                              type="text"
+                              value={row.region || ''}
+                              onChange={(e) => handleRowRegionChange(row.tempId, e.target.value.toUpperCase())}
+                              placeholder={defaultRegion || 'Isi Daerah...'}
+                              className={`w-32 px-2 py-1 rounded-lg text-[11px] font-bold border outline-none ${
+                                !(row.region || defaultRegion).trim()
+                                  ? 'border-amber-400 bg-amber-50 text-amber-900'
+                                  : 'border-slate-200 bg-slate-50 text-slate-800'
+                              }`}
+                            />
                           </td>
                           <td className="p-3">
                             <select

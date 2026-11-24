@@ -6,7 +6,7 @@ import {
   Link as LinkIcon, Info, Hash, Repeat, Compass, Layers, 
   Users as UsersIcon, AlertTriangle, AlertCircle, ShieldCheck, Zap, ToggleRight, ToggleLeft,
   FileDown, ExternalLink, HelpCircle, Check, ChevronLeft, Smartphone, Clock, Swords, Monitor,
-  Heart, Youtube, Video, Crosshair, Scale, Sliders, Award, Printer, GitBranch, Share2, Receipt, RefreshCw, Sparkles, Phone
+  Heart, Youtube, Video, Crosshair, Scale, Sliders, Award, Medal, Printer, GitBranch, Share2, Receipt, RefreshCw, Sparkles, Phone
 } from 'lucide-react';
 import { TournamentSettings, CategoryType, TargetType, PaymentMethod, ScorerAccess, CategoryConfig, Sponsorship, Archer, ParticipantRegistration, GlobalSettings, RundownItem, ArcheryEvent, AutoTargetConfig, AutoTargetModel, TargetFillOrder, TargetAssignTrigger, CategoryTargetBlock } from '../types';
 import { CATEGORY_LABELS, TARGET_LABELS, getCategoryDisplayName } from '../constants';
@@ -68,6 +68,7 @@ interface Props {
   onShare?: () => void;
   onManageElimination?: () => void;
   onManageResults?: () => void;
+  onManageMedalStandings?: () => void;
   onManageFinance?: () => void;
   onManageIdCards?: () => void;
   onGoToOperatorCenter?: () => void;
@@ -101,6 +102,7 @@ const AdminPanel: React.FC<Props> = ({
   onShare,
   onManageElimination,
   onManageResults,
+  onManageMedalStandings,
   onManageFinance,
   onManageIdCards,
   onGoToOperatorCenter,
@@ -952,22 +954,33 @@ const AdminPanel: React.FC<Props> = ({
                     </p>
                   </div>
                 </div>
-                <div className="pt-8 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={onManageResults}
-                    className="flex-1 py-4 text-center bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
-                  >
-                    Lihat Hasil &amp; Podium
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowPrintCertificateModal(true)}
-                    className="px-4 py-4 text-center bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
-                    title="Cetak E-Sertifikat Juara & Peserta"
-                  >
-                    <Award className="w-4 h-4" /> E-Sertifikat
-                  </button>
+                <div className="pt-8 space-y-2">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={onManageResults}
+                      className="flex-1 py-4 text-center bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg active:scale-95"
+                    >
+                      Lihat Hasil &amp; Podium
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowPrintCertificateModal(true)}
+                      className="px-4 py-4 text-center bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5"
+                      title="Cetak E-Sertifikat Juara & Peserta"
+                    >
+                      <Award className="w-4 h-4" /> E-Sertifikat
+                    </button>
+                  </div>
+                  {onManageMedalStandings && (
+                    <button
+                      type="button"
+                      onClick={onManageMedalStandings}
+                      className="w-full py-3.5 text-center bg-slate-900 hover:bg-slate-800 text-amber-400 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+                    >
+                      <Medal className="w-4 h-4" /> Klasemen Medali (Daerah / Klub)
+                    </button>
+                  )}
                 </div>
               </div>
 

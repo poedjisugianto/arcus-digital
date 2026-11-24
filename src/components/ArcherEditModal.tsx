@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Save, User, Target, Phone, Mail, Camera, 
   Trash2, KeyRound, Sparkles, RefreshCw, Loader2, 
-  CheckCircle2, Building2, Layers, DollarSign, 
+  CheckCircle2, Building2, MapPin, Layers, DollarSign, 
   AlertCircle, ShieldCheck, Check
 } from 'lucide-react';
 import { Archer, CategoryType, RegistrationStatus, TournamentSettings } from '../types';
@@ -34,6 +34,7 @@ export const ArcherEditModal: React.FC<ArcherEditModalProps> = ({
     registrationNo: '',
     ktaNumber: '',
     club: '',
+    region: '',
     category: CategoryType.ADULT_PUTRA as string,
     targetNo: 1,
     position: 'A' as 'A' | 'B' | 'C' | 'D',
@@ -62,6 +63,7 @@ export const ArcherEditModal: React.FC<ArcherEditModalProps> = ({
         registrationNo: archer.registrationNo || '',
         ktaNumber: archer.ktaNumber || '',
         club: archer.club || '',
+        region: archer.region || '',
         category: archer.category || CategoryType.ADULT_PUTRA,
         targetNo: Number(archer.targetNo) || 1,
         position: (archer.position || 'A').toUpperCase() as 'A' | 'B' | 'C' | 'D',
@@ -143,6 +145,11 @@ export const ArcherEditModal: React.FC<ArcherEditModalProps> = ({
       return;
     }
 
+    if (!formData.region.trim()) {
+      toast.error("Nama daerah pemanah wajib diisi.");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const updated: Archer = {
@@ -151,6 +158,7 @@ export const ArcherEditModal: React.FC<ArcherEditModalProps> = ({
         registrationNo: formData.registrationNo.trim() || archer.registrationNo,
         ktaNumber: formData.ktaNumber.trim() ? formData.ktaNumber.trim().toUpperCase() : undefined,
         club: formData.club.trim(),
+        region: formData.region.trim().toUpperCase(),
         category: formData.category,
         targetNo: Number(formData.targetNo) || 1,
         position: formData.position,
@@ -294,7 +302,7 @@ export const ArcherEditModal: React.FC<ArcherEditModalProps> = ({
 
               <label className="block">
                 <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1">
-                  Klub / Instansi / Pengcab <span className="text-red-500">*</span>
+                  Klub / Instansi <span className="text-red-500">*</span>
                 </span>
                 <div className="relative mt-1.5">
                   <Building2 className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
@@ -303,8 +311,27 @@ export const ArcherEditModal: React.FC<ArcherEditModalProps> = ({
                     required
                     value={formData.club}
                     onChange={(e) => setFormData({ ...formData, club: e.target.value })}
-                    placeholder="Nama klub atau kontingen..."
+                    placeholder="Nama klub..."
                     className="block w-full pl-11 pr-4 py-2.5 rounded-2xl border border-slate-200 font-bold outline-none focus:ring-4 ring-red-500/10 focus:border-arcus-red transition-all text-slate-900 text-sm"
+                  />
+                </div>
+              </label>
+
+              <label className="block">
+                <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1">
+                  Nama Daerah (Kota/Kab/Prov) <span className="text-red-500">*</span>
+                </span>
+                <div className="relative mt-1.5">
+                  <MapPin className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    required
+                    value={formData.region}
+                    onChange={(e) => setFormData({ ...formData, region: e.target.value.toUpperCase() })}
+                    placeholder="Contoh: Kota Yogyakarta / Kab. Sleman"
+                    className={`block w-full pl-11 pr-4 py-2.5 rounded-2xl border font-bold outline-none focus:ring-4 ring-red-500/10 focus:border-arcus-red transition-all text-slate-900 text-sm ${
+                      !formData.region.trim() ? 'border-amber-400 bg-amber-50/40' : 'border-slate-200'
+                    }`}
                   />
                 </div>
               </label>

@@ -153,6 +153,7 @@ export interface ParticipantRegistration {
   email: string;
   phone?: string;
   club: string;
+  region?: string;
   category: string;
   status: RegistrationStatus;
   paymentProof?: string;

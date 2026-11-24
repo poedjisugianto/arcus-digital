@@ -13,10 +13,11 @@ interface Props {
   state: ArcheryEvent;
   onResetScores: () => void;
   onSaveSettings?: (settings: TournamentSettings) => void | Promise<void>;
+  onViewMedalStandings?: () => void;
   onBack: () => void;
 }
 
-export default function ResultsPanel({ state, onResetScores, onSaveSettings, onBack }: Props) {
+export default function ResultsPanel({ state, onResetScores, onSaveSettings, onViewMedalStandings, onBack }: Props) {
   const [activeCategory, setActiveCategory] = useState<CategoryType | string>(CategoryType.ADULT_PUTRA);
   const eventCategories = useMemo(() => {
     if (state.settings?.categoryConfigs && Object.keys(state.settings.categoryConfigs).length > 0) {
@@ -266,7 +267,7 @@ export default function ResultsPanel({ state, onResetScores, onSaveSettings, onB
       { label: 'Total Peserta Terdata:', value: `${allRankings.length} Peserta` }
     ];
 
-    const headers = ['No', 'Rank Kualifikasi', 'Nomor Bantalan', 'Nama Lengkap Atlet', 'Klub / Kontingen', 'Kategori', 'Total Skor', 'X+10 / 6s / 2s', '9s / 5s / 1s'];
+    const headers = ['No', 'Rank Kualifikasi', 'Nomor Bantalan', 'Nama Lengkap Atlet', 'Klub / Instansi', 'Daerah / Asal', 'Kategori', 'Total Skor', 'X+10 / 6s / 2s', '9s / 5s / 1s'];
 
     const rows = allRankings.map((r, idx) => [
       idx + 1,
@@ -274,6 +275,7 @@ export default function ResultsPanel({ state, onResetScores, onSaveSettings, onB
       `${r.targetNo || '-'}${r.position || ''}`,
       r.name || '',
       r.club || '-',
+      r.region || '-',
       r.categoryLabel || r.category || '-',
       r.total,
       r.sixes,
@@ -345,7 +347,17 @@ export default function ResultsPanel({ state, onResetScores, onSaveSettings, onB
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 md:gap-3">
+          <div className="flex items-center gap-1.5 md:gap-3 flex-wrap justify-end">
+            {onViewMedalStandings && (
+              <button 
+                onClick={onViewMedalStandings}
+                className="bg-slate-900 hover:bg-arcus-red text-white px-3 md:px-4 py-1.5 md:py-2.5 rounded-lg md:rounded-2xl text-[8px] md:text-[10px] font-black uppercase tracking-widest transition-all shadow-md flex items-center gap-1 md:gap-1.5 whitespace-nowrap group"
+                title="Lihat Klasemen Medali per Daerah atau Klub (Juara Umum)"
+              >
+                <Trophy className="w-3.5 h-3.5 md:w-4 md:h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+                <span>KLASEMEN MEDALI</span>
+              </button>
+            )}
             <button 
               onClick={() => setShowCertificateModal(true)}
               className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 px-3 md:px-4 py-1.5 md:py-2.5 rounded-lg md:rounded-2xl text-[8px] md:text-[10px] font-black uppercase tracking-widest transition-all shadow-md flex items-center gap-1 md:gap-1.5 whitespace-nowrap group"
@@ -442,7 +454,7 @@ export default function ResultsPanel({ state, onResetScores, onSaveSettings, onB
                 </div>
                 <div className="text-center">
                   <p className="text-lg font-black font-oswald uppercase italic text-slate-900 leading-none mb-1">{rankings[1].name}</p>
-                  <p className="text-[8px] font-bold text-slate-700 uppercase tracking-widest">{rankings[1].club}</p>
+                  <p className="text-[8px] font-bold text-slate-700 uppercase tracking-widest">{rankings[1].club}{rankings[1].region ? ` • ${rankings[1].region}` : ''}</p>
                   <p className="text-2xl font-black font-oswald text-slate-900 mt-2 italic">{rankings[1].total}</p>
                 </div>
               </div>
@@ -457,7 +469,7 @@ export default function ResultsPanel({ state, onResetScores, onSaveSettings, onB
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-black font-oswald uppercase italic text-slate-900 leading-none mb-1">{rankings[0].name}</p>
-                  <p className="text-[9px] font-bold text-slate-700 uppercase tracking-widest">{rankings[0].club}</p>
+                  <p className="text-[9px] font-bold text-slate-700 uppercase tracking-widest">{rankings[0].club}{rankings[0].region ? ` • ${rankings[0].region}` : ''}</p>
                   <p className="text-5xl font-black font-oswald text-arcus-red mt-4 italic tracking-tighter">{rankings[0].total}</p>
                 </div>
               </div>
@@ -472,7 +484,7 @@ export default function ResultsPanel({ state, onResetScores, onSaveSettings, onB
                 </div>
                 <div className="text-center">
                   <p className="text-lg font-black font-oswald uppercase italic text-slate-900 leading-none mb-1">{rankings[2].name}</p>
-                  <p className="text-[8px] font-bold text-slate-700 uppercase tracking-widest">{rankings[2].club}</p>
+                  <p className="text-[8px] font-bold text-slate-700 uppercase tracking-widest">{rankings[2].club}{rankings[2].region ? ` • ${rankings[2].region}` : ''}</p>
                   <p className="text-2xl font-black font-oswald text-slate-900 mt-2 italic">{rankings[2].total}</p>
                 </div>
               </div>
@@ -495,7 +507,7 @@ export default function ResultsPanel({ state, onResetScores, onSaveSettings, onB
                 <tr className="bg-slate-50 text-slate-700 text-[8px] md:text-[9.5px] font-bold uppercase tracking-widest border-b border-slate-100 sticky top-0 z-10">
                   <th className="px-3 md:px-6 py-2 md:py-3 w-12 md:w-16 text-center">Rank</th>
                   <th className="px-3 md:px-6 py-2 md:py-3">Nama Atlet</th>
-                  <th className="px-6 py-3 hidden md:table-cell">Klub / Kota</th>
+                  <th className="px-6 py-3 hidden md:table-cell">Klub &amp; Daerah</th>
                   <th className="px-3 md:px-4 py-2 md:py-3 text-center">{tieBreakLabels.highest}</th>
                   <th className="px-3 md:px-4 py-2 md:py-3 text-center">{tieBreakLabels.second}</th>
                   <th className="px-3 md:px-6 py-2 md:py-3 text-right">Total</th>
@@ -521,10 +533,13 @@ export default function ResultsPanel({ state, onResetScores, onSaveSettings, onB
                           </span>
                         )}
                       </div>
-                      <p className="text-[10px] md:hidden font-semibold text-slate-500 uppercase mt-0.5">{row.club}</p>
+                      <p className="text-[10px] md:hidden font-semibold text-slate-500 uppercase mt-0.5">{row.club}{row.region ? ` • ${row.region}` : ''}</p>
                     </td>
                     <td className="px-4 md:px-6 py-2 md:py-3 hidden md:table-cell">
-                      <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">{row.club}</p>
+                      <p className="text-xs font-semibold text-slate-700 uppercase tracking-wider">{row.club}</p>
+                      {row.region && (
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mt-0.5">{row.region}</p>
+                      )}
                     </td>
                     <td className="px-2 md:px-4 py-2 md:py-3 text-center">
                       <span className="text-xs md:text-sm font-black font-oswald text-slate-700">{row.sixes}</span>

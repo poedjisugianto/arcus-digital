@@ -14,6 +14,7 @@ import {
   getNormalizedScoreSession,
   getStageParticipantsAndCompletion
 } from '../lib/bracketSeeding';
+import { sortArrowsDescending } from '../lib/scoreSorting';
 import QRScanner from './QRScanner';
 
 interface Props {
@@ -767,8 +768,9 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
         count5: 0
       };
 
-      const newArrows = [...current.arrows];
-      newArrows[arrowIdx] = val;
+      const updatedArrows = [...current.arrows];
+      updatedArrows[arrowIdx] = val;
+      const newArrows = sortArrowsDescending(updatedArrows);
 
       const summary = calculateEndSummary(newArrows, config?.targetType, config);
 
@@ -1018,16 +1020,17 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
       const config = findCategoryConfig(a.category, event.settings?.categoryConfigs);
       const numArrows = getStageArrowsCount(config);
 
-      // Filter or sanitize arrows
-      const finalArrows: (number | 'X')[] = state.arrows.map((v: ArrowVal): (number | 'X') => {
+      // Filter, sanitize, pad, and sort arrows descending ('X' > 10 > 9 > ... > 0)
+      const sanitizedArrows: (number | 'X')[] = state.arrows.map((v: ArrowVal): (number | 'X') => {
         if (v === -1 || v === 'M') return 0;
         return v;
       });
 
-      // Pad up to category arrows count
-      while (finalArrows.length < numArrows) {
-        finalArrows.push(0);
+      while (sanitizedArrows.length < numArrows) {
+        sanitizedArrows.push(0);
       }
+
+      const finalArrows = sortArrowsDescending(sanitizedArrows);
 
       scoresToSave.push({
         archerId: a.id,
@@ -1185,7 +1188,7 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
   const isCompact = density === 'compact';
 
   return (
-    <div className={`space-y-4 pb-16 animate-in fade-in duration-300 ${isCompact ? 'max-w-[100vw]' : ''}`}>
+    <div className={`space-y-4 pb-24 md:pb-16 animate-in fade-in duration-300 ${isCompact ? 'max-w-[100vw]' : ''}`}>
       {showScanner && <QRScanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
 
       {/* Top Header & Ianseo Navigation */}
@@ -1814,9 +1817,29 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
         </div>
       )}
 
+      {/* Mobile Pinned Bottom Save Bar */}
+      {archersToDisplay.length > 0 && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-[90] bg-white/95 backdrop-blur-md border-t border-slate-200 px-3 py-2 shadow-[0_-4px_16px_rgba(15,23,42,0.08)] flex items-center gap-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+          <button
+            type="button"
+            onClick={() => handleSaveTarget(false)}
+            className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black font-oswald uppercase italic tracking-wider text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+          >
+            <Save className="w-4 h-4 shrink-0" /> Simpan
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSaveTarget(true)}
+            className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-black font-oswald uppercase italic tracking-wider text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
+          >
+            Simpan &amp; Lanjut ➜
+          </button>
+        </div>
+      )}
+
       {/* Floating Save Toast */}
       {showToast && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-7 py-3.5 rounded-2xl font-black font-oswald uppercase italic tracking-wider text-sm shadow-2xl animate-in slide-in-from-bottom-10 flex items-center gap-3 z-[300] border border-slate-700">
+        <div className="fixed bottom-20 md:bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-7 py-3.5 rounded-2xl font-black font-oswald uppercase italic tracking-wider text-sm shadow-2xl animate-in slide-in-from-bottom-10 flex items-center gap-3 z-[300] border border-slate-700">
           <CheckCircle2 className="w-5 h-5 text-emerald-400" /> {showToast}
         </div>
       )}

@@ -85,6 +85,7 @@ import ScorerLogin from './components/ScorerLogin';
 import EntryList from './components/EntryList';
 import IdCardEditor from './components/IdCardEditor';
 import SelfServiceIdCardPortal from './components/SelfServiceIdCardPortal';
+import MedalStandingsPanel from './components/MedalStandingsPanel';
 
 import { auth, db } from './firebase';
 import { sanitizeForFirestore, mergeTournamentSettings, mergeCertificateConfig, findCategoryConfig } from './lib/firestoreUtils';
@@ -229,6 +230,9 @@ const parseRouteFromUrl = (): { view: string; eventId: string | null; club: stri
     const isAdmin = 
       ['ADMIN', 'EVENT_ADMIN', 'PANEL'].includes(viewParam.toUpperCase());
 
+    const isMedals =
+      ['MEDAL_STANDINGS', 'KLASEMEN', 'MEDALS', 'JUARA_UMUM'].includes(viewParam.toUpperCase());
+
     let normalizedView = 'LANDING';
     if (isRegister) {
       normalizedView = 'REGISTER_PARTICIPANT';
@@ -236,6 +240,8 @@ const parseRouteFromUrl = (): { view: string; eventId: string | null; club: stri
       normalizedView = 'LIVE_SCOREBOARD';
     } else if (isEntry) {
       normalizedView = 'ENTRY_LIST';
+    } else if (isMedals) {
+      normalizedView = 'MEDAL_STANDINGS';
     } else if (isAdmin) {
       normalizedView = 'EVENT_ADMIN';
     } else if (viewParam) {
@@ -366,6 +372,11 @@ const getInitialAppState = (initialEventId: string | null): AppState => {
 export default function App() {
   const initialRoute = useMemo(() => parseRouteFromUrl(), []);
   const [view, setView] = useState<string>(initialRoute.view);
+  const [medalStandingsReturnView, setMedalStandingsReturnView] = useState<string>('PUBLIC_EVENT_INFO');
+  const openMedalStandings = (fromView: string) => {
+    setMedalStandingsReturnView(fromView);
+    setView('MEDAL_STANDINGS');
+  };
   // @ts-ignore
   const dummy: 'ACTIVATE_TOURNAMENT' | 'MEMBER_DASHBOARD' = 'ACTIVATE_TOURNAMENT';
   const [isSplashVisible, setIsSplashVisible] = useState(true);
@@ -3151,6 +3162,7 @@ export default function App() {
           onBack={() => setView('MEMBER_DASHBOARD')}
           onManageElimination={() => setView('ELIMINATION_PANEL')}
           onManageResults={() => setView('RESULTS_PANEL')}
+          onManageMedalStandings={() => openMedalStandings('EVENT_ADMIN')}
           onManageFinance={() => setView('FINANCE_PANEL')}
           onManageIdCards={() => setView('ID_CARD_EDITOR')}
           onGoToOperatorCenter={() => setView('OPERATOR_CENTER')}
@@ -3202,6 +3214,7 @@ export default function App() {
           onSaveSettings={async (updatedSettings) => {
             await handleUpdateEvent(activeEvent.id, { settings: updatedSettings });
           }}
+          onViewMedalStandings={() => openMedalStandings('RESULTS_PANEL')}
           onBack={() => setView('EVENT_ADMIN')}
         />;
 
@@ -3419,12 +3432,14 @@ export default function App() {
           }}
           onViewParticipants={() => setView('ENTRY_LIST')}
           onViewLiveScoreboard={() => setView('LIVE_SCOREBOARD')}
+          onViewMedalStandings={() => openMedalStandings('PUBLIC_EVENT_INFO')}
         />;
 
       case 'LIVE_SCOREBOARD':
         if (!activeEvent) return renderEventNotFoundOrLoading();
         return <LiveScoreboard 
           state={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
+          onViewMedalStandings={() => openMedalStandings('LIVE_SCOREBOARD')}
           onBack={() => {
             if (appState.currentUser) {
               setView('EVENT_ADMIN');
@@ -3432,6 +3447,13 @@ export default function App() {
               setView('PUBLIC_EVENT_INFO');
             }
           }}
+        />;
+
+      case 'MEDAL_STANDINGS':
+        if (!activeEvent) return renderEventNotFoundOrLoading();
+        return <MedalStandingsPanel
+          event={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
+          onBack={() => setView(medalStandingsReturnView || (appState.currentUser ? 'EVENT_ADMIN' : 'PUBLIC_EVENT_INFO'))}
         />;
 
       case 'ENTRY_LIST':
