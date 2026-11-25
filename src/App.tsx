@@ -197,6 +197,65 @@ const getApiAuthHeaders = async (): Promise<Record<string, string>> => {
 
 // Helper to parse route from URL search params & session storage
 // Helper to parse route from URL search params & session storage
+const ADMIN_PROTECTED_VIEWS = new Set([
+  'MEMBER_DASHBOARD',
+  'EVENT_ADMIN',
+  'ADMIN_DASHBOARD',
+  'SUPER_ADMIN',
+  'ACTIVATE_TOURNAMENT',
+  'ELIMINATION_PANEL',
+  'RESULTS_PANEL',
+  'FINANCE_PANEL',
+  'ID_CARD_EDITOR',
+  'OPERATOR_CENTER',
+  'QUICK_SCORING_PANEL',
+  'PROFILE_PANEL',
+  'SELF_SERVICE_ID_CARD'
+]);
+
+const isSuperAdminUser = (user: User | null | undefined): boolean => {
+  if (!user) return false;
+  const email = (user.email || '').toLowerCase().trim();
+  return (
+    user.role === UserRole.SUPERADMIN ||
+    user.role === UserRole.MASTER_ADMIN ||
+    ['poedji.sugianto@gmail.com', 'poedjisugianto@gmail.com', 'admin@arcus.id', 'arcus.id@gmail.com'].includes(email)
+  );
+};
+
+const hasActiveScorerSession = (scorer?: ScorerAccess | null): boolean => {
+  if (scorer) return true;
+  try {
+    const raw = localStorage.getItem('arcus_scorer_session');
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    return Boolean(parsed?.scorer && parsed?.eventId);
+  } catch {
+    return false;
+  }
+};
+
+const canAccessProtectedView = (
+  targetView: string,
+  user: User | null | undefined,
+  scorer: ScorerAccess | null | undefined
+): boolean => {
+  if (!ADMIN_PROTECTED_VIEWS.has(targetView)) return true;
+
+  // Active PIN scorer sessions are strictly blocked from all admin & master dashboards
+  if (hasActiveScorerSession(scorer)) return false;
+
+  // Must be authenticated with a non-scorer user account
+  if (!user || user.role === UserRole.SCORER) return false;
+
+  // Master / Super Admin panel strictly requires Super Admin privileges
+  if (targetView === 'SUPER_ADMIN') {
+    return isSuperAdminUser(user);
+  }
+
+  return true;
+};
+
 const parseRouteFromUrl = (): { view: string; eventId: string | null; club: string; search: string } => {
   try {
     let searchStr = window.location.search;
@@ -250,7 +309,27 @@ const parseRouteFromUrl = (): { view: string; eventId: string | null; club: stri
       normalizedView = 'PUBLIC_EVENT_INFO';
     }
 
+    // Check if there is an active scorer session in localStorage (for mobile scorer refresh)
+    const savedScorerRaw = localStorage.getItem('arcus_scorer_session');
+    const parsedScorerSession = (() => {
+      if (!savedScorerRaw) return null;
+      try {
+        const p = JSON.parse(savedScorerRaw);
+        return p?.scorer && p?.eventId ? p : null;
+      } catch {
+        return null;
+      }
+    })();
+
     if (eventParam || viewParam || isRegister || isLive || isEntry) {
+      if (parsedScorerSession && ADMIN_PROTECTED_VIEWS.has(normalizedView)) {
+        return {
+          view: 'SCORER_PANEL',
+          eventId: parsedScorerSession.eventId,
+          club: clubParam,
+          search: searchParam
+        };
+      }
       return {
         view: normalizedView,
         eventId: eventParam || null,
@@ -264,6 +343,14 @@ const parseRouteFromUrl = (): { view: string; eventId: string | null; club: stri
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed?.view) {
+        if (parsedScorerSession && ADMIN_PROTECTED_VIEWS.has(String(parsed.view).toUpperCase())) {
+          return {
+            view: 'SCORER_PANEL',
+            eventId: parsedScorerSession.eventId,
+            club: '',
+            search: ''
+          };
+        }
         return {
           view: parsed.view,
           eventId: parsed.eventId || null,
@@ -273,22 +360,15 @@ const parseRouteFromUrl = (): { view: string; eventId: string | null; club: stri
       }
     }
 
-    // Check if there is an active scorer session in localStorage (for mobile scorer refresh)
-    const savedScorerRaw = localStorage.getItem('arcus_scorer_session');
-    if (savedScorerRaw) {
-      try {
-        const parsedScorer = JSON.parse(savedScorerRaw);
-        if (parsedScorer?.scorer && parsedScorer?.eventId) {
-          if (!viewParam || viewParam.toUpperCase() === 'SCORER_PANEL' || viewParam.toUpperCase() === 'SCORER_LOGIN') {
-            return {
-              view: 'SCORER_PANEL',
-              eventId: eventParam || parsedScorer.eventId,
-              club: clubParam,
-              search: searchParam
-            };
-          }
-        }
-      } catch (e) {}
+    if (parsedScorerSession) {
+      if (!viewParam || viewParam.toUpperCase() === 'SCORER_PANEL' || viewParam.toUpperCase() === 'SCORER_LOGIN') {
+        return {
+          view: 'SCORER_PANEL',
+          eventId: eventParam || parsedScorerSession.eventId,
+          club: clubParam,
+          search: searchParam
+        };
+      }
     }
   } catch (e) {
     console.warn("Could not parse route from URL:", e);
@@ -451,7 +531,7 @@ export default function App() {
     }
   }, [view, appState.activeEventId, selfServiceClub, selfServiceSearch]);
 
-  // Synchronize browser Back and Forward navigation buttons
+  // Synchronize browser Back and Forward navigation buttons (with strict scorer/admin guard)
   useEffect(() => {
     const handlePopState = (e: PopStateEvent) => {
       isPopStateRef.current = true;
@@ -472,6 +552,31 @@ export default function App() {
         targetEventId = parsed.eventId;
         targetClub = parsed.club || '';
         targetSearch = parsed.search || '';
+      }
+
+      const curUser = appStateRef.current?.currentUser;
+      const curScorer = appStateRef.current?.activeScorer;
+
+      // Block scorers and unauthorized users from navigating back into admin/master dashboards
+      if (!canAccessProtectedView(targetView, curUser, curScorer)) {
+        const isScorer = hasActiveScorerSession(curScorer) || curUser?.role === UserRole.SCORER;
+        const safeView = isScorer
+          ? (curScorer ? 'SCORER_PANEL' : 'SCORER_LOGIN')
+          : (curUser ? 'MEMBER_DASHBOARD' : 'LANDING');
+        const safeEventId = isScorer ? (appStateRef.current?.activeEventId || targetEventId) : null;
+        const safeState = { view: safeView, eventId: safeEventId, club: '', search: '' };
+        const safeUrl = buildRouteUrl(safeView, safeEventId);
+
+        isPopStateRef.current = false;
+        window.history.replaceState(safeState, '', safeUrl);
+        setView(safeView);
+        setAppState(prev => ({ ...prev, activeEventId: safeEventId }));
+        setSelfServiceClub('');
+        setSelfServiceSearch('');
+        try {
+          sessionStorage.setItem('arcus_active_route', JSON.stringify(safeState));
+        } catch (err) {}
+        return;
       }
 
       setView(targetView);
@@ -497,6 +602,23 @@ export default function App() {
   useEffect(() => {
     appStateRef.current = appState;
   }, [appState]);
+
+  // Reactive guard: prevent any scorer or unauthorized session from staying on admin/master views
+  useEffect(() => {
+    if (!canAccessProtectedView(view, appState.currentUser, appState.activeScorer)) {
+      const isScorer = hasActiveScorerSession(appState.activeScorer) || appState.currentUser?.role === UserRole.SCORER;
+      const safeView = isScorer
+        ? (appState.activeScorer ? 'SCORER_PANEL' : 'SCORER_LOGIN')
+        : (appState.currentUser ? 'MEMBER_DASHBOARD' : 'LANDING');
+      const safeEventId = isScorer ? appState.activeEventId : null;
+      const safeState = { view: safeView, eventId: safeEventId, club: '', search: '' };
+      try {
+        window.history.replaceState(safeState, '', buildRouteUrl(safeView, safeEventId));
+        sessionStorage.setItem('arcus_active_route', JSON.stringify(safeState));
+      } catch {}
+      setView(safeView);
+    }
+  }, [view, appState.currentUser, appState.activeScorer, appState.activeEventId]);
 
   // Preserve latest certificateConfig from shard or local save so root doc snapshots never wipe it
   const latestCertConfigRef = useRef<Record<string, any>>({});
@@ -2699,6 +2821,10 @@ export default function App() {
       return (typeof window !== 'undefined' ? window.location.origin : '').replace(/\/+$/, '');
     };
 
+    if (!canAccessProtectedView(view, appState.currentUser, appState.activeScorer)) {
+      return null;
+    }
+
     switch(view) {
       case 'LANDING':
         return <LandingPage 
@@ -2853,6 +2979,10 @@ export default function App() {
                 accessCode: scorer.accessCode,
                 timestamp: Date.now()
               }));
+              // Replace current history entry so pressing Browser Back cannot step back into prior admin pages
+              const scorerRoute = { view: 'SCORER_PANEL', eventId: event.id, club: '', search: '' };
+              window.history.replaceState(scorerRoute, '', buildRouteUrl('SCORER_PANEL', event.id));
+              sessionStorage.setItem('arcus_active_route', JSON.stringify(scorerRoute));
             } catch (storageErr) {
               console.warn("Failed to save arcus_scorer_session", storageErr);
             }
@@ -2899,6 +3029,7 @@ export default function App() {
             </div>
           );
         }
+        const isAdminPreviewingScorer = Boolean(!hasActiveScorerSession(appState.activeScorer) && appState.currentUser && appState.currentUser.role !== UserRole.SCORER);
         return <ScoringPanel 
           state={{ ...activeEvent, archers: activeEventArchers, officials: activeEventOfficials }}
           currentScorer={appState.activeScorer}
@@ -2917,13 +3048,13 @@ export default function App() {
             });
           }}
           onBack={() => {
-            if (appState.currentUser) {
+            if (isAdminPreviewingScorer) {
               setView('EVENT_ADMIN');
             } else {
               setView('LANDING');
             }
           }}
-          onOpenElimination={appState.currentUser ? (category) => {
+          onOpenElimination={isAdminPreviewingScorer ? (category) => {
             try {
               localStorage.setItem(`elim_cat_${activeEvent.id}`, category);
             } catch {}

@@ -801,7 +801,20 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
     arrowIdx: number,
     targetType?: TargetType
   ) => {
-    const key = e.key;
+    const key = e.key || '';
+
+    // Ctrl + S / Cmd + S: Save target scores directly from any cell
+    if ((e.ctrlKey || e.metaKey) && (key.toLowerCase() === 's' || e.code === 'KeyS')) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleSaveTargetRef.current();
+      return;
+    }
+
+    // Do not intercept other browser/OS shortcut combinations
+    if (e.ctrlKey || e.metaKey || e.altKey) {
+      return;
+    }
 
     // Navigation Keys
     if (key === 'ArrowRight') {
@@ -939,9 +952,10 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if (showScanner) return;
       
-      // Ctrl + S: Save All
-      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      // Ctrl + S / Cmd + S: Save All (case-insensitive & layout-safe via KeyS)
+      if ((e.ctrlKey || e.metaKey) && ((e.key || '').toLowerCase() === 's' || e.code === 'KeyS')) {
         e.preventDefault();
+        e.stopPropagation();
         handleSaveTargetRef.current();
         return;
       }
@@ -966,8 +980,8 @@ const QuickScoringPanel: React.FC<Props> = ({ event, currentScorer, onSaveScore,
       }
     };
 
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    window.addEventListener('keydown', handleGlobalKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown, { capture: true });
   }, [selectedTarget, allowedTargets, showScanner]);
 
   // Reset an archer's end

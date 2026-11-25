@@ -319,11 +319,31 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger shortcuts if user is typing in an input or scanner is open
+      // Don't trigger shortcuts if scanner is open
       if (showScanner) return;
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       const key = (e.key || '').toLowerCase();
+
+      // Ctrl + S / Cmd + S: Save score from laptop keyboard
+      if ((e.ctrlKey || e.metaKey) && (key === 's' || e.code === 'KeyS')) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!selectedArcherId || !config || !selectedArcher) return;
+        const hasValues = tempArrows.some(v => v !== -1);
+        if (!hasValues) return;
+        if (showConfirmModal) {
+          setShowConfirmModal(false);
+          handleSave(tempArrows);
+        } else if (quickSaveMode) {
+          handleSave(tempArrows);
+        } else {
+          setShowConfirmModal(true);
+        }
+        return;
+      }
+
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       
       // Numbers 1-9
       if (/^[1-9]$/.test(key)) {
@@ -378,9 +398,9 @@ const ScoringPanel: React.FC<Props> = ({ state, currentScorer, onSaveScore, onBa
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedArcherId, currentEnd, tempArrows, keypadValues, config, effectiveEnds, archersAtTarget, activeArrowIndex]);
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
+  }, [selectedArcherId, selectedArcher, currentEnd, tempArrows, keypadValues, config, effectiveEnds, archersAtTarget, activeArrowIndex, showScanner, showConfirmModal, quickSaveMode]);
 
   const handleInput = (val: number | 'X' | 'M') => {
     if (!config) return;

@@ -277,12 +277,24 @@ const OperatorCenter: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
   };
 
   // Physical Keyboard Support for fast operation
+  const saveShortcutRef = React.useRef<() => void>(() => {});
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (inputMode !== 'ARROW' || !selectedArcher || showScanner) return;
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-
+      if (!selectedArcher || showScanner) return;
       const key = (e.key || '').toLowerCase();
+
+      // Ctrl + S / Cmd + S: Save active correction/score
+      if ((e.ctrlKey || e.metaKey) && (key === 's' || e.code === 'KeyS')) {
+        e.preventDefault();
+        e.stopPropagation();
+        saveShortcutRef.current();
+        return;
+      }
+
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (inputMode !== 'ARROW') return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       // Number keys 1-9
       if (/^[1-9]$/.test(key)) {
@@ -325,8 +337,8 @@ const OperatorCenter: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
   }, [inputMode, selectedArcher, showScanner, keypadValues, arrowsCount, handleInputArrow, handleDeleteArrow]);
 
   // Calculate real-time stats for current arrows
@@ -480,6 +492,14 @@ const OperatorCenter: React.FC<Props> = ({ event, onSaveScore, onBack }) => {
 
     onSaveScore(scoreEntry, log);
     toast.success(`Skor Rambahan #${targetEnd + 1} (${selectedArcher.name}) berhasil disimpan!`);
+  };
+
+  saveShortcutRef.current = () => {
+    if (inputMode === 'ARROW') {
+      handleSaveArrowCorrection();
+    } else {
+      handleSaveRambahan();
+    }
   };
 
   // QR & Barcode Scan Handler

@@ -171,7 +171,7 @@ const AdminPanel: React.FC<Props> = ({
     }
   }, [localSettings, eventId, isDirty]);
 
-  const [activeTab, setActiveTab] = useState<'GENERAL' | 'PARTICIPANTS' | 'SCORING' | 'PAYMENT' | 'SCORERS' | 'SPONSORSHIP' | 'RUNDOWN'>('GENERAL');
+  const [activeTab, setActiveTab] = useState<'INFO' | 'CATEGORIES' | 'PARTICIPANTS' | 'SCORING' | 'PAYMENT' | 'SCORERS' | 'SPONSORSHIP' | 'RUNDOWN'>('INFO');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showUploadGuide, setShowUploadGuide] = useState(false);
@@ -645,24 +645,32 @@ const AdminPanel: React.FC<Props> = ({
           <div className="flex self-start w-fit border-b border-slate-100">
             <button 
               type="button"
-              onClick={() => setActiveTab('GENERAL')}
-              className={`px-4 md:px-6 py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 whitespace-nowrap relative ${activeTab === 'GENERAL' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
+              onClick={() => setActiveTab('INFO')}
+              className={`px-3 md:px-4 py-3.5 text-[9px] font-black uppercase tracking-[0.12em] transition-all flex items-center gap-1.5 whitespace-nowrap relative ${activeTab === 'INFO' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
             >
-              <Trophy className={`w-3.5 h-3.5 ${activeTab === 'GENERAL' ? 'text-arcus-red' : ''}`} /> <span>INFO &amp; KATEGORI</span>
-              {activeTab === 'GENERAL' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
+              <Info className={`w-3.5 h-3.5 ${activeTab === 'INFO' ? 'text-arcus-red' : ''}`} /> <span>INFO EVENT</span>
+              {activeTab === 'INFO' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
+            </button>
+            <button 
+              type="button"
+              onClick={() => setActiveTab('CATEGORIES')}
+              className={`px-3 md:px-4 py-3.5 text-[9px] font-black uppercase tracking-[0.12em] transition-all flex items-center gap-1.5 whitespace-nowrap relative ${activeTab === 'CATEGORIES' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
+            >
+              <Trophy className={`w-3.5 h-3.5 ${activeTab === 'CATEGORIES' ? 'text-arcus-red' : ''}`} /> <span>KATEGORI</span>
+              {activeTab === 'CATEGORIES' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
             </button>
             <button 
               type="button"
               onClick={() => setActiveTab('RUNDOWN')}
-              className={`px-4 md:px-6 py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 whitespace-nowrap relative ${activeTab === 'RUNDOWN' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
+              className={`px-3 md:px-4 py-3.5 text-[9px] font-black uppercase tracking-[0.12em] transition-all flex items-center gap-1.5 whitespace-nowrap relative ${activeTab === 'RUNDOWN' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
             >
-              <Clock className={`w-3.5 h-3.5 ${activeTab === 'RUNDOWN' ? 'text-arcus-red' : ''}`} /> <span>RUNDOWN ACARA</span>
+              <Clock className={`w-3.5 h-3.5 ${activeTab === 'RUNDOWN' ? 'text-arcus-red' : ''}`} /> <span>RUNDOWN</span>
               {activeTab === 'RUNDOWN' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
             </button>
             <button 
               type="button"
               onClick={() => setActiveTab('PARTICIPANTS')}
-              className={`px-4 md:px-6 py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 whitespace-nowrap relative ${activeTab === 'PARTICIPANTS' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
+              className={`px-3 md:px-4 py-3.5 text-[9px] font-black uppercase tracking-[0.12em] transition-all flex items-center gap-1.5 whitespace-nowrap relative ${activeTab === 'PARTICIPANTS' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
             >
               <UsersIcon className={`w-3.5 h-3.5 ${activeTab === 'PARTICIPANTS' ? 'text-arcus-red' : ''}`} /> <span>PESERTA</span>
               {activeTab === 'PARTICIPANTS' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
@@ -670,7 +678,7 @@ const AdminPanel: React.FC<Props> = ({
             <button 
               type="button"
               onClick={() => setActiveTab('SCORING')}
-              className={`px-4 md:px-6 py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 whitespace-nowrap relative ${activeTab === 'SCORING' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
+              className={`px-3 md:px-4 py-3.5 text-[9px] font-black uppercase tracking-[0.12em] transition-all flex items-center gap-1.5 whitespace-nowrap relative ${activeTab === 'SCORING' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
             >
               <TargetIcon className={`w-3.5 h-3.5 ${activeTab === 'SCORING' ? 'text-arcus-red' : ''}`} /> <span>INPUT SKOR</span>
               {activeTab === 'SCORING' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
@@ -679,34 +687,25 @@ const AdminPanel: React.FC<Props> = ({
               <button 
                 type="button"
                 onClick={() => setActiveTab('PAYMENT')}
-                className={`px-4 md:px-6 py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 whitespace-nowrap relative ${activeTab === 'PAYMENT' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
+                className={`px-3 md:px-4 py-3.5 text-[9px] font-black uppercase tracking-[0.12em] transition-all flex items-center gap-1.5 whitespace-nowrap relative ${activeTab === 'PAYMENT' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
               >
                 <Landmark className={`w-3.5 h-3.5 ${activeTab === 'PAYMENT' ? 'text-arcus-red' : ''}`} /> <span>PEMBAYARAN</span>
                 {activeTab === 'PAYMENT' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
               </button>
             )}
-            {!isPractice && onManageFinance && (
-              <button 
-                type="button"
-                onClick={onManageFinance}
-                className="px-4 md:px-6 py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 whitespace-nowrap text-emerald-700 hover:text-emerald-900 hover:bg-emerald-50/50 rounded-t-xl"
-              >
-                <Receipt className="w-3.5 h-3.5 text-emerald-600" /> <span>BUKTI BAYAR &amp; KEUANGAN</span>
-              </button>
-            )}
             <button 
               type="button"
               onClick={() => setActiveTab('SCORERS')}
-              className={`px-4 md:px-6 py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 whitespace-nowrap relative ${activeTab === 'SCORERS' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
+              className={`px-3 md:px-4 py-3.5 text-[9px] font-black uppercase tracking-[0.12em] transition-all flex items-center gap-1.5 whitespace-nowrap relative ${activeTab === 'SCORERS' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
             >
-              <Smartphone className={`w-3.5 h-3.5 ${activeTab === 'SCORERS' ? 'text-arcus-red' : ''}`} /> <span>AKSES PANITIA</span>
+              <Smartphone className={`w-3.5 h-3.5 ${activeTab === 'SCORERS' ? 'text-arcus-red' : ''}`} /> <span>PANITIA</span>
               {activeTab === 'SCORERS' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
             </button>
             {!isPractice && (
               <button 
                 type="button"
                 onClick={() => setActiveTab('SPONSORSHIP')}
-                className={`px-4 md:px-6 py-4 text-[9px] font-black uppercase tracking-[0.2em] transition-all flex items-center gap-2 whitespace-nowrap relative ${activeTab === 'SPONSORSHIP' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
+                className={`px-3 md:px-4 py-3.5 text-[9px] font-black uppercase tracking-[0.12em] transition-all flex items-center gap-1.5 whitespace-nowrap relative ${activeTab === 'SPONSORSHIP' ? 'text-slate-900' : 'text-slate-600 hover:text-slate-800'}`}
               >
                 <Heart className={`w-3.5 h-3.5 ${activeTab === 'SPONSORSHIP' ? 'text-arcus-red' : ''}`} /> <span>SPONSORSHIP</span>
                 {activeTab === 'SPONSORSHIP' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-arcus-red" />}
@@ -727,7 +726,7 @@ const AdminPanel: React.FC<Props> = ({
               </div>
               <ArcherList 
                 archers={archers} 
-                onBack={() => setActiveTab('GENERAL')} 
+                onBack={() => setActiveTab('INFO')} 
                 onRemove={onRemoveParticipant || (() => {})}
                 onAdd={onAddParticipant || (() => {})}
                 onBulkAdd={onBulkAddParticipants}
@@ -753,7 +752,7 @@ const AdminPanel: React.FC<Props> = ({
               </div>
               <OfficialList 
                 officials={officials} 
-                onBack={() => setActiveTab('GENERAL')} 
+                onBack={() => setActiveTab('INFO')} 
                 onUpdate={(o) => onUpdateParticipant?.(o.id, o)}
                 onRemove={onRemoveParticipant || (() => {})}
                 onGoToIdCardEditor={onManageIdCards}
@@ -1023,7 +1022,7 @@ const AdminPanel: React.FC<Props> = ({
 
         {activeTab !== 'PARTICIPANTS' && activeTab !== 'SCORING' && (
           <form onSubmit={handleSubmit} className="space-y-16">
-            {activeTab === 'GENERAL' && (
+            {activeTab === 'INFO' && (
             <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
               {/* Section: Basic Identity */}
               <div className="space-y-8">
@@ -1031,11 +1030,11 @@ const AdminPanel: React.FC<Props> = ({
                 <div className={`p-2 rounded-xl ${isPractice ? 'bg-teal-50' : 'bg-red-50'}`}>
                   <Info className={`w-5 h-5 ${isPractice ? 'text-teal-600' : 'text-arcus-red'}`} />
                 </div>
-                <h3 className="text-xl font-black font-oswald uppercase italic text-slate-800">Identitas & Sesi</h3>
+                <h3 className="text-xl font-black font-oswald uppercase italic text-slate-800">Identitas &amp; Info Event</h3>
              </div>
              
              <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                <div className="lg:col-span-2 space-y-8">
+                <div className={`${isPractice ? 'lg:col-span-3' : 'lg:col-span-2'} space-y-8`}>
                     <label className="block group">
                       <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1">Nama Sesi / Turnamen</span>
                       <input type="text" value={localSettings.tournamentName} onChange={e => updateSettings({ tournamentName: e.target.value })} className="mt-1 block w-full rounded-lg border-slate-200 p-3 border font-bold text-base outline-none focus:border-arcus-red transition-all text-slate-900" required />
@@ -1185,18 +1184,6 @@ const AdminPanel: React.FC<Props> = ({
                       </div>
                     )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <label className="block group">
-                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1">Total Bantalan</span>
-                        <input type="number" value={localSettings.totalTargets} onChange={e => updateSettings({ totalTargets: parseInt(e.target.value) || 1 })} className="block mt-1 w-full rounded-lg border-slate-200 p-3 border font-bold outline-none focus:border-arcus-red text-slate-900" min="1" />
-                      </label>
-
-                      <label className="block group">
-                        <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1 italic">Archer per Target Face</span>
-                        <input type="number" value={localSettings.archersPerTarget || 2} onChange={e => updateSettings({ archersPerTarget: parseInt(e.target.value) || 1 })} className="block mt-1 w-full rounded-lg border-slate-200 p-3 border font-bold outline-none focus:border-arcus-red text-slate-900" min="1" max="4" />
-                      </label>
-                    </div>
-
                     {/* Mode Toggle */}
                     <div className="pt-4 border-t border-slate-100">
                       <div className="flex items-center justify-between p-4 bg-slate-50 border border-slate-100 border-l-4 border-l-arcus-red">
@@ -1230,650 +1217,6 @@ const AdminPanel: React.FC<Props> = ({
 
                 {!isPractice && (
                   <div className="space-y-6">
-                    {/* SAKLAR & PENGATURAN ALOKASI BANTALAN OTOMATIS SAAT PENDAFTARAN */}
-                    <div className="bg-slate-50 p-6 md:p-8 rounded-[2rem] border border-slate-200 space-y-6 shadow-sm">
-                      {/* Header with Master Switch */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-5">
-                        <div className="flex items-start gap-3.5">
-                          <div className={`p-3 rounded-2xl shadow-sm transition-all ${localSettings.autoTargetConfig?.enabled ? 'bg-purple-600 text-white shadow-purple-600/30' : 'bg-slate-200 text-slate-600'}`}>
-                            <Layers className="w-6 h-6" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="text-base sm:text-lg font-black font-oswald uppercase italic tracking-wide text-slate-900">
-                                Alokasi Bantalan Otomatis Saat Pendaftaran
-                              </h3>
-                              <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${
-                                localSettings.autoTargetConfig?.enabled 
-                                  ? 'bg-purple-100 text-purple-900 border border-purple-200' 
-                                  : 'bg-slate-200 text-slate-600'
-                              }`}>
-                                {localSettings.autoTargetConfig?.enabled ? 'AKTIF (AUTO)' : 'NONAKTIF'}
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-600 font-semibold mt-1 leading-relaxed">
-                              Pendaftar langsung otomatis mendapatkan nomor bantalan (Target, Posisi A/B/C/D, &amp; Sesi) saat menyelesaikan pendaftaran, dikelompokkan urut sesuai kategori.
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Master Switch */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const current = localSettings.autoTargetConfig;
-                            const isCurrentlyEnabled = !!current?.enabled;
-                            const newConf: AutoTargetConfig = {
-                              enabled: !isCurrentlyEnabled,
-                              model: current?.model || 'MODEL_1_DEDICATED_SESSION',
-                              archersPerTarget: current?.archersPerTarget || localSettings.archersPerTarget || 4,
-                              fillOrder: current?.fillOrder || 'PARALLEL',
-                              assignTrigger: current?.assignTrigger || 'ALL_REGISTRATIONS',
-                              categoryBlocks: current?.categoryBlocks || {},
-                              waveLabels: current?.waveLabels || { 1: 'Sesi 1', 2: 'Sesi 2', 3: 'Sesi 3' }
-                            };
-                            updateSettings({ autoTargetConfig: newConf });
-                          }}
-                          className="transition-all active:scale-95 shrink-0 self-end sm:self-center"
-                          title="Saklar Utama Auto-Target"
-                        >
-                          {localSettings.autoTargetConfig?.enabled ? (
-                            <ToggleRight className="w-11 h-11 text-purple-600 drop-shadow-sm" />
-                          ) : (
-                            <ToggleLeft className="w-11 h-11 text-slate-400" />
-                          )}
-                        </button>
-                      </div>
-
-                      {/* Active Settings Panel */}
-                      {localSettings.autoTargetConfig?.enabled ? (
-                        <div className="space-y-6 animate-in fade-in duration-300">
-                          {/* SAKLAR PILIHAN MODEL (MODEL 1 vs MODEL 2) */}
-                          <div className="space-y-3">
-                            <span className="text-[10px] font-black uppercase text-slate-900 tracking-widest flex items-center gap-1.5">
-                              <Sliders className="w-3.5 h-3.5 text-purple-600" /> Pilih Model Pengelompokan Bantalan:
-                            </span>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {/* KARTU MODEL 1 */}
-                              <div
-                                onClick={() => {
-                                  const current = localSettings.autoTargetConfig!;
-                                  updateSettings({
-                                    autoTargetConfig: {
-                                      ...current,
-                                      model: 'MODEL_1_DEDICATED_SESSION'
-                                    }
-                                  });
-                                }}
-                                className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between space-y-3 relative ${
-                                  (localSettings.autoTargetConfig?.model || 'MODEL_1_DEDICATED_SESSION') === 'MODEL_1_DEDICATED_SESSION'
-                                    ? 'border-purple-600 bg-purple-50/80 shadow-md ring-2 ring-purple-100'
-                                    : 'border-slate-200 hover:border-slate-300 bg-white'
-                                }`}
-                              >
-                                <div className="space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <span className="px-2.5 py-1 bg-purple-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider">
-                                      MODEL 1
-                                    </span>
-                                    {(localSettings.autoTargetConfig?.model || 'MODEL_1_DEDICATED_SESSION') === 'MODEL_1_DEDICATED_SESSION' && (
-                                      <span className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center shadow-sm">
-                                        <Check className="w-3.5 h-3.5 stroke-[3]" />
-                                      </span>
-                                    )}
-                                  </div>
-                                  <h4 className="text-sm font-black text-slate-900 uppercase font-oswald italic">
-                                    Beda Sesi / Jam Tembak per Kategori
-                                  </h4>
-                                  <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
-                                    Setiap kategori menggunakan <strong>Bantalan 1 s/d {localSettings.totalTargets || 10}</strong>. Jika kuota/pendaftar melebihi kapasitas 1 sesi (contoh: &gt; {(localSettings.totalTargets || 10) * (localSettings.autoTargetConfig?.archersPerTarget || 4)} atlet), pendaftar berikutnya otomatis dialokasikan ke <strong>Sesi 2 / Gelombang 2 (Wave 2)</strong>.
-                                  </p>
-                                </div>
-                                <div className="pt-2 border-t border-purple-200/60 text-[9px] font-black text-purple-900 uppercase flex items-center gap-1.5">
-                                  <Clock className="w-3.5 h-3.5 text-purple-600" /> Cocok untuk: Kategori bertanding pada jam/sesi terpisah
-                                </div>
-                              </div>
-
-                              {/* KARTU MODEL 2 */}
-                              <div
-                                onClick={() => {
-                                  const current = localSettings.autoTargetConfig!;
-                                  const activeCats = (Object.keys(localSettings.categoryConfigs || {}) as CategoryType[]).filter(c => c !== CategoryType.OFFICIAL);
-                                  const defaultBlocks = generateDefaultCategoryBlocks(
-                                    activeCats.length > 0 ? activeCats : [CategoryType.ADULT_PUTRA, CategoryType.ADULT_PUTRI],
-                                    localSettings.totalTargets || 10,
-                                    localSettings.categoryConfigs as any
-                                  );
-                                  updateSettings({
-                                    autoTargetConfig: {
-                                      ...current,
-                                      model: 'MODEL_2_SPLIT_BLOCKS',
-                                      categoryBlocks: (current.categoryBlocks && Object.keys(current.categoryBlocks).length > 0)
-                                        ? current.categoryBlocks
-                                        : defaultBlocks
-                                    }
-                                  });
-                                }}
-                                className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between space-y-3 relative ${
-                                  localSettings.autoTargetConfig?.model === 'MODEL_2_SPLIT_BLOCKS'
-                                    ? 'border-indigo-600 bg-indigo-50/80 shadow-md ring-2 ring-indigo-100'
-                                    : 'border-slate-200 hover:border-slate-300 bg-white'
-                                }`}
-                              >
-                                <div className="space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <span className="px-2.5 py-1 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider">
-                                      MODEL 2
-                                    </span>
-                                    {localSettings.autoTargetConfig?.model === 'MODEL_2_SPLIT_BLOCKS' && (
-                                      <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-sm">
-                                        <Check className="w-3.5 h-3.5 stroke-[3]" />
-                                      </span>
-                                    )}
-                                  </div>
-                                  <h4 className="text-sm font-black text-slate-900 uppercase font-oswald italic">
-                                    Pembagian Blok Bantalan Bersamaan
-                                  </h4>
-                                  <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
-                                    Total <strong>{localSettings.totalTargets || 10} Bantalan</strong> dibagi menjadi blok per kategori (contoh: Dewasa Putra Bantalan 1–5, Dewasa Putri Bantalan 6–10) untuk bertanding di <strong>lapangan &amp; jam yang sama</strong>.
-                                  </p>
-                                </div>
-                                <div className="pt-2 border-t border-indigo-200/60 text-[9px] font-black text-indigo-900 uppercase flex items-center gap-1.5">
-                                  <UsersIcon className="w-3.5 h-3.5 text-indigo-600" /> Cocok untuk: Kategori bertanding serentak di lapangan
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* PENGATURAN SPESIFIK MODEL 2: RENTANG BLOK BANTALAN */}
-                          {localSettings.autoTargetConfig?.model === 'MODEL_2_SPLIT_BLOCKS' && (
-                            <div className="p-5 bg-white rounded-2xl border border-indigo-200 space-y-4 shadow-sm animate-in fade-in duration-200">
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                                <div>
-                                  <h4 className="text-xs font-black uppercase text-indigo-950 font-oswald tracking-wider">
-                                    Rentang Bantalan per Kategori (Model 2)
-                                  </h4>
-                                  <p className="text-[9px] text-slate-500 font-semibold">
-                                    Atur bantalan awal dan akhir untuk tiap kategori lomba. Total bantalan fisik: {localSettings.totalTargets || 10}
-                                  </p>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const activeCats = (Object.keys(localSettings.categoryConfigs || {}) as CategoryType[]).filter(c => c !== CategoryType.OFFICIAL);
-                                    const defaultBlocks = generateDefaultCategoryBlocks(
-                                      activeCats.length > 0 ? activeCats : [CategoryType.ADULT_PUTRA, CategoryType.ADULT_PUTRI],
-                                      localSettings.totalTargets || 10,
-                                      localSettings.categoryConfigs as any
-                                    );
-                                    const current = localSettings.autoTargetConfig!;
-                                    updateSettings({
-                                      autoTargetConfig: {
-                                        ...current,
-                                        categoryBlocks: defaultBlocks
-                                      }
-                                    });
-                                    toast.success("Rentang bantalan otomatis dibagi rata/proporsional berdasarkan kuota!");
-                                  }}
-                                  className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-indigo-200 transition-all self-start sm:self-center"
-                                >
-                                  <Zap className="w-3 h-3 text-indigo-600 fill-current" />
-                                  <span>Hitung Otomatis Pembagian Blok</span>
-                                </button>
-                              </div>
-
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                {(() => {
-                                  const cats = (Object.keys(localSettings.categoryConfigs || {}) as CategoryType[]).filter(c => c !== CategoryType.OFFICIAL);
-                                  const displayCats = cats.length > 0 ? cats : [CategoryType.ADULT_PUTRA, CategoryType.ADULT_PUTRI];
-                                  const currentBlocks = localSettings.autoTargetConfig?.categoryBlocks || {};
-                                  const archersPerT = localSettings.autoTargetConfig?.archersPerTarget || localSettings.archersPerTarget || 4;
-
-                                  return displayCats.map(cat => {
-                                    const blk = currentBlocks[cat] || { startTarget: 1, endTarget: localSettings.totalTargets || 10, sessionName: '' };
-                                    const numT = Math.max(0, (blk.endTarget || 1) - (blk.startTarget || 1) + 1);
-                                    const maxCap = numT * archersPerT;
-                                    const quota = localSettings.categoryConfigs?.[cat]?.quota;
-
-                                    return (
-                                      <div key={cat} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2">
-                                        <div className="flex items-center justify-between">
-                                          <p className="text-[10px] font-black text-slate-900 uppercase truncate">
-                                            {CATEGORY_LABELS[cat] || cat}
-                                          </p>
-                                          <span className="text-[8px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded border">
-                                            Kuota: {quota ? `${quota}` : 'Unlimited'}
-                                          </span>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-2">
-                                          <div>
-                                            <span className="text-[7.5px] font-black text-slate-500 uppercase block">Mulai</span>
-                                            <input
-                                              type="number"
-                                              min="1"
-                                              max={localSettings.totalTargets || 10}
-                                              value={blk.startTarget || 1}
-                                              onChange={e => {
-                                                const val = parseInt(e.target.value) || 1;
-                                                const current = localSettings.autoTargetConfig!;
-                                                const updatedBlocks = {
-                                                  ...(current.categoryBlocks || {}),
-                                                  [cat]: { ...blk, startTarget: val }
-                                                };
-                                                updateSettings({ autoTargetConfig: { ...current, categoryBlocks: updatedBlocks } });
-                                              }}
-                                              className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-black text-center focus:border-indigo-600 outline-none"
-                                            />
-                                          </div>
-                                          <div>
-                                            <span className="text-[7.5px] font-black text-slate-500 uppercase block">Selesai</span>
-                                            <input
-                                              type="number"
-                                              min="1"
-                                              max={localSettings.totalTargets || 10}
-                                              value={blk.endTarget || 1}
-                                              onChange={e => {
-                                                const val = parseInt(e.target.value) || 1;
-                                                const current = localSettings.autoTargetConfig!;
-                                                const updatedBlocks = {
-                                                  ...(current.categoryBlocks || {}),
-                                                  [cat]: { ...blk, endTarget: val }
-                                                };
-                                                updateSettings({ autoTargetConfig: { ...current, categoryBlocks: updatedBlocks } });
-                                              }}
-                                              className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-black text-center focus:border-indigo-600 outline-none"
-                                            />
-                                          </div>
-                                        </div>
-
-                                        <div className="flex items-center justify-between text-[8px] font-bold text-indigo-900 pt-1">
-                                          <span>Total: {numT} Bantalan</span>
-                                          <span>Kapasitas/Sesi: {maxCap} slot</span>
-                                        </div>
-                                      </div>
-                                    );
-                                  });
-                                })()}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* PENGATURAN SPESIFIK MODEL 1: LABEL SESI / GELOMBANG & SIMULASI KAPASITAS */}
-                          {(localSettings.autoTargetConfig?.model || 'MODEL_1_DEDICATED_SESSION') === 'MODEL_1_DEDICATED_SESSION' && (
-                            <div className="p-5 bg-white rounded-2xl border border-purple-200 space-y-4 shadow-sm">
-                              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-purple-100 pb-3">
-                                <div>
-                                  <h4 className="text-xs font-black uppercase text-purple-950 font-oswald tracking-wider">
-                                    Label Sesi / Gelombang Pertandingan (Model 1)
-                                  </h4>
-                                  <p className="text-[9px] text-slate-500 font-semibold">
-                                    Format nama sesi netral dan fleksibel mengikuti komando TD/rundown lapangan (tanpa patokan jam/waktu kaku).
-                                  </p>
-                                </div>
-                                <div className="text-[9px] font-black text-purple-700 bg-purple-50 px-3 py-1.5 rounded-xl border border-purple-200 shrink-0">
-                                  Kapasitas 1 Sesi = {(localSettings.totalTargets || 10) * (localSettings.autoTargetConfig?.archersPerTarget || 4)} Atlet
-                                </div>
-                              </div>
-
-                              {/* Input Kustomisasi Label Sesi */}
-                              {(() => {
-                                const labels = localSettings.autoTargetConfig?.waveLabels || { 1: 'Sesi 1', 2: 'Sesi 2', 3: 'Sesi 3' };
-                                const waveKeys = Object.keys(labels).map(Number).sort((a, b) => a - b);
-                                const waves = waveKeys.length > 0 ? waveKeys : [1, 2, 3];
-
-                                return (
-                                  <div className="space-y-3">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 pt-1">
-                                      {waves.map(w => {
-                                        const currentLabel = labels[w] || `Sesi ${w}`;
-                                        return (
-                                          <div key={w} className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5 relative group">
-                                            <div className="flex items-center justify-between">
-                                              <span className="text-[8px] font-black uppercase text-purple-800 tracking-wider">
-                                                Gelombang / Wave {w}:
-                                              </span>
-                                              {waves.length > 2 && w === waves[waves.length - 1] && (
-                                                <button
-                                                  type="button"
-                                                  onClick={() => {
-                                                    const current = localSettings.autoTargetConfig!;
-                                                    const newLabels = { ...(current.waveLabels || labels) };
-                                                    delete newLabels[w];
-                                                    updateSettings({ autoTargetConfig: { ...current, waveLabels: newLabels } });
-                                                  }}
-                                                  className="text-[8px] text-red-500 hover:text-red-700 font-bold px-1"
-                                                  title="Hapus Sesi Terakhir"
-                                                >
-                                                  Hapus
-                                                </button>
-                                              )}
-                                            </div>
-                                            <input
-                                              type="text"
-                                              value={currentLabel}
-                                              onChange={e => {
-                                                const current = localSettings.autoTargetConfig!;
-                                                const newLabels = { ...(current.waveLabels || labels), [w]: e.target.value };
-                                                updateSettings({ autoTargetConfig: { ...current, waveLabels: newLabels } });
-                                              }}
-                                              className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold focus:border-purple-600 outline-none"
-                                              placeholder={`Sesi ${w}`}
-                                            />
-                                          </div>
-                                        );
-                                      })}
-
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          const current = localSettings.autoTargetConfig!;
-                                          const nextWave = (waves[waves.length - 1] || 0) + 1;
-                                          const newLabels = { ...(current.waveLabels || labels), [nextWave]: `Sesi ${nextWave}` };
-                                          updateSettings({ autoTargetConfig: { ...current, waveLabels: newLabels } });
-                                        }}
-                                        className="p-3 border-2 border-dashed border-purple-200 hover:border-purple-400 rounded-xl flex items-center justify-center gap-1.5 text-purple-700 hover:text-purple-900 text-xs font-bold transition-all bg-purple-50/50 hover:bg-purple-50"
-                                      >
-                                        <Plus className="w-3.5 h-3.5" />
-                                        <span>+ Tambah Sesi {waves.length + 1}</span>
-                                      </button>
-                                    </div>
-
-                                    {/* SIMULASI & PANDUAN LAPANGAN INTERAKTIF */}
-                                    <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-purple-50 via-indigo-50 to-blue-50 border border-purple-200 space-y-3">
-                                      <div className="flex items-center gap-2 text-purple-950 font-black text-[11px] uppercase tracking-wide">
-                                        <Sparkles className="w-4 h-4 text-purple-600" />
-                                        <span>Simulasi Pembagian Bantalan &amp; Sesi Berdasarkan Kuota Kategori</span>
-                                      </div>
-
-                                      {(() => {
-                                        const cats = (Object.keys(localSettings.categoryConfigs || {}) as CategoryType[]).filter(c => c !== CategoryType.OFFICIAL);
-                                        const displayCats = cats.length > 0 ? cats : [CategoryType.ADULT_PUTRA, CategoryType.ADULT_PUTRI];
-                                        const totalT = localSettings.totalTargets || 10;
-                                        const archersPerT = localSettings.autoTargetConfig?.archersPerTarget || 4;
-                                        const capacityPerWave = totalT * archersPerT;
-
-                                        return (
-                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                            {displayCats.map(cat => {
-                                              const quota = localSettings.categoryConfigs?.[cat]?.quota || 0;
-                                              const catLabel = CATEGORY_LABELS[cat] || cat;
-
-                                              if (!quota || quota === 0) {
-                                                return (
-                                                  <div key={cat} className="p-3 bg-white/80 rounded-xl border border-slate-200 text-[10px] space-y-1">
-                                                    <span className="font-black text-slate-900 uppercase">{catLabel}</span>
-                                                    <p className="text-slate-500 font-medium italic">Kuota belum dibatasi (kapasitas 1 sesi: {capacityPerWave} atlet).</p>
-                                                  </div>
-                                                );
-                                              }
-
-                                              const neededWaves = Math.ceil(quota / capacityPerWave);
-                                              const targetsNeededForSingleWave = Math.ceil(quota / archersPerT);
-
-                                              return (
-                                                <div key={cat} className="p-3.5 bg-white rounded-xl border border-purple-200 space-y-2 shadow-xs">
-                                                  <div className="flex items-center justify-between">
-                                                    <span className="font-black text-xs text-slate-900 uppercase">{catLabel}</span>
-                                                    <span className="text-[9px] font-black bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full">
-                                                      Kuota: {quota} Atlet
-                                                    </span>
-                                                  </div>
-
-                                                  <div className="space-y-1 text-[9.5px]">
-                                                    {Array.from({ length: neededWaves }).map((_, wIdx) => {
-                                                      const waveNum = wIdx + 1;
-                                                      const sessionTitle = labels[waveNum] || `Sesi ${waveNum}`;
-                                                      const countInThisWave = Math.min(capacityPerWave, quota - (wIdx * capacityPerWave));
-                                                      const targetsInThisWave = Math.ceil(countInThisWave / archersPerT);
-
-                                                      return (
-                                                        <div key={waveNum} className="flex items-center justify-between py-1 border-b border-slate-100 last:border-none">
-                                                          <span className="font-bold text-slate-700">
-                                                            🏷️ {sessionTitle}
-                                                          </span>
-                                                          <span className="font-mono font-bold text-purple-900">
-                                                            {countInThisWave} atlet (Bantalan 1 s/d {targetsInThisWave})
-                                                          </span>
-                                                        </div>
-                                                      );
-                                                    })}
-                                                  </div>
-
-                                                  {/* Rekomendasi Fleksibel Lapangan */}
-                                                  {neededWaves > 1 ? (
-                                                    <div className="pt-2 border-t border-purple-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[9px]">
-                                                      <span className="text-slate-600 font-medium">
-                                                        💡 Ingin 1 sesi sekaligus tanpa sesi tambahan?
-                                                      </span>
-                                                      <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                          updateSettings({ totalTargets: targetsNeededForSingleWave });
-                                                          toast.success(`Jumlah bantalan berhasil diubah menjadi ${targetsNeededForSingleWave}! Seluruh ${quota} atlet sekarang cukup dalam 1 sesi.`);
-                                                        }}
-                                                        className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-black uppercase text-[8px] transition-all self-start sm:self-auto shrink-0"
-                                                      >
-                                                        Ubah ke {targetsNeededForSingleWave} Bantalan
-                                                      </button>
-                                                    </div>
-                                                  ) : (
-                                                    <p className="text-[8.5px] text-emerald-700 font-bold italic pt-1">
-                                                      ✓ Cukup 1 Sesi! Seluruh {quota} peserta dapat menembak bersamaan pada {targetsNeededForSingleWave} bantalan.
-                                                    </p>
-                                                  )}
-                                                </div>
-                                              );
-                                            })}
-                                          </div>
-                                        );
-                                      })()}
-                                    </div>
-                                  </div>
-                                );
-                              })()}
-                            </div>
-                          )}
-
-                          {/* PARAMETER ALOKASI (KAPASITAS, POLA URUTAN, & TRIGGER) */}
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
-                            {/* 1. Kapasitas Archer per Bantalan */}
-                            <div className="p-4 bg-white rounded-2xl border border-slate-200 space-y-2">
-                              <span className="text-[9px] font-black uppercase text-slate-700 tracking-wider block">
-                                Pemanah per Bantalan
-                              </span>
-                              <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl">
-                                {[2, 3, 4].map(num => (
-                                  <button
-                                    key={num}
-                                    type="button"
-                                    onClick={() => {
-                                      const current = localSettings.autoTargetConfig!;
-                                      updateSettings({
-                                        autoTargetConfig: { ...current, archersPerTarget: num },
-                                        archersPerTarget: num
-                                      });
-                                    }}
-                                    className={`py-2 rounded-lg text-xs font-black transition-all ${
-                                      (localSettings.autoTargetConfig?.archersPerTarget || 4) === num
-                                        ? 'bg-purple-600 text-white shadow-sm'
-                                        : 'text-slate-700 hover:text-slate-900'
-                                    }`}
-                                  >
-                                    {num} ({num === 2 ? 'A-B' : num === 3 ? 'A-C' : 'A-D'})
-                                  </button>
-                                ))}
-                              </div>
-                              <p className="text-[8px] text-slate-500 font-semibold italic">
-                                Standar resmi panahan menggunakan 4 pemanah (A, B, C, D).
-                              </p>
-                            </div>
-
-                            {/* 2. Pola Urutan Pengisian */}
-                            <div className="p-4 bg-white rounded-2xl border border-slate-200 space-y-2">
-                              <span className="text-[9px] font-black uppercase text-slate-700 tracking-wider block">
-                                Pola Urutan Slot
-                              </span>
-                              <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const current = localSettings.autoTargetConfig!;
-                                    updateSettings({ autoTargetConfig: { ...current, fillOrder: 'PARALLEL' } });
-                                  }}
-                                  className={`py-2 rounded-lg text-[10px] font-black uppercase transition-all ${
-                                    (localSettings.autoTargetConfig?.fillOrder || 'PARALLEL') === 'PARALLEL'
-                                      ? 'bg-purple-600 text-white shadow-sm'
-                                      : 'text-slate-700 hover:text-slate-900'
-                                  }`}
-                                  title="1A, 2A, 3A... lalu 1B, 2B..."
-                                >
-                                  Paralel (Rata)
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const current = localSettings.autoTargetConfig!;
-                                    updateSettings({ autoTargetConfig: { ...current, fillOrder: 'SEQUENTIAL' } });
-                                  }}
-                                  className={`py-2 rounded-lg text-[10px] font-black uppercase transition-all ${
-                                    localSettings.autoTargetConfig?.fillOrder === 'SEQUENTIAL'
-                                      ? 'bg-purple-600 text-white shadow-sm'
-                                      : 'text-slate-700 hover:text-slate-900'
-                                  }`}
-                                  title="1A, 1B, 1C, 1D lalu 2A..."
-                                >
-                                  Sekuensial
-                                </button>
-                              </div>
-                              <p className="text-[8px] text-slate-500 font-semibold italic">
-                                {(localSettings.autoTargetConfig?.fillOrder || 'PARALLEL') === 'PARALLEL'
-                                  ? 'Merata: Mengisi 1A, 2A.. 10A dulu, baru 1B, 2B (paling seimbang).'
-                                  : 'Penuh: Mengisi 1A, 1B, 1C, 1D sampai penuh baru lanjut 2A.'}
-                              </p>
-                            </div>
-
-                            {/* 3. Trigger Alokasi */}
-                            <div className="p-4 bg-white rounded-2xl border border-slate-200 space-y-2">
-                              <span className="text-[9px] font-black uppercase text-slate-700 tracking-wider block">
-                                Syarat Penerbitan Nomor
-                              </span>
-                              <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const current = localSettings.autoTargetConfig!;
-                                    updateSettings({ autoTargetConfig: { ...current, assignTrigger: 'ALL_REGISTRATIONS' } });
-                                  }}
-                                  className={`py-2 rounded-lg text-[9.5px] font-black uppercase transition-all ${
-                                    (localSettings.autoTargetConfig?.assignTrigger || 'ALL_REGISTRATIONS') === 'ALL_REGISTRATIONS'
-                                      ? 'bg-purple-600 text-white shadow-sm'
-                                      : 'text-slate-700 hover:text-slate-900'
-                                  }`}
-                                >
-                                  Langsung Daftar
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    const current = localSettings.autoTargetConfig!;
-                                    updateSettings({ autoTargetConfig: { ...current, assignTrigger: 'APPROVED_ONLY' } });
-                                  }}
-                                  className={`py-2 rounded-lg text-[9.5px] font-black uppercase transition-all ${
-                                    localSettings.autoTargetConfig?.assignTrigger === 'APPROVED_ONLY'
-                                      ? 'bg-purple-600 text-white shadow-sm'
-                                      : 'text-slate-700 hover:text-slate-900'
-                                  }`}
-                                >
-                                  Hanya Lunas
-                                </button>
-                              </div>
-                              <p className="text-[8px] text-slate-500 font-semibold italic">
-                                {localSettings.autoTargetConfig?.assignTrigger === 'APPROVED_ONLY'
-                                  ? 'Nomor diberikan setelah pendaftaran diverifikasi / lunas.'
-                                  : 'Langsung booking nomor bantalan saat formulir terkirim.'}
-                              </p>
-                            </div>
-                          </div>
-
-                          {/* TOMBOL SINKRONISASI MASSAL KE PESERTA YANG SUDAH TERDAFTAR */}
-                          <div className="p-4 bg-purple-50/80 border border-purple-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div>
-                              <p className="text-[10px] font-black text-purple-950 uppercase tracking-wide">
-                                Terapkan ke Peserta yang Sudah Ada di Sistem
-                              </p>
-                              <p className="text-[9px] text-slate-600 font-semibold">
-                                Sudah ada {archers.length} peserta terdaftar. Klik tombol di kanan untuk mengalokasikan ulang nomor bantalan seluruh peserta sesuai settingan di atas.
-                              </p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (!event) {
-                                  toast.error("Data event belum siap.");
-                                  return;
-                                }
-                                const { updatedArchers } = reallocateAllParticipants(event, localSettings.autoTargetConfig);
-                                if (onBulkUpdateArchers) {
-                                  onBulkUpdateArchers(updatedArchers);
-                                }
-                                toast.success(`✓ Berhasil! Nomor bantalan telah disinkronkan untuk ${updatedArchers.length} atlet sesuai ${localSettings.autoTargetConfig?.model === 'MODEL_2_SPLIT_BLOCKS' ? 'Model 2' : 'Model 1'}.`);
-                              }}
-                              className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-purple-600/20 active:scale-95 transition-all shrink-0"
-                            >
-                              <RefreshCw className="w-3.5 h-3.5" />
-                              <span>Sinkronkan ke Semua Atlet</span>
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="p-4 bg-white rounded-2xl border border-slate-200 text-center text-slate-600 text-xs font-semibold">
-                          Fitur alokasi otomatis saat ini <span className="font-black text-slate-800">NONAKTIF</span>. Peserta tidak akan langsung mendapatkan nomor bantalan saat mendaftar online. Aktifkan saklar di atas untuk mengaktifkan Model 1 atau Model 2.
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-200 space-y-4">
-                       <p className="text-[10px] font-black text-slate-700 uppercase tracking-[0.2em]">Fitur Pendaftaran</p>
-                       <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                             <div className={`p-2 rounded-lg ${localSettings.enableGateway ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-700'}`}>
-                                <Zap className="w-5 h-5" />
-                             </div>
-                             <div>
-                                <p className="text-xs font-black uppercase text-slate-900 leading-none">Payment Gateway</p>
-                                <p className="text-[9px] font-bold text-slate-900 uppercase mt-1">Otomatisasi Status Lunas</p>
-                             </div>
-                          </div>
-                          <button 
-                            type="button" 
-                            onClick={() => updateSettings({ enableGateway: !localSettings.enableGateway })}
-                            className="transition-all active:scale-90"
-                          >
-                             {localSettings.enableGateway ? <ToggleRight className="w-10 h-10 text-blue-600" /> : <ToggleLeft className="w-10 h-10 text-slate-600" />}
-                          </button>
-                       </div>
-                        <div className="pt-4 border-t border-slate-200">
-                         <label className="block space-y-2">
-                            <div className="flex items-center gap-2">
-                               <UsersIcon className="w-4 h-4 text-slate-700" />
-                               <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Biaya Registrasi Official (Pusat)</span>
-                            </div>
-                            <div className="relative">
-                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-black text-slate-700 italic">Rp</span>
-                              <input 
-                                type="number" 
-                                value={localSettings.officialFee || 0} 
-                                onChange={e => updateSettings({ officialFee: parseInt(e.target.value) || 0 })} 
-                                className="w-full pl-12 pr-6 py-3 bg-white border border-slate-200 rounded-xl font-black italic text-lg text-slate-900 outline-none focus:border-blue-500 transition-all shadow-sm" 
-                                placeholder="Biaya Official" 
-                              />
-                            </div>
-                         </label>
-                       </div>
-                    </div>
-
                     {/* Kebijakan KTA Peserta */}
                     <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-200 space-y-4">
                        <div className="flex items-center justify-between">
@@ -2254,6 +1597,641 @@ const AdminPanel: React.FC<Props> = ({
               </div>
             </div>
           )}
+
+            </div>
+          )}
+
+          {activeTab === 'CATEGORIES' && (
+          <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Section: Pengaturan Bantalan & Alokasi Otomatis (Atas Sendiri) */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-4 border-b border-slate-100 pb-4">
+                <div className="p-2.5 rounded-xl bg-purple-50">
+                  <Layers className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black font-oswald uppercase italic text-slate-800">Pengaturan Bantalan &amp; Alokasi Otomatis</h3>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Atur kapasitas bantalan lapangan &amp; pola pembagian target per kategori</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                <label className="block group">
+                  <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1">Total Bantalan</span>
+                  <input type="number" value={localSettings.totalTargets} onChange={e => updateSettings({ totalTargets: parseInt(e.target.value) || 1 })} className="block mt-1 w-full rounded-lg border-slate-200 p-3 border font-bold outline-none focus:border-arcus-red text-slate-900" min="1" />
+                </label>
+
+                <label className="block group">
+                  <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest px-1 italic">Archer per Target Face</span>
+                  <input type="number" value={localSettings.archersPerTarget || 2} onChange={e => updateSettings({ archersPerTarget: parseInt(e.target.value) || 1 })} className="block mt-1 w-full rounded-lg border-slate-200 p-3 border font-bold outline-none focus:border-arcus-red text-slate-900" min="1" max="4" />
+                </label>
+              </div>
+
+              {!isPractice && (
+                <div className="bg-slate-50 p-6 md:p-8 rounded-[2rem] border border-slate-200 space-y-6 shadow-sm">
+                  {/* Header with Master Switch */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-5">
+                    <div className="flex items-start gap-3.5">
+                      <div className={`p-3 rounded-2xl shadow-sm transition-all ${localSettings.autoTargetConfig?.enabled ? 'bg-purple-600 text-white shadow-purple-600/30' : 'bg-slate-200 text-slate-600'}`}>
+                        <Layers className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-base sm:text-lg font-black font-oswald uppercase italic tracking-wide text-slate-900">
+                            Alokasi Bantalan Otomatis Saat Pendaftaran
+                          </h3>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${
+                            localSettings.autoTargetConfig?.enabled 
+                              ? 'bg-purple-100 text-purple-900 border border-purple-200' 
+                              : 'bg-slate-200 text-slate-600'
+                          }`}>
+                            {localSettings.autoTargetConfig?.enabled ? 'AKTIF (AUTO)' : 'NONAKTIF'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 font-semibold mt-1 leading-relaxed">
+                          Pendaftar langsung otomatis mendapatkan nomor bantalan (Target, Posisi A/B/C/D, &amp; Sesi) saat menyelesaikan pendaftaran, dikelompokkan urut sesuai kategori.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Master Switch */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const current = localSettings.autoTargetConfig;
+                        const isCurrentlyEnabled = !!current?.enabled;
+                        const newConf: AutoTargetConfig = {
+                          enabled: !isCurrentlyEnabled,
+                          model: current?.model || 'MODEL_1_DEDICATED_SESSION',
+                          archersPerTarget: current?.archersPerTarget || localSettings.archersPerTarget || 4,
+                          fillOrder: current?.fillOrder || 'PARALLEL',
+                          assignTrigger: current?.assignTrigger || 'ALL_REGISTRATIONS',
+                          categoryBlocks: current?.categoryBlocks || {},
+                          waveLabels: current?.waveLabels || { 1: 'Sesi 1', 2: 'Sesi 2', 3: 'Sesi 3' }
+                        };
+                        updateSettings({ autoTargetConfig: newConf });
+                      }}
+                      className="transition-all active:scale-95 shrink-0 self-end sm:self-center"
+                      title="Saklar Utama Auto-Target"
+                    >
+                      {localSettings.autoTargetConfig?.enabled ? (
+                        <ToggleRight className="w-11 h-11 text-purple-600 drop-shadow-sm" />
+                      ) : (
+                        <ToggleLeft className="w-11 h-11 text-slate-400" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Active Settings Panel */}
+                  {localSettings.autoTargetConfig?.enabled ? (
+                    <div className="space-y-6 animate-in fade-in duration-300">
+                      {/* SAKLAR PILIHAN MODEL (MODEL 1 vs MODEL 2) */}
+                      <div className="space-y-3">
+                        <span className="text-[10px] font-black uppercase text-slate-900 tracking-widest flex items-center gap-1.5">
+                          <Sliders className="w-3.5 h-3.5 text-purple-600" /> Pilih Model Pengelompokan Bantalan:
+                        </span>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* KARTU MODEL 1 */}
+                          <div
+                            onClick={() => {
+                              const current = localSettings.autoTargetConfig!;
+                              updateSettings({
+                                autoTargetConfig: {
+                                  ...current,
+                                  model: 'MODEL_1_DEDICATED_SESSION'
+                                }
+                              });
+                            }}
+                            className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between space-y-3 relative ${
+                              (localSettings.autoTargetConfig?.model || 'MODEL_1_DEDICATED_SESSION') === 'MODEL_1_DEDICATED_SESSION'
+                                ? 'border-purple-600 bg-purple-50/80 shadow-md ring-2 ring-purple-100'
+                                : 'border-slate-200 hover:border-slate-300 bg-white'
+                            }`}
+                          >
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="px-2.5 py-1 bg-purple-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider">
+                                  MODEL 1
+                                </span>
+                                {(localSettings.autoTargetConfig?.model || 'MODEL_1_DEDICATED_SESSION') === 'MODEL_1_DEDICATED_SESSION' && (
+                                  <span className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center shadow-sm">
+                                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                  </span>
+                                )}
+                              </div>
+                              <h4 className="text-sm font-black text-slate-900 uppercase font-oswald italic">
+                                Beda Sesi / Jam Tembak per Kategori
+                              </h4>
+                              <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+                                Setiap kategori menggunakan <strong>Bantalan 1 s/d {localSettings.totalTargets || 10}</strong>. Jika kuota/pendaftar melebihi kapasitas 1 sesi (contoh: &gt; {(localSettings.totalTargets || 10) * (localSettings.autoTargetConfig?.archersPerTarget || 4)} atlet), pendaftar berikutnya otomatis dialokasikan ke <strong>Sesi 2 / Gelombang 2 (Wave 2)</strong>.
+                              </p>
+                            </div>
+                            <div className="pt-2 border-t border-purple-200/60 text-[9px] font-black text-purple-900 uppercase flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5 text-purple-600" /> Cocok untuk: Kategori bertanding pada jam/sesi terpisah
+                            </div>
+                          </div>
+
+                          {/* KARTU MODEL 2 */}
+                          <div
+                            onClick={() => {
+                              const current = localSettings.autoTargetConfig!;
+                              const activeCats = (Object.keys(localSettings.categoryConfigs || {}) as CategoryType[]).filter(c => c !== CategoryType.OFFICIAL);
+                              const defaultBlocks = generateDefaultCategoryBlocks(
+                                activeCats.length > 0 ? activeCats : [CategoryType.ADULT_PUTRA, CategoryType.ADULT_PUTRI],
+                                localSettings.totalTargets || 10,
+                                localSettings.categoryConfigs as any
+                              );
+                              updateSettings({
+                                autoTargetConfig: {
+                                  ...current,
+                                  model: 'MODEL_2_SPLIT_BLOCKS',
+                                  categoryBlocks: (current.categoryBlocks && Object.keys(current.categoryBlocks).length > 0)
+                                    ? current.categoryBlocks
+                                    : defaultBlocks
+                                }
+                              });
+                            }}
+                            className={`p-5 rounded-2xl border-2 cursor-pointer transition-all flex flex-col justify-between space-y-3 relative ${
+                              localSettings.autoTargetConfig?.model === 'MODEL_2_SPLIT_BLOCKS'
+                                ? 'border-indigo-600 bg-indigo-50/80 shadow-md ring-2 ring-indigo-100'
+                                : 'border-slate-200 hover:border-slate-300 bg-white'
+                            }`}
+                          >
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="px-2.5 py-1 bg-indigo-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider">
+                                  MODEL 2
+                                </span>
+                                {localSettings.autoTargetConfig?.model === 'MODEL_2_SPLIT_BLOCKS' && (
+                                  <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+                                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                  </span>
+                                )}
+                              </div>
+                              <h4 className="text-sm font-black text-slate-900 uppercase font-oswald italic">
+                                Pembagian Blok Bantalan Bersamaan
+                              </h4>
+                              <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+                                Total <strong>{localSettings.totalTargets || 10} Bantalan</strong> dibagi menjadi blok per kategori (contoh: Dewasa Putra Bantalan 1–5, Dewasa Putri Bantalan 6–10) untuk bertanding di <strong>lapangan &amp; jam yang sama</strong>.
+                              </p>
+                            </div>
+                            <div className="pt-2 border-t border-indigo-200/60 text-[9px] font-black text-indigo-900 uppercase flex items-center gap-1.5">
+                              <UsersIcon className="w-3.5 h-3.5 text-indigo-600" /> Cocok untuk: Kategori bertanding serentak di lapangan
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* PENGATURAN SPESIFIK MODEL 2: RENTANG BLOK BANTALAN */}
+                      {localSettings.autoTargetConfig?.model === 'MODEL_2_SPLIT_BLOCKS' && (
+                        <div className="p-5 bg-white rounded-2xl border border-indigo-200 space-y-4 shadow-sm animate-in fade-in duration-200">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                            <div>
+                              <h4 className="text-xs font-black uppercase text-indigo-950 font-oswald tracking-wider">
+                                Rentang Bantalan per Kategori (Model 2)
+                              </h4>
+                              <p className="text-[9px] text-slate-500 font-semibold">
+                                Atur bantalan awal dan akhir untuk tiap kategori lomba. Total bantalan fisik: {localSettings.totalTargets || 10}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const activeCats = (Object.keys(localSettings.categoryConfigs || {}) as CategoryType[]).filter(c => c !== CategoryType.OFFICIAL);
+                                const defaultBlocks = generateDefaultCategoryBlocks(
+                                  activeCats.length > 0 ? activeCats : [CategoryType.ADULT_PUTRA, CategoryType.ADULT_PUTRI],
+                                  localSettings.totalTargets || 10,
+                                  localSettings.categoryConfigs as any
+                                );
+                                const current = localSettings.autoTargetConfig!;
+                                updateSettings({
+                                  autoTargetConfig: {
+                                    ...current,
+                                    categoryBlocks: defaultBlocks
+                                  }
+                                });
+                                toast.success("Rentang bantalan otomatis dibagi rata/proporsional berdasarkan kuota!");
+                              }}
+                              className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-indigo-200 transition-all self-start sm:self-center"
+                            >
+                              <Zap className="w-3 h-3 text-indigo-600 fill-current" />
+                              <span>Hitung Otomatis Pembagian Blok</span>
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {(() => {
+                              const cats = (Object.keys(localSettings.categoryConfigs || {}) as CategoryType[]).filter(c => c !== CategoryType.OFFICIAL);
+                              const displayCats = cats.length > 0 ? cats : [CategoryType.ADULT_PUTRA, CategoryType.ADULT_PUTRI];
+                              const currentBlocks = localSettings.autoTargetConfig?.categoryBlocks || {};
+                              const archersPerT = localSettings.autoTargetConfig?.archersPerTarget || localSettings.archersPerTarget || 4;
+
+                              return displayCats.map(cat => {
+                                const blk = currentBlocks[cat] || { startTarget: 1, endTarget: localSettings.totalTargets || 10, sessionName: '' };
+                                const numT = Math.max(0, (blk.endTarget || 1) - (blk.startTarget || 1) + 1);
+                                const maxCap = numT * archersPerT;
+                                const quota = localSettings.categoryConfigs?.[cat]?.quota;
+
+                                return (
+                                  <div key={cat} className="p-3.5 rounded-xl border border-slate-200 bg-slate-50/70 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-[10px] font-black text-slate-900 uppercase truncate">
+                                        {CATEGORY_LABELS[cat] || cat}
+                                      </p>
+                                      <span className="text-[8px] font-bold text-slate-500 bg-white px-2 py-0.5 rounded border">
+                                        Kuota: {quota ? `${quota}` : 'Unlimited'}
+                                      </span>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div>
+                                        <span className="text-[7.5px] font-black text-slate-500 uppercase block">Mulai</span>
+                                        <input
+                                          type="number"
+                                          min="1"
+                                          max={localSettings.totalTargets || 10}
+                                          value={blk.startTarget || 1}
+                                          onChange={e => {
+                                            const val = parseInt(e.target.value) || 1;
+                                            const current = localSettings.autoTargetConfig!;
+                                            const updatedBlocks = {
+                                              ...(current.categoryBlocks || {}),
+                                              [cat]: { ...blk, startTarget: val }
+                                            };
+                                            updateSettings({ autoTargetConfig: { ...current, categoryBlocks: updatedBlocks } });
+                                          }}
+                                          className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-black text-center focus:border-indigo-600 outline-none"
+                                        />
+                                      </div>
+                                      <div>
+                                        <span className="text-[7.5px] font-black text-slate-500 uppercase block">Selesai</span>
+                                        <input
+                                          type="number"
+                                          min="1"
+                                          max={localSettings.totalTargets || 10}
+                                          value={blk.endTarget || 1}
+                                          onChange={e => {
+                                            const val = parseInt(e.target.value) || 1;
+                                            const current = localSettings.autoTargetConfig!;
+                                            const updatedBlocks = {
+                                              ...(current.categoryBlocks || {}),
+                                              [cat]: { ...blk, endTarget: val }
+                                            };
+                                            updateSettings({ autoTargetConfig: { ...current, categoryBlocks: updatedBlocks } });
+                                          }}
+                                          className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-black text-center focus:border-indigo-600 outline-none"
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-between text-[8px] font-bold text-indigo-900 pt-1">
+                                      <span>Total: {numT} Bantalan</span>
+                                      <span>Kapasitas/Sesi: {maxCap} slot</span>
+                                    </div>
+                                  </div>
+                                );
+                              });
+                            })()}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* PENGATURAN SPESIFIK MODEL 1: LABEL SESI / GELOMBANG & SIMULASI KAPASITAS */}
+                      {(localSettings.autoTargetConfig?.model || 'MODEL_1_DEDICATED_SESSION') === 'MODEL_1_DEDICATED_SESSION' && (
+                        <div className="p-5 bg-white rounded-2xl border border-purple-200 space-y-4 shadow-sm">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-purple-100 pb-3">
+                            <div>
+                              <h4 className="text-xs font-black uppercase text-purple-950 font-oswald tracking-wider">
+                                Label Sesi / Gelombang Pertandingan (Model 1)
+                              </h4>
+                              <p className="text-[9px] text-slate-500 font-semibold">
+                                Format nama sesi netral dan fleksibel mengikuti komando TD/rundown lapangan (tanpa patokan jam/waktu kaku).
+                              </p>
+                            </div>
+                            <div className="text-[9px] font-black text-purple-700 bg-purple-50 px-3 py-1.5 rounded-xl border border-purple-200 shrink-0">
+                              Kapasitas 1 Sesi = {(localSettings.totalTargets || 10) * (localSettings.autoTargetConfig?.archersPerTarget || 4)} Atlet
+                            </div>
+                          </div>
+
+                          {/* Input Kustomisasi Label Sesi */}
+                          {(() => {
+                            const labels = localSettings.autoTargetConfig?.waveLabels || { 1: 'Sesi 1', 2: 'Sesi 2', 3: 'Sesi 3' };
+                            const waveKeys = Object.keys(labels).map(Number).sort((a, b) => a - b);
+                            const waves = waveKeys.length > 0 ? waveKeys : [1, 2, 3];
+
+                            return (
+                              <div className="space-y-3">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 pt-1">
+                                  {waves.map(w => {
+                                    const currentLabel = labels[w] || `Sesi ${w}`;
+                                    return (
+                                      <div key={w} className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5 relative group">
+                                        <div className="flex items-center justify-between">
+                                          <span className="text-[8px] font-black uppercase text-purple-800 tracking-wider">
+                                            Gelombang / Wave {w}:
+                                          </span>
+                                          {waves.length > 2 && w === waves[waves.length - 1] && (
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                const current = localSettings.autoTargetConfig!;
+                                                const newLabels = { ...(current.waveLabels || labels) };
+                                                delete newLabels[w];
+                                                updateSettings({ autoTargetConfig: { ...current, waveLabels: newLabels } });
+                                              }}
+                                              className="text-[8px] text-red-500 hover:text-red-700 font-bold px-1"
+                                              title="Hapus Sesi Terakhir"
+                                            >
+                                              Hapus
+                                            </button>
+                                          )}
+                                        </div>
+                                        <input
+                                          type="text"
+                                          value={currentLabel}
+                                          onChange={e => {
+                                            const current = localSettings.autoTargetConfig!;
+                                            const newLabels = { ...(current.waveLabels || labels), [w]: e.target.value };
+                                            updateSettings({ autoTargetConfig: { ...current, waveLabels: newLabels } });
+                                          }}
+                                          className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold focus:border-purple-600 outline-none"
+                                          placeholder={`Sesi ${w}`}
+                                        />
+                                      </div>
+                                    );
+                                  })}
+
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const current = localSettings.autoTargetConfig!;
+                                      const nextWave = (waves[waves.length - 1] || 0) + 1;
+                                      const newLabels = { ...(current.waveLabels || labels), [nextWave]: `Sesi ${nextWave}` };
+                                      updateSettings({ autoTargetConfig: { ...current, waveLabels: newLabels } });
+                                    }}
+                                    className="p-3 border-2 border-dashed border-purple-200 hover:border-purple-400 rounded-xl flex items-center justify-center gap-1.5 text-purple-700 hover:text-purple-900 text-xs font-bold transition-all bg-purple-50/50 hover:bg-purple-50"
+                                  >
+                                    <Plus className="w-3.5 h-3.5" />
+                                    <span>+ Tambah Sesi {waves.length + 1}</span>
+                                  </button>
+                                </div>
+
+                                {/* SIMULASI & PANDUAN LAPANGAN INTERAKTIF */}
+                                <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-purple-50 via-indigo-50 to-blue-50 border border-purple-200 space-y-3">
+                                  <div className="flex items-center gap-2 text-purple-950 font-black text-[11px] uppercase tracking-wide">
+                                    <Sparkles className="w-4 h-4 text-purple-600" />
+                                    <span>Simulasi Pembagian Bantalan &amp; Sesi Berdasarkan Kuota Kategori</span>
+                                  </div>
+
+                                  {(() => {
+                                    const cats = (Object.keys(localSettings.categoryConfigs || {}) as CategoryType[]).filter(c => c !== CategoryType.OFFICIAL);
+                                    const displayCats = cats.length > 0 ? cats : [CategoryType.ADULT_PUTRA, CategoryType.ADULT_PUTRI];
+                                    const totalT = localSettings.totalTargets || 10;
+                                    const archersPerT = localSettings.autoTargetConfig?.archersPerTarget || 4;
+                                    const capacityPerWave = totalT * archersPerT;
+
+                                    return (
+                                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {displayCats.map(cat => {
+                                          const quota = localSettings.categoryConfigs?.[cat]?.quota || 0;
+                                          const catLabel = CATEGORY_LABELS[cat] || cat;
+
+                                          if (!quota || quota === 0) {
+                                            return (
+                                              <div key={cat} className="p-3 bg-white/80 rounded-xl border border-slate-200 text-[10px] space-y-1">
+                                                <span className="font-black text-slate-900 uppercase">{catLabel}</span>
+                                                <p className="text-slate-500 font-medium italic">Kuota belum dibatasi (kapasitas 1 sesi: {capacityPerWave} atlet).</p>
+                                              </div>
+                                            );
+                                          }
+
+                                          const neededWaves = Math.ceil(quota / capacityPerWave);
+                                          const targetsNeededForSingleWave = Math.ceil(quota / archersPerT);
+
+                                          return (
+                                            <div key={cat} className="p-3.5 bg-white rounded-xl border border-purple-200 space-y-2 shadow-xs">
+                                              <div className="flex items-center justify-between">
+                                                <span className="font-black text-xs text-slate-900 uppercase">{catLabel}</span>
+                                                <span className="text-[9px] font-black bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full">
+                                                  Kuota: {quota} Atlet
+                                                </span>
+                                              </div>
+
+                                              <div className="space-y-1 text-[9.5px]">
+                                                {Array.from({ length: neededWaves }).map((_, wIdx) => {
+                                                  const waveNum = wIdx + 1;
+                                                  const sessionTitle = labels[waveNum] || `Sesi ${waveNum}`;
+                                                  const countInThisWave = Math.min(capacityPerWave, quota - (wIdx * capacityPerWave));
+                                                  const targetsInThisWave = Math.ceil(countInThisWave / archersPerT);
+
+                                                  return (
+                                                    <div key={waveNum} className="flex items-center justify-between py-1 border-b border-slate-100 last:border-none">
+                                                      <span className="font-bold text-slate-700">
+                                                        🏷️ {sessionTitle}
+                                                      </span>
+                                                      <span className="font-mono font-bold text-purple-900">
+                                                        {countInThisWave} atlet (Bantalan 1 s/d {targetsInThisWave})
+                                                      </span>
+                                                    </div>
+                                                  );
+                                                })}
+                                              </div>
+
+                                              {/* Rekomendasi Fleksibel Lapangan */}
+                                              {neededWaves > 1 ? (
+                                                <div className="pt-2 border-t border-purple-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[9px]">
+                                                  <span className="text-slate-600 font-medium">
+                                                    💡 Ingin 1 sesi sekaligus tanpa sesi tambahan?
+                                                  </span>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      updateSettings({ totalTargets: targetsNeededForSingleWave });
+                                                      toast.success(`Jumlah bantalan berhasil diubah menjadi ${targetsNeededForSingleWave}! Seluruh ${quota} atlet sekarang cukup dalam 1 sesi.`);
+                                                    }}
+                                                    className="px-2.5 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-black uppercase text-[8px] transition-all self-start sm:self-auto shrink-0"
+                                                  >
+                                                    Ubah ke {targetsNeededForSingleWave} Bantalan
+                                                  </button>
+                                                </div>
+                                              ) : (
+                                                <p className="text-[8.5px] text-emerald-700 font-bold italic pt-1">
+                                                  ✓ Cukup 1 Sesi! Seluruh {quota} peserta dapat menembak bersamaan pada {targetsNeededForSingleWave} bantalan.
+                                                </p>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+
+                      {/* PARAMETER ALOKASI (KAPASITAS, POLA URUTAN, & TRIGGER) */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+                        {/* 1. Kapasitas Archer per Bantalan */}
+                        <div className="p-4 bg-white rounded-2xl border border-slate-200 space-y-2">
+                          <span className="text-[9px] font-black uppercase text-slate-700 tracking-wider block">
+                            Pemanah per Bantalan
+                          </span>
+                          <div className="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-xl">
+                            {[2, 3, 4].map(num => (
+                              <button
+                                key={num}
+                                type="button"
+                                onClick={() => {
+                                  const current = localSettings.autoTargetConfig!;
+                                  updateSettings({
+                                    autoTargetConfig: { ...current, archersPerTarget: num },
+                                    archersPerTarget: num
+                                  });
+                                }}
+                                className={`py-2 rounded-lg text-xs font-black transition-all ${
+                                  (localSettings.autoTargetConfig?.archersPerTarget || 4) === num
+                                    ? 'bg-purple-600 text-white shadow-sm'
+                                    : 'text-slate-700 hover:text-slate-900'
+                                }`}
+                              >
+                                {num} ({num === 2 ? 'A-B' : num === 3 ? 'A-C' : 'A-D'})
+                              </button>
+                            ))}
+                          </div>
+                          <p className="text-[8px] text-slate-500 font-semibold italic">
+                            Standar resmi panahan menggunakan 4 pemanah (A, B, C, D).
+                          </p>
+                        </div>
+
+                        {/* 2. Pola Urutan Pengisian */}
+                        <div className="p-4 bg-white rounded-2xl border border-slate-200 space-y-2">
+                          <span className="text-[9px] font-black uppercase text-slate-700 tracking-wider block">
+                            Pola Urutan Slot
+                          </span>
+                          <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const current = localSettings.autoTargetConfig!;
+                                updateSettings({ autoTargetConfig: { ...current, fillOrder: 'PARALLEL' } });
+                              }}
+                              className={`py-2 rounded-lg text-[10px] font-black uppercase transition-all ${
+                                (localSettings.autoTargetConfig?.fillOrder || 'PARALLEL') === 'PARALLEL'
+                                  ? 'bg-purple-600 text-white shadow-sm'
+                                  : 'text-slate-700 hover:text-slate-900'
+                              }`}
+                              title="1A, 2A, 3A... lalu 1B, 2B..."
+                            >
+                              Paralel (Rata)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const current = localSettings.autoTargetConfig!;
+                                updateSettings({ autoTargetConfig: { ...current, fillOrder: 'SEQUENTIAL' } });
+                              }}
+                              className={`py-2 rounded-lg text-[10px] font-black uppercase transition-all ${
+                                localSettings.autoTargetConfig?.fillOrder === 'SEQUENTIAL'
+                                  ? 'bg-purple-600 text-white shadow-sm'
+                                  : 'text-slate-700 hover:text-slate-900'
+                              }`}
+                              title="1A, 1B, 1C, 1D lalu 2A..."
+                            >
+                              Sekuensial
+                            </button>
+                          </div>
+                          <p className="text-[8px] text-slate-500 font-semibold italic">
+                            {(localSettings.autoTargetConfig?.fillOrder || 'PARALLEL') === 'PARALLEL'
+                              ? 'Merata: Mengisi 1A, 2A.. 10A dulu, baru 1B, 2B (paling seimbang).'
+                              : 'Penuh: Mengisi 1A, 1B, 1C, 1D sampai penuh baru lanjut 2A.'}
+                          </p>
+                        </div>
+
+                        {/* 3. Trigger Alokasi */}
+                        <div className="p-4 bg-white rounded-2xl border border-slate-200 space-y-2">
+                          <span className="text-[9px] font-black uppercase text-slate-700 tracking-wider block">
+                            Syarat Penerbitan Nomor
+                          </span>
+                          <div className="grid grid-cols-2 gap-1 bg-slate-100 p-1 rounded-xl">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const current = localSettings.autoTargetConfig!;
+                                updateSettings({ autoTargetConfig: { ...current, assignTrigger: 'ALL_REGISTRATIONS' } });
+                              }}
+                              className={`py-2 rounded-lg text-[9.5px] font-black uppercase transition-all ${
+                                (localSettings.autoTargetConfig?.assignTrigger || 'ALL_REGISTRATIONS') === 'ALL_REGISTRATIONS'
+                                  ? 'bg-purple-600 text-white shadow-sm'
+                                  : 'text-slate-700 hover:text-slate-900'
+                              }`}
+                            >
+                              Langsung Daftar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const current = localSettings.autoTargetConfig!;
+                                updateSettings({ autoTargetConfig: { ...current, assignTrigger: 'APPROVED_ONLY' } });
+                              }}
+                              className={`py-2 rounded-lg text-[9.5px] font-black uppercase transition-all ${
+                                localSettings.autoTargetConfig?.assignTrigger === 'APPROVED_ONLY'
+                                  ? 'bg-purple-600 text-white shadow-sm'
+                                  : 'text-slate-700 hover:text-slate-900'
+                              }`}
+                            >
+                              Hanya Lunas
+                            </button>
+                          </div>
+                          <p className="text-[8px] text-slate-500 font-semibold italic">
+                            {localSettings.autoTargetConfig?.assignTrigger === 'APPROVED_ONLY'
+                              ? 'Nomor diberikan setelah pendaftaran diverifikasi / lunas.'
+                              : 'Langsung booking nomor bantalan saat formulir terkirim.'}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* TOMBOL SINKRONISASI MASSAL KE PESERTA YANG SUDAH TERDAFTAR */}
+                      <div className="p-4 bg-purple-50/80 border border-purple-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] font-black text-purple-950 uppercase tracking-wide">
+                            Terapkan ke Peserta yang Sudah Ada di Sistem
+                          </p>
+                          <p className="text-[9px] text-slate-600 font-semibold">
+                            Sudah ada {archers.length} peserta terdaftar. Klik tombol di kanan untuk mengalokasikan ulang nomor bantalan seluruh peserta sesuai settingan di atas.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!event) {
+                              toast.error("Data event belum siap.");
+                              return;
+                            }
+                            const { updatedArchers } = reallocateAllParticipants(event, localSettings.autoTargetConfig);
+                            if (onBulkUpdateArchers) {
+                              onBulkUpdateArchers(updatedArchers);
+                            }
+                            toast.success(`✓ Berhasil! Nomor bantalan telah disinkronkan untuk ${updatedArchers.length} atlet sesuai ${localSettings.autoTargetConfig?.model === 'MODEL_2_SPLIT_BLOCKS' ? 'Model 2' : 'Model 1'}.`);
+                          }}
+                          className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-purple-600/20 active:scale-95 transition-all shrink-0"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Sinkronkan ke Semua Atlet</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-4 bg-white rounded-2xl border border-slate-200 text-center text-slate-600 text-xs font-semibold">
+                      Fitur alokasi otomatis saat ini <span className="font-black text-slate-800">NONAKTIF</span>. Peserta tidak akan langsung mendapatkan nomor bantalan saat mendaftar online. Aktifkan saklar di atas untuk mengaktifkan Model 1 atau Model 2.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
           {/* Section: Category Rules */}
           <div className="space-y-8">
@@ -2798,6 +2776,45 @@ const AdminPanel: React.FC<Props> = ({
                   </button>
                 </div>
               )}
+
+              {/* Section: Otomatisasi Payment Gateway & Biaya Official */}
+              <div className="bg-slate-50 p-6 md:p-8 rounded-[2rem] border border-slate-200 grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                <div className="flex items-center justify-between bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                  <div className="flex items-center gap-3.5">
+                    <div className={`p-2.5 rounded-xl ${localSettings.enableGateway ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-700'}`}>
+                      <Zap className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase text-slate-900 leading-none">Payment Gateway</p>
+                      <p className="text-[9px] font-bold text-slate-600 uppercase mt-1">Otomatisasi Status Lunas</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => updateSettings({ enableGateway: !localSettings.enableGateway })}
+                    className="transition-all active:scale-90 shrink-0"
+                  >
+                    {localSettings.enableGateway ? <ToggleRight className="w-10 h-10 text-blue-600" /> : <ToggleLeft className="w-10 h-10 text-slate-600" />}
+                  </button>
+                </div>
+
+                <label className="block bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+                  <div className="flex items-center gap-2">
+                    <UsersIcon className="w-4 h-4 text-slate-700" />
+                    <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Biaya Registrasi Official (Pusat)</span>
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-black text-slate-700 italic">Rp</span>
+                    <input
+                      type="number"
+                      value={localSettings.officialFee || 0}
+                      onChange={e => updateSettings({ officialFee: parseInt(e.target.value) || 0 })}
+                      className="w-full pl-12 pr-6 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-black italic text-base text-slate-900 outline-none focus:border-blue-500 transition-all"
+                      placeholder="Biaya Official"
+                    />
+                  </div>
+                </label>
+              </div>
 
               {/* Section: Manual Payment Target */}
               <div className="space-y-8">
